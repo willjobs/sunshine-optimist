@@ -314,7 +314,7 @@
     h1 {
       margin: 0 0 14px;
       font-family: var(--serif);
-      font-size: clamp(34px, 4vw + 6px, 46px);
+      font-size: clamp(30px, 3vw + 5px, 42px);
       line-height: 1.12;
       color: #c46e13;
       font-weight: 600;
@@ -322,7 +322,7 @@
 
     .lede {
       margin: 0 0 16px;
-      font-size: clamp(22px, 3vw, 26px);
+      font-size: clamp(18px, 3vw, 24px);
       font-weight: 600;
       letter-spacing: 0.01em;
       color: #36302a;
@@ -989,20 +989,23 @@
       return `vs. ${value} on ${dateLabel}`;
     };
 
-    const formatDaylightChangeText = (minutes) => {
+    const formatOptimisticDelta = (minutes) => {
       if (minutes == null || Number.isNaN(minutes)) {
-        return "Sunrise or sunset isn't happening today.";
+        return "—";
       }
-      const rounded = Math.round(minutes);
-      if (rounded === 0) {
-        return "Same amount of daylight today";
+      const absMinutes = Math.abs(minutes);
+      if (absMinutes < 1) {
+        const seconds = Math.floor(absMinutes * 60);
+        return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
       }
-      const abs = Math.abs(rounded);
-      const unit = abs === 1 ? "minute" : "minutes";
-      if (rounded > 0) {
-        return `+${abs} ${unit} of daylight today`;
+      if (absMinutes > 1 && absMinutes < 3) {
+        const totalSeconds = Math.floor(absMinutes * 60);
+        const wholeMinutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${wholeMinutes}m ${seconds}s`;
       }
-      return `${abs} ${unit} less daylight today`;
+      const roundedMinutes = Math.round(absMinutes);
+      return `${roundedMinutes} ${roundedMinutes === 1 ? "minute" : "minutes"}`;
     };
 
     const setText = (node, value) => {
@@ -1149,20 +1152,27 @@
       }
     });
 
-    const updateHeadlineAndLede = (deltaMinutes) => {
-      if (deltaMinutes == null || Number.isNaN(deltaMinutes)) {
+    const updateHeadlineAndLede = (sunsetDeltaMinutes, daylightDeltaMinutes) => {
+      if (
+        sunsetDeltaMinutes == null ||
+        Number.isNaN(sunsetDeltaMinutes) ||
+        daylightDeltaMinutes == null ||
+        Number.isNaN(daylightDeltaMinutes)
+      ) {
         setText(headline, "Sunlight looks different here.");
         setText(lede, "No sunrise or sunset today.");
         return;
       }
-      if (deltaMinutes > 0) {
-        setText(headline, "Today is already brighter.");
-      } else if (deltaMinutes < 0) {
-        setText(headline, "Today is already dimmer.");
-      } else {
-        setText(headline, "Today is holding steady.");
-      }
-      setText(lede, formatDaylightChangeText(deltaMinutes));
+      const sunsetDeltaText = formatOptimisticDelta(sunsetDeltaMinutes);
+      const daylightDeltaText = formatOptimisticDelta(daylightDeltaMinutes);
+      setText(
+        headline,
+        `Today's sunset is ${sunsetDeltaText} later than the earliest sunset.`
+      );
+      setText(
+        lede,
+        `You have ${daylightDeltaText} more sunlight than a week ago.`
+      );
     };
 
     const getSunEvents = (observer, timeZone, dateParts) => {
@@ -1277,12 +1287,10 @@
         location.elevation || 0
       );
       const todayParts = getLocalDateParts(new Date(), timeZone);
-      const yesterdayParts = addDaysToDateParts(todayParts, -1);
       const weekParts = addDaysToDateParts(todayParts, -7);
       const monthParts = addMonthsToDateParts(todayParts, -1);
 
       const todayEvents = getSunEvents(observer, timeZone, todayParts);
-      const yesterdayEvents = getSunEvents(observer, timeZone, yesterdayParts);
       const weekEvents = getSunEvents(observer, timeZone, weekParts);
       const monthEvents = getSunEvents(observer, timeZone, monthParts);
 
@@ -1362,7 +1370,6 @@
       updateDeltaRowTooltip(sunsetMonthRow, sunsetMonthTooltip);
 
       const todayDaylight = getDaylightMinutes(todayEvents);
-      const yesterdayDaylight = getDaylightMinutes(yesterdayEvents);
       const weekDaylight = getDaylightMinutes(weekEvents);
       const monthDaylight = getDaylightMinutes(monthEvents);
 
@@ -1420,11 +1427,7 @@
       updateDeltaRowTooltip(daylightWeekRow, daylightWeekTooltip);
       updateDeltaRowTooltip(daylightMonthRow, daylightMonthTooltip);
 
-      const todayDelta =
-        todayDaylight != null && yesterdayDaylight != null
-          ? todayDaylight - yesterdayDaylight
-          : null;
-      updateHeadlineAndLede(todayDelta);
+      updateHeadlineAndLede(sunsetEarliestDelta, daylightWeekDelta);
 
       if (todaySunsetMinutes == null) {
         setText(nextHeadline, "Sunset timing varies here");
