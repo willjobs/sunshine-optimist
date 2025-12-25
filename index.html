@@ -643,9 +643,15 @@
             <span class="value" id="sunset-time">5:14 PM</span>
             <div class="stat-deltas" aria-label="Sunset change history">
               <div class="delta-row">
+                <span class="delta-label">vs. earliest sunset</span>
+                <span class="delta-value" id="sunset-earliest-delta">+42 min</span>
+              </div>
+              <!--
+              <div class="delta-row">
                 <span class="delta-label">vs. 1 week ago</span>
                 <span class="delta-value" id="sunset-week-delta">+8 min</span>
               </div>
+              -->
               <div class="delta-row">
                 <span class="delta-label">vs. 1 month ago</span>
                 <span class="delta-value" id="sunset-month-delta">+38 min</span>
@@ -674,9 +680,15 @@
             <span class="value" id="daylight-duration">9h 42m</span>
             <div class="stat-deltas" aria-label="Daylight change history">
               <div class="delta-row">
+                <span class="delta-label">vs. shortest day</span>
+                <span class="delta-value" id="daylight-shortest-delta">+1h 06m</span>
+              </div>
+              <!--
+              <div class="delta-row">
                 <span class="delta-label">vs. 1 week ago</span>
                 <span class="delta-value" id="daylight-week-delta">+15 min</span>
               </div>
+              -->
               <div class="delta-row">
                 <span class="delta-label">vs. 1 month ago</span>
                 <span class="delta-value" id="daylight-month-delta">+1h 12m</span>
@@ -713,9 +725,11 @@
     const clearButton = document.getElementById("location-clear");
     const milestone = document.querySelector(".milestone");
     const sunsetTimeValue = document.getElementById("sunset-time");
+    const sunsetEarliestDeltaValue = document.getElementById("sunset-earliest-delta");
     const sunsetWeekDeltaValue = document.getElementById("sunset-week-delta");
     const sunsetMonthDeltaValue = document.getElementById("sunset-month-delta");
     const daylightDurationValue = document.getElementById("daylight-duration");
+    const daylightShortestDeltaValue = document.getElementById("daylight-shortest-delta");
     const daylightWeekDeltaValue = document.getElementById("daylight-week-delta");
     const daylightMonthDeltaValue = document.getElementById("daylight-month-delta");
     const nextHeadline = document.getElementById("next-headline");
@@ -835,6 +849,12 @@
       };
     };
 
+    const getDaysInYear = (year) => {
+      const start = Date.UTC(year, 0, 1);
+      const end = Date.UTC(year + 1, 0, 1);
+      return Math.round((end - start) / 86400000);
+    };
+
     const getMinutesSinceMidnight = (date, timeZone) => {
       const { hour, minute, second } = getZonedParts(date, timeZone);
       return hour * 60 + minute + second / 60;
@@ -897,6 +917,13 @@
       return `${abs} ${unit} less daylight today`;
     };
 
+    const setText = (node, value) => {
+      if (!node) {
+        return;
+      }
+      node.textContent = value;
+    };
+
     const updateHeadlineAndLede = (deltaMinutes) => {
       if (deltaMinutes == null || Number.isNaN(deltaMinutes)) {
         headline.textContent = "Sunlight looks different here.";
@@ -934,6 +961,34 @@
         return null;
       }
       return (events.sunset.date - events.sunrise.date) / 60000;
+    };
+
+    const getYearlySunExtremes = (observer, timeZone, year) => {
+      const yearStart = { year, month: 1, day: 1 };
+      const daysInYear = getDaysInYear(year);
+      let earliestSunsetMinutes = null;
+      let shortestDayMinutes = null;
+
+      for (let offset = 0; offset < daysInYear; offset += 1) {
+        const dateParts = addDaysToDateParts(yearStart, offset);
+        const events = getSunEvents(observer, timeZone, dateParts);
+
+        if (events.sunset) {
+          const sunsetMinutes = getMinutesSinceMidnight(events.sunset.date, timeZone);
+          if (earliestSunsetMinutes == null || sunsetMinutes < earliestSunsetMinutes) {
+            earliestSunsetMinutes = sunsetMinutes;
+          }
+        }
+
+        const daylightMinutes = getDaylightMinutes(events);
+        if (daylightMinutes != null) {
+          if (shortestDayMinutes == null || daylightMinutes < shortestDayMinutes) {
+            shortestDayMinutes = daylightMinutes;
+          }
+        }
+      }
+
+      return { earliestSunsetMinutes, shortestDayMinutes };
     };
 
     const getNextHalfHour = (minutes) => {
@@ -1015,7 +1070,16 @@
       const monthSunsetMinutes = monthEvents.sunset
         ? getMinutesSinceMidnight(monthEvents.sunset.date, timeZone)
         : null;
+      const { earliestSunsetMinutes, shortestDayMinutes } = getYearlySunExtremes(
+        observer,
+        timeZone,
+        todayParts.year
+      );
 
+      const sunsetEarliestDelta =
+        todaySunsetMinutes != null && earliestSunsetMinutes != null
+          ? todaySunsetMinutes - earliestSunsetMinutes
+          : null;
       const sunsetWeekDelta =
         todaySunsetMinutes != null && weekSunsetMinutes != null
           ? todaySunsetMinutes - weekSunsetMinutes
@@ -1025,8 +1089,9 @@
           ? todaySunsetMinutes - monthSunsetMinutes
           : null;
 
-      sunsetWeekDeltaValue.textContent = formatDeltaMinutes(sunsetWeekDelta);
-      sunsetMonthDeltaValue.textContent = formatDeltaMinutes(sunsetMonthDelta);
+      setText(sunsetEarliestDeltaValue, formatDeltaMinutes(sunsetEarliestDelta));
+      setText(sunsetWeekDeltaValue, formatDeltaMinutes(sunsetWeekDelta));
+      setText(sunsetMonthDeltaValue, formatDeltaMinutes(sunsetMonthDelta));
 
       const todayDaylight = getDaylightMinutes(todayEvents);
       const yesterdayDaylight = getDaylightMinutes(yesterdayEvents);
@@ -1039,6 +1104,10 @@
         daylightDurationValue.textContent = formatDuration(todayDaylight);
       }
 
+      const daylightShortestDelta =
+        todayDaylight != null && shortestDayMinutes != null
+          ? todayDaylight - shortestDayMinutes
+          : null;
       const daylightWeekDelta =
         todayDaylight != null && weekDaylight != null
           ? todayDaylight - weekDaylight
@@ -1048,8 +1117,9 @@
           ? todayDaylight - monthDaylight
           : null;
 
-      daylightWeekDeltaValue.textContent = formatDeltaMinutes(daylightWeekDelta);
-      daylightMonthDeltaValue.textContent = formatDeltaMinutes(daylightMonthDelta);
+      setText(daylightShortestDeltaValue, formatDeltaMinutes(daylightShortestDelta));
+      setText(daylightWeekDeltaValue, formatDeltaMinutes(daylightWeekDelta));
+      setText(daylightMonthDeltaValue, formatDeltaMinutes(daylightMonthDelta));
 
       const todayDelta =
         todayDaylight != null && yesterdayDaylight != null
