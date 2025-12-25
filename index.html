@@ -6,7 +6,7 @@
   <title>Sunshine Optimist</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Manrope:wght@200..800&family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&family=Quicksand:wght@300..700&family=Sofia+Sans:ital,wght@0,1..1000;1,1..1000&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,100..900;1,100..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
   <style>
     :root {
       --sky-top: #b9d7f6;
@@ -21,8 +21,8 @@
       --divider: #ede1d1;
       --glass-bg: rgba(255, 255, 255, 0.32);
       --glass-border: rgba(255, 255, 255, 0.45);
-      --sans: "Nunito", "SF Pro Display", "Helvetica Neue", "Segoe UI", system-ui, -apple-system, sans-serif;
-      --serif: "Source Serif 4", "Helvetica Neue", "Segoe UI", system-ui, -apple-system, sans-serif;
+      --sans: "Plus Jakarta Sans", "SF Pro Display", "Helvetica Neue", "Segoe UI", system-ui, -apple-system, sans-serif;
+      --serif: "Bitter", "Helvetica Neue", "Segoe UI", system-ui, -apple-system, sans-serif;
       --shadow: 0 20px 48px rgba(82, 48, 18, 0.14);
       color: var(--text);
       background: linear-gradient(180deg, #D7ECFF 0%, #FFFBF0 50%, #FFF0C2 100%);
@@ -699,6 +699,7 @@
 
   </div>
 
+  <script src="astronomy-engine/astronomy.browser.min.js"></script>
   <script>
     const shareButton = document.getElementById("share");
     const headline = document.getElementById("headline");
@@ -711,6 +712,15 @@
     const resultsList = document.getElementById("location-results-list");
     const clearButton = document.getElementById("location-clear");
     const milestone = document.querySelector(".milestone");
+    const sunsetTimeValue = document.getElementById("sunset-time");
+    const sunsetWeekDeltaValue = document.getElementById("sunset-week-delta");
+    const sunsetMonthDeltaValue = document.getElementById("sunset-month-delta");
+    const daylightDurationValue = document.getElementById("daylight-duration");
+    const daylightWeekDeltaValue = document.getElementById("daylight-week-delta");
+    const daylightMonthDeltaValue = document.getElementById("daylight-month-delta");
+    const nextHeadline = document.getElementById("next-headline");
+    const nextDate = document.getElementById("next-date");
+    const nextAway = document.getElementById("next-away");
     let suggestionResults = [];
     let rawResults = [];
     let activeIndex = -1;
@@ -740,6 +750,347 @@
       country_code: "US",
       latitude: 42.3601,
       longitude: -71.0589,
+      elevation: 0,
+      timezone: "America/New_York",
+    };
+    const FALLBACK_TIMEZONE =
+      Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const getZonedParts = (date, timeZone) => {
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      });
+      const parts = formatter.formatToParts(date);
+      const values = {};
+      parts.forEach((part) => {
+        if (part.type !== "literal") {
+          values[part.type] = part.value;
+        }
+      });
+      return {
+        year: Number(values.year),
+        month: Number(values.month),
+        day: Number(values.day),
+        hour: Number(values.hour),
+        minute: Number(values.minute),
+        second: Number(values.second),
+      };
+    };
+
+    const getTimeZoneOffsetMinutes = (date, timeZone) => {
+      const parts = getZonedParts(date, timeZone);
+      const utcTime = Date.UTC(
+        parts.year,
+        parts.month - 1,
+        parts.day,
+        parts.hour,
+        parts.minute,
+        parts.second
+      );
+      return (utcTime - date.getTime()) / 60000;
+    };
+
+    const zonedTimeToUtc = (year, month, day, hour, minute, second, timeZone) => {
+      const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+      const offset = getTimeZoneOffsetMinutes(utcGuess, timeZone);
+      let utcTime = new Date(utcGuess.getTime() - offset * 60000);
+      const revisedOffset = getTimeZoneOffsetMinutes(utcTime, timeZone);
+      if (revisedOffset !== offset) {
+        utcTime = new Date(utcGuess.getTime() - revisedOffset * 60000);
+      }
+      return utcTime;
+    };
+
+    const getLocalDateParts = (date, timeZone) => {
+      const { year, month, day } = getZonedParts(date, timeZone);
+      return { year, month, day };
+    };
+
+    const addDaysToDateParts = (parts, deltaDays) => {
+      const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+      date.setUTCDate(date.getUTCDate() + deltaDays);
+      return {
+        year: date.getUTCFullYear(),
+        month: date.getUTCMonth() + 1,
+        day: date.getUTCDate(),
+      };
+    };
+
+    const addMonthsToDateParts = (parts, deltaMonths) => {
+      const date = new Date(Date.UTC(parts.year, parts.month - 1, 1));
+      date.setUTCMonth(date.getUTCMonth() + deltaMonths);
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth() + 1;
+      const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      return {
+        year,
+        month,
+        day: Math.min(parts.day, daysInMonth),
+      };
+    };
+
+    const getMinutesSinceMidnight = (date, timeZone) => {
+      const { hour, minute, second } = getZonedParts(date, timeZone);
+      return hour * 60 + minute + second / 60;
+    };
+
+    const formatTime = (date, timeZone) =>
+      new Intl.DateTimeFormat(localeSource, {
+        timeZone,
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(date);
+
+    const formatLongDateFromParts = (parts, timeZone) => {
+      const date = zonedTimeToUtc(parts.year, parts.month, parts.day, 12, 0, 0, timeZone);
+      return new Intl.DateTimeFormat(localeSource, {
+        timeZone,
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }).format(date);
+    };
+
+    const formatDuration = (minutes) => {
+      const totalMinutes = Math.round(Math.abs(minutes));
+      const hours = Math.floor(totalMinutes / 60);
+      const mins = totalMinutes % 60;
+      if (hours) {
+        return `${hours}h ${mins}m`;
+      }
+      return `${mins}m`;
+    };
+
+    const formatDeltaMinutes = (minutes) => {
+      if (minutes == null || Number.isNaN(minutes)) {
+        return "—";
+      }
+      const rounded = Math.round(minutes);
+      if (rounded === 0) {
+        return "0 min";
+      }
+      const sign = rounded > 0 ? "+" : "-";
+      const abs = Math.abs(rounded);
+      const body = abs >= 60 ? formatDuration(abs) : `${abs} min`;
+      return `${sign}${body}`;
+    };
+
+    const formatDaylightChangeText = (minutes) => {
+      if (minutes == null || Number.isNaN(minutes)) {
+        return "Sunrise or sunset isn't happening today.";
+      }
+      const rounded = Math.round(minutes);
+      if (rounded === 0) {
+        return "Same amount of daylight today";
+      }
+      const abs = Math.abs(rounded);
+      const unit = abs === 1 ? "minute" : "minutes";
+      if (rounded > 0) {
+        return `+${abs} ${unit} of daylight today`;
+      }
+      return `${abs} ${unit} less daylight today`;
+    };
+
+    const updateHeadlineAndLede = (deltaMinutes) => {
+      if (deltaMinutes == null || Number.isNaN(deltaMinutes)) {
+        headline.textContent = "Sunlight looks different here.";
+        lede.textContent = "No sunrise or sunset today.";
+        return;
+      }
+      if (deltaMinutes > 0) {
+        headline.textContent = "Today is already brighter.";
+      } else if (deltaMinutes < 0) {
+        headline.textContent = "Today is already dimmer.";
+      } else {
+        headline.textContent = "Today is holding steady.";
+      }
+      lede.textContent = formatDaylightChangeText(deltaMinutes);
+    };
+
+    const getSunEvents = (observer, timeZone, dateParts) => {
+      const startUtc = zonedTimeToUtc(
+        dateParts.year,
+        dateParts.month,
+        dateParts.day,
+        0,
+        0,
+        0,
+        timeZone
+      );
+      return {
+        sunrise: Astronomy.SearchRiseSet("Sun", observer, +1, startUtc, 1),
+        sunset: Astronomy.SearchRiseSet("Sun", observer, -1, startUtc, 1),
+      };
+    };
+
+    const getDaylightMinutes = (events) => {
+      if (!events?.sunrise || !events?.sunset) {
+        return null;
+      }
+      return (events.sunset.date - events.sunrise.date) / 60000;
+    };
+
+    const getNextHalfHour = (minutes) => {
+      const next = Math.floor((minutes + 30) / 30) * 30;
+      return Math.min(next, 24 * 60 - 1);
+    };
+
+    const formatTimeFromMinutes = (minutes, dateParts, timeZone) => {
+      const hour = Math.floor(minutes / 60);
+      const minute = Math.round(minutes % 60);
+      const date = zonedTimeToUtc(
+        dateParts.year,
+        dateParts.month,
+        dateParts.day,
+        hour,
+        minute,
+        0,
+        timeZone
+      );
+      return formatTime(date, timeZone);
+    };
+
+    const findNextSunsetThreshold = (
+      observer,
+      timeZone,
+      startDateParts,
+      targetMinutes,
+      limitDays = 370
+    ) => {
+      for (let offset = 1; offset <= limitDays; offset += 1) {
+        const dateParts = addDaysToDateParts(startDateParts, offset);
+        const { sunset } = getSunEvents(observer, timeZone, dateParts);
+        if (!sunset) {
+          continue;
+        }
+        const sunsetMinutes = getMinutesSinceMidnight(sunset.date, timeZone);
+        if (sunsetMinutes >= targetMinutes) {
+          return { dateParts, offsetDays: offset };
+        }
+      }
+      return null;
+    };
+
+    const updateDaylightForLocation = (location) => {
+      if (!window.Astronomy || !location) {
+        return;
+      }
+      const timeZone = location.timezone || FALLBACK_TIMEZONE;
+      const observer = new Astronomy.Observer(
+        location.latitude,
+        location.longitude,
+        location.elevation || 0
+      );
+      const todayParts = getLocalDateParts(new Date(), timeZone);
+      const yesterdayParts = addDaysToDateParts(todayParts, -1);
+      const weekParts = addDaysToDateParts(todayParts, -7);
+      const monthParts = addMonthsToDateParts(todayParts, -1);
+
+      const todayEvents = getSunEvents(observer, timeZone, todayParts);
+      const yesterdayEvents = getSunEvents(observer, timeZone, yesterdayParts);
+      const weekEvents = getSunEvents(observer, timeZone, weekParts);
+      const monthEvents = getSunEvents(observer, timeZone, monthParts);
+
+      if (todayEvents.sunset) {
+        sunsetTimeValue.textContent = formatTime(
+          todayEvents.sunset.date,
+          timeZone
+        );
+      } else {
+        sunsetTimeValue.textContent = "—";
+      }
+
+      const todaySunsetMinutes = todayEvents.sunset
+        ? getMinutesSinceMidnight(todayEvents.sunset.date, timeZone)
+        : null;
+      const weekSunsetMinutes = weekEvents.sunset
+        ? getMinutesSinceMidnight(weekEvents.sunset.date, timeZone)
+        : null;
+      const monthSunsetMinutes = monthEvents.sunset
+        ? getMinutesSinceMidnight(monthEvents.sunset.date, timeZone)
+        : null;
+
+      const sunsetWeekDelta =
+        todaySunsetMinutes != null && weekSunsetMinutes != null
+          ? todaySunsetMinutes - weekSunsetMinutes
+          : null;
+      const sunsetMonthDelta =
+        todaySunsetMinutes != null && monthSunsetMinutes != null
+          ? todaySunsetMinutes - monthSunsetMinutes
+          : null;
+
+      sunsetWeekDeltaValue.textContent = formatDeltaMinutes(sunsetWeekDelta);
+      sunsetMonthDeltaValue.textContent = formatDeltaMinutes(sunsetMonthDelta);
+
+      const todayDaylight = getDaylightMinutes(todayEvents);
+      const yesterdayDaylight = getDaylightMinutes(yesterdayEvents);
+      const weekDaylight = getDaylightMinutes(weekEvents);
+      const monthDaylight = getDaylightMinutes(monthEvents);
+
+      if (todayDaylight == null) {
+        daylightDurationValue.textContent = "—";
+      } else {
+        daylightDurationValue.textContent = formatDuration(todayDaylight);
+      }
+
+      const daylightWeekDelta =
+        todayDaylight != null && weekDaylight != null
+          ? todayDaylight - weekDaylight
+          : null;
+      const daylightMonthDelta =
+        todayDaylight != null && monthDaylight != null
+          ? todayDaylight - monthDaylight
+          : null;
+
+      daylightWeekDeltaValue.textContent = formatDeltaMinutes(daylightWeekDelta);
+      daylightMonthDeltaValue.textContent = formatDeltaMinutes(daylightMonthDelta);
+
+      const todayDelta =
+        todayDaylight != null && yesterdayDaylight != null
+          ? todayDaylight - yesterdayDaylight
+          : null;
+      updateHeadlineAndLede(todayDelta);
+
+      if (todaySunsetMinutes == null) {
+        nextHeadline.textContent = "Sunset timing varies here";
+        nextDate.textContent = "—";
+        nextAway.textContent = "";
+        return;
+      }
+
+      const targetMinutes = getNextHalfHour(todaySunsetMinutes);
+      const targetLabel = formatTimeFromMinutes(
+        targetMinutes,
+        todayParts,
+        timeZone
+      );
+      const milestoneMatch = findNextSunsetThreshold(
+        observer,
+        timeZone,
+        todayParts,
+        targetMinutes
+      );
+
+      nextHeadline.textContent = `Next ${targetLabel} Sunset`;
+      if (!milestoneMatch) {
+        nextDate.textContent = "—";
+        nextAway.textContent = "(Not within the next year)";
+        return;
+      }
+
+      nextDate.textContent = formatLongDateFromParts(
+        milestoneMatch.dateParts,
+        timeZone
+      );
+      nextAway.textContent = `(${milestoneMatch.offsetDays} day${
+        milestoneMatch.offsetDays === 1 ? "" : "s"
+      } away)`;
     };
 
     const US_STATE_ABBR = {
@@ -1348,6 +1699,7 @@
       updateRecentLocations(item);
       updateClearButton();
       clearResults();
+      updateDaylightForLocation(item);
       console.log(`Selected city: ${label}`, {
         latitude: item.latitude,
         longitude: item.longitude,
@@ -1399,6 +1751,8 @@
           country_code: item.country_code,
           latitude: item.latitude,
           longitude: item.longitude,
+          elevation: item.elevation,
+          timezone: item.timezone,
         }));
         buildResults(results, filterTokens, rawTokens);
       } catch (error) {
@@ -1430,6 +1784,8 @@
           country_code: item.country_code,
           latitude: item.latitude,
           longitude: item.longitude,
+          elevation: item.elevation,
+          timezone: item.timezone,
         }));
         const match =
           results.find(
