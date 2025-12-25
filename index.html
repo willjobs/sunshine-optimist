@@ -921,23 +921,32 @@
       if (!node) {
         return;
       }
-      node.textContent = value;
+      node.textContent = value == null ? "" : String(value);
     };
+
+    const setInputValue = (node, value) => {
+      if (!node) {
+        return;
+      }
+      node.value = value == null ? "" : String(value);
+    };
+
+    const getText = (node) => (node?.textContent || "").trim();
 
     const updateHeadlineAndLede = (deltaMinutes) => {
       if (deltaMinutes == null || Number.isNaN(deltaMinutes)) {
-        headline.textContent = "Sunlight looks different here.";
-        lede.textContent = "No sunrise or sunset today.";
+        setText(headline, "Sunlight looks different here.");
+        setText(lede, "No sunrise or sunset today.");
         return;
       }
       if (deltaMinutes > 0) {
-        headline.textContent = "Today is already brighter.";
+        setText(headline, "Today is already brighter.");
       } else if (deltaMinutes < 0) {
-        headline.textContent = "Today is already dimmer.";
+        setText(headline, "Today is already dimmer.");
       } else {
-        headline.textContent = "Today is holding steady.";
+        setText(headline, "Today is holding steady.");
       }
-      lede.textContent = formatDaylightChangeText(deltaMinutes);
+      setText(lede, formatDaylightChangeText(deltaMinutes));
     };
 
     const getSunEvents = (observer, timeZone, dateParts) => {
@@ -1052,14 +1061,12 @@
       const weekEvents = getSunEvents(observer, timeZone, weekParts);
       const monthEvents = getSunEvents(observer, timeZone, monthParts);
 
-      if (todayEvents.sunset) {
-        sunsetTimeValue.textContent = formatTime(
-          todayEvents.sunset.date,
-          timeZone
-        );
-      } else {
-        sunsetTimeValue.textContent = "—";
-      }
+      setText(
+        sunsetTimeValue,
+        todayEvents.sunset
+          ? formatTime(todayEvents.sunset.date, timeZone)
+          : "—"
+      );
 
       const todaySunsetMinutes = todayEvents.sunset
         ? getMinutesSinceMidnight(todayEvents.sunset.date, timeZone)
@@ -1098,11 +1105,10 @@
       const weekDaylight = getDaylightMinutes(weekEvents);
       const monthDaylight = getDaylightMinutes(monthEvents);
 
-      if (todayDaylight == null) {
-        daylightDurationValue.textContent = "—";
-      } else {
-        daylightDurationValue.textContent = formatDuration(todayDaylight);
-      }
+      setText(
+        daylightDurationValue,
+        todayDaylight == null ? "—" : formatDuration(todayDaylight)
+      );
 
       const daylightShortestDelta =
         todayDaylight != null && shortestDayMinutes != null
@@ -1128,9 +1134,9 @@
       updateHeadlineAndLede(todayDelta);
 
       if (todaySunsetMinutes == null) {
-        nextHeadline.textContent = "Sunset timing varies here";
-        nextDate.textContent = "—";
-        nextAway.textContent = "";
+        setText(nextHeadline, "Sunset timing varies here");
+        setText(nextDate, "—");
+        setText(nextAway, "");
         return;
       }
 
@@ -1147,20 +1153,23 @@
         targetMinutes
       );
 
-      nextHeadline.textContent = `Next ${targetLabel} Sunset`;
+      setText(nextHeadline, `Next ${targetLabel} Sunset`);
       if (!milestoneMatch) {
-        nextDate.textContent = "—";
-        nextAway.textContent = "(Not within the next year)";
+        setText(nextDate, "—");
+        setText(nextAway, "(Not within the next year)");
         return;
       }
 
-      nextDate.textContent = formatLongDateFromParts(
-        milestoneMatch.dateParts,
-        timeZone
+      setText(
+        nextDate,
+        formatLongDateFromParts(milestoneMatch.dateParts, timeZone)
       );
-      nextAway.textContent = `(${milestoneMatch.offsetDays} day${
-        milestoneMatch.offsetDays === 1 ? "" : "s"
-      } away)`;
+      setText(
+        nextAway,
+        `(${milestoneMatch.offsetDays} day${
+          milestoneMatch.offsetDays === 1 ? "" : "s"
+        } away)`
+      );
     };
 
     const US_STATE_ABBR = {
@@ -1362,6 +1371,9 @@
     };
 
     const updateClearButton = () => {
+      if (!cityInput || !clearButton) {
+        return;
+      }
       const hasValue = cityInput.value.trim().length > 0;
       clearButton.classList.toggle("is-visible", hasValue);
     };
@@ -1434,6 +1446,9 @@
     };
 
     const setStatusMessages = (messages) => {
+      if (!resultsMeta) {
+        return;
+      }
       resultsMeta.innerHTML = "";
       messages.forEach((message) => {
         const status = document.createElement("div");
@@ -1443,12 +1458,15 @@
         status.textContent = message.text;
         resultsMeta.appendChild(status);
       });
-      if (resultsPanel.classList.contains("is-open")) {
+      if (resultsPanel?.classList.contains("is-open")) {
         updateResultsMaxHeight();
       }
     };
 
     const renderActions = (actions) => {
+      if (!resultsActions) {
+        return;
+      }
       resultsActions.innerHTML = "";
       actions.forEach((action) => {
         const button = document.createElement("button");
@@ -1463,12 +1481,15 @@
         }
         resultsActions.appendChild(button);
       });
-      if (resultsPanel.classList.contains("is-open")) {
+      if (resultsPanel?.classList.contains("is-open")) {
         updateResultsMaxHeight();
       }
     };
 
     const openResultsPanel = () => {
+      if (!resultsPanel || !cityInput) {
+        return;
+      }
       resultsPanel.classList.add("is-open");
       cityInput.setAttribute("aria-expanded", "true");
       updateResultsMaxHeight();
@@ -1519,6 +1540,9 @@
     };
 
     const renderGroup = (group) => {
+      if (!resultsList) {
+        return;
+      }
       const wrapper = document.createElement("div");
       wrapper.className = "location-group";
       wrapper.role = group.label ? "group" : "presentation";
@@ -1548,6 +1572,9 @@
     const showLoadingState = () => {
       suggestionResults = [];
       activeIndex = -1;
+      if (!resultsList || !cityInput) {
+        return;
+      }
       resultsList.innerHTML = "";
       cityInput.removeAttribute("aria-activedescendant");
       setStatusMessages([{ text: "Searching for cities...", type: "hint" }]);
@@ -1558,6 +1585,9 @@
     const showErrorState = () => {
       suggestionResults = [];
       activeIndex = -1;
+      if (!resultsList || !cityInput) {
+        return;
+      }
       resultsList.innerHTML = "";
       cityInput.removeAttribute("aria-activedescendant");
       setStatusMessages([
@@ -1639,6 +1669,12 @@
     };
 
     const clearResults = () => {
+      suggestionResults = [];
+      rawResults = [];
+      activeIndex = -1;
+      if (!resultsList || !resultsMeta || !resultsActions || !resultsPanel || !cityInput) {
+        return;
+      }
       resultsList.innerHTML = "";
       resultsMeta.innerHTML = "";
       resultsActions.innerHTML = "";
@@ -1646,12 +1682,12 @@
       cityInput.setAttribute("aria-expanded", "false");
       cityInput.removeAttribute("aria-activedescendant");
       resultsList.style.maxHeight = "";
-      suggestionResults = [];
-      rawResults = [];
-      activeIndex = -1;
     };
 
     const updateResultsMaxHeight = () => {
+      if (!resultsPanel || !cityInput || !resultsList) {
+        return;
+      }
       if (!resultsPanel.classList.contains("is-open")) {
         return;
       }
@@ -1662,12 +1698,16 @@
         milestoneRect && milestoneRect.top > locationRect.bottom + spacing
           ? milestoneRect.top - locationRect.bottom - spacing
           : window.innerHeight - locationRect.bottom - spacing;
-      const chromeHeight = resultsMeta.offsetHeight + resultsActions.offsetHeight + 24;
+      const chromeHeight =
+        (resultsMeta?.offsetHeight || 0) + (resultsActions?.offsetHeight || 0) + 24;
       const maxHeight = Math.max(0, Math.min(260, available - chromeHeight));
       resultsList.style.maxHeight = `${maxHeight}px`;
     };
 
     const renderResults = (groups, options = {}) => {
+      if (!resultsList || !cityInput) {
+        return;
+      }
       resultsList.innerHTML = "";
       suggestionResults = [];
       activeIndex = -1;
@@ -1722,8 +1762,6 @@
             )}". Showing broader results.`
           : null;
       const localityLabel = userCoords ? "nearby" : "local";
-      const localityLabelTitle = userCoords ? "Nearby" : "Local";
-
       let displayResults = sortedAll;
       let toggleLabel = null;
       const statusMessages = [];
@@ -1765,7 +1803,7 @@
 
     const selectResult = (item) => {
       const label = formatSelectedLocation(item);
-      cityInput.value = label;
+      setInputValue(cityInput, label);
       updateRecentLocations(item);
       updateClearButton();
       clearResults();
@@ -1777,6 +1815,9 @@
     };
 
     const updateActiveOption = (nextIndex) => {
+      if (!resultsList || !cityInput) {
+        return;
+      }
       const options = resultsList.querySelectorAll(".location-option");
       if (!options.length) {
         activeIndex = -1;
@@ -1882,6 +1923,9 @@
     };
 
     const handleInput = () => {
+      if (!cityInput) {
+        return;
+      }
       const query = cityInput.value.trim();
       lastQuery = query;
       const { nameQuery, filterTokens, rawFilterTokens } = parseQuery(query);
@@ -1913,131 +1957,152 @@
       }, 250);
     };
 
-    cityInput.addEventListener("input", handleInput);
-    cityInput.addEventListener("focus", () => {
-      handleInput();
-    });
-    clearButton.addEventListener("click", () => {
-      cityInput.value = "";
-      lastQuery = "";
-      lastNameQuery = "";
-      lastFilterTokens = [];
-      lastFilterTokensRaw = [];
-      updateClearButton();
-      if (recentLocations.length) {
-        showRecentResults();
-      } else {
-        clearResults();
-      }
-      cityInput.focus();
-    });
-    if (geolocateButton) {
+    if (cityInput) {
+      cityInput.addEventListener("input", handleInput);
+      cityInput.addEventListener("focus", () => {
+        handleInput();
+      });
+      cityInput.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          clearResults();
+          return;
+        }
+        if (!suggestionResults.length) {
+          return;
+        }
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          updateActiveOption(activeIndex + 1);
+        } else if (event.key === "ArrowUp") {
+          event.preventDefault();
+          updateActiveOption(activeIndex - 1);
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          updateActiveOption(0);
+        } else if (event.key === "End") {
+          event.preventDefault();
+          updateActiveOption(suggestionResults.length - 1);
+        } else if (event.key === "Enter") {
+          if (activeIndex >= 0) {
+            event.preventDefault();
+            selectResult(suggestionResults[activeIndex]);
+          } else if (suggestionResults.length) {
+            event.preventDefault();
+            selectResult(suggestionResults[0]);
+          }
+        }
+      });
+    }
+
+    if (clearButton && cityInput) {
+      clearButton.addEventListener("click", () => {
+        setInputValue(cityInput, "");
+        lastQuery = "";
+        lastNameQuery = "";
+        lastFilterTokens = [];
+        lastFilterTokensRaw = [];
+        updateClearButton();
+        if (recentLocations.length) {
+          showRecentResults();
+        } else {
+          clearResults();
+        }
+        cityInput.focus();
+      });
+    }
+
+    if (geolocateButton && cityInput) {
       geolocateButton.addEventListener("click", () => {
         requestLocationBias();
         cityInput.focus();
       });
     }
-    cityInput.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        clearResults();
-        return;
-      }
-      if (!suggestionResults.length) {
-        return;
-      }
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        updateActiveOption(activeIndex + 1);
-      } else if (event.key === "ArrowUp") {
-        event.preventDefault();
-        updateActiveOption(activeIndex - 1);
-      } else if (event.key === "Home") {
-        event.preventDefault();
-        updateActiveOption(0);
-      } else if (event.key === "End") {
-        event.preventDefault();
-        updateActiveOption(suggestionResults.length - 1);
-      } else if (event.key === "Enter") {
-        if (activeIndex >= 0) {
-          event.preventDefault();
-          selectResult(suggestionResults[activeIndex]);
-        } else if (suggestionResults.length) {
-          event.preventDefault();
-          selectResult(suggestionResults[0]);
+
+    if (resultsList) {
+      resultsList.addEventListener("click", (event) => {
+        if (!(event.target instanceof Element)) {
+          return;
         }
-      }
-    });
-
-    resultsList.addEventListener("click", (event) => {
-      const target = event.target.closest(".location-option");
-      if (!target) {
-        return;
-      }
-      const index = Number(target.dataset.index);
-      const item = suggestionResults[index];
-      if (item) {
-        selectResult(item);
-      }
-    });
-
-    resultsList.addEventListener("keydown", (event) => {
-      const target = event.target.closest(".location-option");
-      if (!target) {
-        return;
-      }
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
+        const target = event.target.closest(".location-option");
+        if (!target) {
+          return;
+        }
         const index = Number(target.dataset.index);
         const item = suggestionResults[index];
         if (item) {
           selectResult(item);
         }
-      } else if (event.key === "ArrowDown") {
-        event.preventDefault();
-        updateActiveOption(activeIndex + 1);
-        const options = resultsList.querySelectorAll(".location-option");
-        options[activeIndex]?.focus();
-      } else if (event.key === "ArrowUp") {
-        event.preventDefault();
-        updateActiveOption(activeIndex - 1);
-        const options = resultsList.querySelectorAll(".location-option");
-        options[activeIndex]?.focus();
-      } else if (event.key === "Escape") {
-        clearResults();
-        cityInput.focus();
-      }
-    });
+      });
 
-    resultsActions.addEventListener("click", (event) => {
-      const action = event.target.closest("[data-action]");
-      if (!action) {
-        return;
-      }
-      const actionType = action.dataset.action;
-      if (actionType === "toggle-preference") {
-        preferLocalResults = !preferLocalResults;
-        if (rawResults.length) {
-          buildResults(rawResults, lastFilterTokens, lastFilterTokensRaw);
+      resultsList.addEventListener("keydown", (event) => {
+        if (!(event.target instanceof Element)) {
+          return;
         }
-      } else if (actionType === "geolocate") {
-        requestLocationBias();
-      } else if (actionType === "retry") {
-        if (lastNameQuery.length >= 2) {
-          fetchSuggestions(lastNameQuery, lastFilterTokens, lastFilterTokensRaw);
-        } else {
+        const target = event.target.closest(".location-option");
+        if (!target) {
+          return;
+        }
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          const index = Number(target.dataset.index);
+          const item = suggestionResults[index];
+          if (item) {
+            selectResult(item);
+          }
+        } else if (event.key === "ArrowDown") {
+          event.preventDefault();
+          updateActiveOption(activeIndex + 1);
+          const options = resultsList.querySelectorAll(".location-option");
+          options[activeIndex]?.focus();
+        } else if (event.key === "ArrowUp") {
+          event.preventDefault();
+          updateActiveOption(activeIndex - 1);
+          const options = resultsList.querySelectorAll(".location-option");
+          options[activeIndex]?.focus();
+        } else if (event.key === "Escape") {
           clearResults();
+          cityInput?.focus();
         }
-      }
-    });
+      });
+    }
+
+    if (resultsActions) {
+      resultsActions.addEventListener("click", (event) => {
+        if (!(event.target instanceof Element)) {
+          return;
+        }
+        const action = event.target.closest("[data-action]");
+        if (!action) {
+          return;
+        }
+        const actionType = action.dataset.action;
+        if (actionType === "toggle-preference") {
+          preferLocalResults = !preferLocalResults;
+          if (rawResults.length) {
+            buildResults(rawResults, lastFilterTokens, lastFilterTokensRaw);
+          }
+        } else if (actionType === "geolocate") {
+          requestLocationBias();
+        } else if (actionType === "retry") {
+          if (lastNameQuery.length >= 2) {
+            fetchSuggestions(lastNameQuery, lastFilterTokens, lastFilterTokensRaw);
+          } else {
+            clearResults();
+          }
+        }
+      });
+    }
 
     document.addEventListener("click", (event) => {
-      if (!event.target.closest(".location")) {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target || !target.closest(".location")) {
         clearResults();
       }
     });
 
     document.addEventListener("focusin", (event) => {
-      if (!event.target.closest(".location")) {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target || !target.closest(".location")) {
         clearResults();
       }
     });
@@ -2047,15 +2112,30 @@
     updateGeolocateButton();
     fetchDefaultLocation();
 
-    shareButton.addEventListener("click", () => {
-      const message = `${headline.textContent} ${lede.textContent} — via Sunshine Optimist`;
-      navigator.clipboard?.writeText(message).then(() => {
-        const label = shareButton.querySelector("span");
-        const previous = label.textContent;
-        label.textContent = "Copied!";
-        setTimeout(() => (label.textContent = previous), 1200);
+    if (shareButton) {
+      shareButton.addEventListener("click", () => {
+        const headlineText = getText(headline) || "Sunshine Optimist";
+        const ledeText = getText(lede);
+        const message = `${headlineText}${ledeText ? ` ${ledeText}` : ""} — via Sunshine Optimist`;
+        const writePromise = navigator.clipboard?.writeText(message);
+        if (!writePromise) {
+          return;
+        }
+        writePromise
+          .then(() => {
+            const label = shareButton.querySelector("span");
+            if (!label) {
+              return;
+            }
+            const previous = label.textContent;
+            setText(label, "Copied!");
+            setTimeout(() => setText(label, previous), 1200);
+          })
+          .catch((error) => {
+            console.warn("Share failed:", error);
+          });
       });
-    });
+    }
   </script>
 </body>
 </html>
