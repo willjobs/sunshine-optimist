@@ -467,7 +467,7 @@
 
     .milestone {
       display: grid;
-      grid-template-columns: auto 1fr;
+      grid-template-columns: auto 1fr auto;
       gap: 18px;
       align-items: center;
       padding: 18px 20px;
@@ -528,6 +528,91 @@
     .milestone-away {
       color: #d8861c;
       font-weight: 600;
+    }
+
+    .milestone-toggle {
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      border: 1px solid rgba(200, 111, 21, 0.25);
+      background: rgba(255, 255, 255, 0.7);
+      color: #c46e13;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease,
+        color 120ms ease, border-color 120ms ease;
+    }
+
+    .milestone-toggle:hover {
+      background: #fff4df;
+      color: #a95800;
+      border-color: rgba(200, 111, 21, 0.4);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 16px rgba(164, 88, 0, 0.14);
+    }
+
+    .milestone-toggle:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    .milestone-toggle:focus-visible {
+      outline: 2px solid #d9b079;
+      outline-offset: 2px;
+    }
+
+    .milestone-toggle:disabled {
+      opacity: 0.45;
+      cursor: default;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .milestone-toggle svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 30;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      top: -10%;
+      left: var(--confetti-x, 50%);
+      width: var(--confetti-size, 8px);
+      height: calc(var(--confetti-size, 8px) * 1.4);
+      background: var(--confetti-color, #f08c28);
+      opacity: 0;
+      border-radius: 2px;
+      transform: translate3d(0, -10vh, 0) rotate(var(--confetti-rotate, 0deg));
+      animation: confetti-fall var(--confetti-duration, 2.4s)
+        var(--confetti-delay, 0s) ease-out forwards;
+    }
+
+    @keyframes confetti-fall {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, -10vh, 0) rotate(var(--confetti-rotate, 0deg));
+      }
+      12% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translate3d(
+            var(--confetti-drift, 24px),
+            110vh,
+            0
+          )
+          rotate(var(--confetti-spin, 280deg));
+      }
     }
 
     .stat-row {
@@ -752,6 +837,7 @@
   </style>
 </head>
 <body>
+  <div class="confetti" id="confetti" aria-hidden="true"></div>
   <div class="shell">
     <header class="masthead">
       <div class="brand">
@@ -846,6 +932,12 @@
             <span class="milestone-away" id="next-away"></span>
           </p>
         </div>
+        <button class="milestone-toggle" id="milestone-toggle" type="button" aria-label="Next milestone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14" />
+            <path d="m13 6 6 6-6 6" />
+          </svg>
+        </button>
       </div>
 
       <div class="stat-row">
@@ -950,6 +1042,8 @@
     const resultsList = document.getElementById("location-results-list");
     const clearButton = document.getElementById("location-clear");
     const milestone = document.querySelector(".milestone");
+    const milestoneToggle = document.getElementById("milestone-toggle");
+    const confettiRoot = document.getElementById("confetti");
     const sunsetTimeValue = document.getElementById("sunset-time");
     const sunsetEarliestDeltaValue = document.getElementById("sunset-earliest-delta");
     const sunsetWeekDeltaValue = document.getElementById("sunset-week-delta");
@@ -987,6 +1081,11 @@
     let activeLocation = null;
     let useLiveDate = true;
     let customDateParts = null;
+    let upcomingMilestones = [];
+    let milestoneIndex = 0;
+    let milestoneTimeZone = null;
+    let lastCelebratedKey = null;
+    let confettiTimeoutId = null;
     const localeSource = navigator.languages?.[0] || navigator.language || "en";
     const languageCode = localeSource.split("-")[0] || "en";
     const regionCode = (localeSource.split("-")[1] || "").toUpperCase();
@@ -1290,6 +1389,57 @@
     };
 
     const getText = (node) => (node?.textContent || "").trim();
+
+    const CONFETTI_COLORS = [
+      "#f94144",
+      "#f3722c",
+      "#f9c74f",
+      "#90be6d",
+      "#43aa8b",
+      "#577590",
+    ];
+    const CONFETTI_COUNT = 72;
+
+    const launchConfetti = () => {
+      if (!confettiRoot) {
+        return;
+      }
+      confettiRoot.innerHTML = "";
+      if (confettiTimeoutId) {
+        window.clearTimeout(confettiTimeoutId);
+        confettiTimeoutId = null;
+      }
+      const fragment = document.createDocumentFragment();
+      let maxDuration = 0;
+      for (let i = 0; i < CONFETTI_COUNT; i += 1) {
+        const piece = document.createElement("span");
+        piece.className = "confetti-piece";
+        const size = 6 + Math.random() * 6;
+        const duration = 3.2 + Math.random() * 1.8;
+        const delay = Math.random() * 0.6;
+        const drift = (Math.random() * 80 - 40).toFixed(1);
+        const rotate = Math.floor(Math.random() * 360);
+        const spin = rotate + (Math.random() > 0.5 ? 300 : -300);
+        piece.style.setProperty("--confetti-x", `${Math.random() * 100}%`);
+        piece.style.setProperty("--confetti-size", `${size.toFixed(1)}px`);
+        piece.style.setProperty(
+          "--confetti-color",
+          CONFETTI_COLORS[i % CONFETTI_COLORS.length]
+        );
+        piece.style.setProperty("--confetti-delay", `${delay.toFixed(2)}s`);
+        piece.style.setProperty("--confetti-duration", `${duration.toFixed(2)}s`);
+        piece.style.setProperty("--confetti-drift", `${drift}px`);
+        piece.style.setProperty("--confetti-rotate", `${rotate}deg`);
+        piece.style.setProperty("--confetti-spin", `${spin}deg`);
+        fragment.appendChild(piece);
+        maxDuration = Math.max(maxDuration, duration + delay);
+      }
+      confettiRoot.appendChild(fragment);
+      confettiTimeoutId = window.setTimeout(() => {
+        confettiRoot.innerHTML = "";
+        confettiTimeoutId = null;
+      }, (maxDuration + 0.5) * 1000);
+    };
 
     const deltaTooltipRows = [
       sunsetEarliestRow,
@@ -2278,6 +2428,263 @@
       return null;
     };
 
+    const getOffsetMinutesForDateParts = (dateParts, timeZone) => {
+      if (!dateParts) {
+        return null;
+      }
+      const date = zonedTimeToUtc(
+        dateParts.year,
+        dateParts.month,
+        dateParts.day,
+        12,
+        0,
+        0,
+        timeZone
+      );
+      return getTimeZoneOffsetMinutes(date, timeZone);
+    };
+
+    const findNextDaylightSavingsStart = (
+      timeZone,
+      startParts,
+      limitDays = 370
+    ) => {
+      if (!timeZone || !startParts) {
+        return null;
+      }
+      const previousDay = addDaysToDateParts(startParts, -1);
+      let previousOffset = getOffsetMinutesForDateParts(previousDay, timeZone);
+      if (!Number.isFinite(previousOffset)) {
+        return null;
+      }
+      for (let offset = 0; offset <= limitDays; offset += 1) {
+        const dateParts = addDaysToDateParts(startParts, offset);
+        const offsetMinutes = getOffsetMinutesForDateParts(dateParts, timeZone);
+        if (!Number.isFinite(offsetMinutes)) {
+          return null;
+        }
+        if (offsetMinutes > previousOffset) {
+          return dateParts;
+        }
+        previousOffset = offsetMinutes;
+      }
+      return null;
+    };
+
+    const findFirstSunsetAfter = (
+      observer,
+      timeZone,
+      startParts,
+      targetMinutes,
+      limitDays = 370
+    ) => {
+      if (!observer || !timeZone || !startParts) {
+        return null;
+      }
+      const startSunset = getSunsetMinutesForDateParts(
+        observer,
+        timeZone,
+        startParts
+      );
+      if (startSunset == null || startSunset >= targetMinutes) {
+        return null;
+      }
+      for (let offset = 1; offset <= limitDays; offset += 1) {
+        const dateParts = addDaysToDateParts(startParts, offset);
+        const sunsetMinutes = getSunsetMinutesForDateParts(
+          observer,
+          timeZone,
+          dateParts
+        );
+        if (sunsetMinutes == null) {
+          continue;
+        }
+        if (sunsetMinutes >= targetMinutes) {
+          return { dateParts, offsetDays: offset };
+        }
+      }
+      return null;
+    };
+
+    const findFirstDaylightAtLeast = (
+      observer,
+      timeZone,
+      startParts,
+      targetMinutes,
+      limitDays = 370
+    ) => {
+      if (!observer || !timeZone || !startParts) {
+        return null;
+      }
+      const startDaylight = getDaylightMinutesForDateParts(
+        observer,
+        timeZone,
+        startParts
+      );
+      if (startDaylight == null || startDaylight >= targetMinutes) {
+        return null;
+      }
+      for (let offset = 1; offset <= limitDays; offset += 1) {
+        const dateParts = addDaysToDateParts(startParts, offset);
+        const daylight = getDaylightMinutesForDateParts(
+          observer,
+          timeZone,
+          dateParts
+        );
+        if (daylight == null) {
+          continue;
+        }
+        if (daylight >= targetMinutes) {
+          return { dateParts, offsetDays: offset };
+        }
+      }
+      return null;
+    };
+
+    const findFirstDaylightGain = (
+      observer,
+      timeZone,
+      startParts,
+      gainMinutes,
+      limitDays = 370
+    ) => {
+      if (!observer || !timeZone || !startParts) {
+        return null;
+      }
+      const startDaylight = getDaylightMinutesForDateParts(
+        observer,
+        timeZone,
+        startParts
+      );
+      if (startDaylight == null) {
+        return null;
+      }
+      for (let offset = 1; offset <= limitDays; offset += 1) {
+        const dateParts = addDaysToDateParts(startParts, offset);
+        const daylight = getDaylightMinutesForDateParts(
+          observer,
+          timeZone,
+          dateParts
+        );
+        if (daylight == null) {
+          continue;
+        }
+        if (daylight - startDaylight >= gainMinutes) {
+          return { dateParts, offsetDays: offset };
+        }
+      }
+      return null;
+    };
+
+    const buildMilestone = ({
+      id,
+      title,
+      dateParts,
+      todayHeadline,
+      todayLede,
+    }) => {
+      if (!dateParts) {
+        return null;
+      }
+      return { id, title, dateParts, todayHeadline, todayLede };
+    };
+
+    const withMilestoneOffset = (milestone, todayParts) => {
+      if (!milestone || !todayParts) {
+        return null;
+      }
+      const offsetDays = getDaysBetweenDateParts(todayParts, milestone.dateParts);
+      if (!Number.isFinite(offsetDays)) {
+        return null;
+      }
+      return { ...milestone, offsetDays };
+    };
+
+    const formatMilestoneAway = (offsetDays) => {
+      if (!Number.isFinite(offsetDays)) {
+        return "";
+      }
+      const dayLabel = offsetDays === 1 ? "day" : "days";
+      return `(${offsetDays} ${dayLabel} away)`;
+    };
+
+    const getMilestoneKey = (milestone) => {
+      if (!milestone) {
+        return "";
+      }
+      const dateStamp = formatDateInputValue(milestone.dateParts);
+      return `${milestone.id || milestone.title}:${dateStamp}`;
+    };
+
+    const getMilestoneTodayCopy = (milestone) => {
+      if (!milestone) {
+        return null;
+      }
+      return {
+        headline: milestone.todayHeadline || `${milestone.title} is today.`,
+        lede: milestone.todayLede || "Enjoy the moment!",
+      };
+    };
+
+    const updateMilestoneCard = (milestones, timeZone, { resetIndex = true } = {}) => {
+      upcomingMilestones = milestones;
+      if (resetIndex) {
+        milestoneIndex = 0;
+      } else if (milestoneIndex >= milestones.length) {
+        milestoneIndex = 0;
+      }
+      milestoneTimeZone = timeZone;
+      if (!nextHeadline || !nextDate || !nextAway) {
+        return;
+      }
+      if (!milestones.length) {
+        setText(nextHeadline, "No upcoming milestones");
+        setText(nextDate, "—");
+        setText(nextAway, "");
+        if (milestone) {
+          milestone.setAttribute("aria-label", "Upcoming milestone");
+        }
+        if (milestoneToggle) {
+          milestoneToggle.disabled = true;
+          milestoneToggle.setAttribute("aria-label", "Next milestone");
+        }
+        return;
+      }
+      const active = milestones[milestoneIndex];
+      setText(nextHeadline, active.title);
+      setText(nextDate, formatLongDateFromParts(active.dateParts, timeZone));
+      setText(nextAway, formatMilestoneAway(active.offsetDays));
+      if (milestone) {
+        milestone.setAttribute("aria-label", `Upcoming milestone: ${active.title}`);
+      }
+      if (milestoneToggle) {
+        const hasMultiple = milestones.length > 1;
+        milestoneToggle.disabled = !hasMultiple;
+        milestoneToggle.setAttribute(
+          "aria-label",
+          hasMultiple
+            ? `Next milestone (${milestoneIndex + 1} of ${milestones.length})`
+            : "Next milestone"
+        );
+      }
+    };
+
+    const celebrateMilestone = (milestone) => {
+      if (!milestone) {
+        lastCelebratedKey = null;
+        return;
+      }
+      const key = getMilestoneKey(milestone);
+      if (!key) {
+        lastCelebratedKey = null;
+        return;
+      }
+      if (key !== lastCelebratedKey) {
+        lastCelebratedKey = key;
+        launchConfetti();
+      }
+    };
+
     const updateDaylightForLocation = (location) => {
       if (!window.Astronomy || !location) {
         return;
@@ -2324,6 +2731,7 @@
         shortestDayMinutes,
         shortestDayDateParts,
         longestDayMinutes,
+        longestDayDateParts,
         maxDailyGainDateParts,
         daysWithLessDaylight,
       } = getYearlySunExtremes(observer, timeZone, todayParts.year, todayDaylight);
@@ -2638,43 +3046,273 @@
 
       updateOptimisticMessage(messageData, todayParts.month, hemisphere);
 
-      if (todaySunsetMinutes == null) {
-        setText(nextHeadline, "Sunset timing varies here");
-        setText(nextDate, "—");
-        setText(nextAway, "");
-        return;
+      const milestoneCandidates = [];
+      const addMilestone = (milestone) => {
+        if (milestone) {
+          milestoneCandidates.push(milestone);
+        }
+      };
+      let nextYearExtremes = null;
+      const resolveNextExtreme = (key) => {
+        const current = {
+          earliestSunsetDateParts,
+          shortestDayDateParts,
+          longestDayDateParts,
+        }[key];
+        if (current && compareDateParts(current, todayParts) >= 0) {
+          return current;
+        }
+        if (!nextYearExtremes) {
+          nextYearExtremes = getYearlySunExtremes(
+            observer,
+            timeZone,
+            todayParts.year + 1,
+            null
+          );
+        }
+        return nextYearExtremes[key] || null;
+      };
+
+      if (todaySunsetMinutes != null) {
+        const targetMinutes = getNextHalfHour(todaySunsetMinutes);
+        const targetLabel = formatTimeFromMinutes(
+          targetMinutes,
+          todayParts,
+          timeZone
+        );
+        const milestoneMatch = findNextSunsetThreshold(
+          observer,
+          timeZone,
+          todayParts,
+          targetMinutes
+        );
+        if (milestoneMatch) {
+          addMilestone(
+            buildMilestone({
+              id: `next-sunset-${targetMinutes}`,
+              title: `Next ${targetLabel} Sunset`,
+              dateParts: milestoneMatch.dateParts,
+            })
+          );
+        }
       }
 
-      const targetMinutes = getNextHalfHour(todaySunsetMinutes);
-      const targetLabel = formatTimeFromMinutes(
-        targetMinutes,
-        todayParts,
-        timeZone
+      addMilestone(
+        buildMilestone({
+          id: "earliest-sunset",
+          title: "Earliest sunset",
+          dateParts: resolveNextExtreme("earliestSunsetDateParts"),
+          todayHeadline: "It's the earliest sunset of the year.",
+          todayLede: "Brighter evenings are on the way.",
+        })
       );
-      const milestoneMatch = findNextSunsetThreshold(
+      addMilestone(
+        buildMilestone({
+          id: "shortest-day",
+          title: "Shortest day",
+          dateParts: resolveNextExtreme("shortestDayDateParts"),
+          todayHeadline: "Today is the shortest day of the year.",
+          todayLede: "Longer days start tomorrow.",
+        })
+      );
+      addMilestone(
+        buildMilestone({
+          id: "longest-day",
+          title: "Longest day",
+          dateParts: resolveNextExtreme("longestDayDateParts"),
+          todayHeadline: "Today is the longest day of the year.",
+          todayLede: "Soak up every extra minute.",
+        })
+      );
+      addMilestone(
+        buildMilestone({
+          id: "spring-equinox",
+          title: "Spring equinox",
+          dateParts: getNextSeasonDateParts(
+            todayParts,
+            timeZone,
+            hemisphere,
+            "spring"
+          ),
+          todayHeadline: "It's the spring equinox today.",
+          todayLede: null,
+        })
+      );
+      addMilestone(
+        buildMilestone({
+          id: "dst-start",
+          title: "Daylight savings time starts",
+          dateParts: findNextDaylightSavingsStart(timeZone, todayParts),
+          todayHeadline: "Daylight savings time starts today.",
+          todayLede: "Don't forget to spring forward.",
+        })
+      );
+
+      const previousWinterSolsticeParts = getPreviousSeasonDateParts(
+        todayParts,
+        timeZone,
+        hemisphere,
+        "winter"
+      );
+      const firstTwelveHours = findFirstDaylightAtLeast(
         observer,
         timeZone,
-        todayParts,
-        targetMinutes
+        previousWinterSolsticeParts,
+        12 * 60
+      );
+      addMilestone(
+        buildMilestone({
+          id: "first-12-hours",
+          title: "First day with exactly 12 hours of daylight",
+          dateParts: firstTwelveHours?.dateParts,
+          todayHeadline: "Today has exactly 12 hours of daylight.",
+          todayLede: "A perfect balance of day and night.",
+        })
       );
 
-      setText(nextHeadline, `Next ${targetLabel} Sunset`);
-      if (!milestoneMatch) {
-        setText(nextDate, "—");
-        setText(nextAway, "(Not within the next year)");
-        return;
+      const sunsetThresholdMilestones = [
+        {
+          id: "sunset-after-430",
+          title: "First sunset after 4:30pm",
+          minutes: 16 * 60 + 30,
+          todayHeadline: "Today brings the first sunset after 4:30pm.",
+          todayLede: "Evenings are stretching out.",
+        },
+        {
+          id: "sunset-after-5",
+          title: "First sunset after 5pm",
+          minutes: 17 * 60,
+          todayHeadline: "Today brings the first sunset after 5pm.",
+          todayLede: "Evening light is back.",
+        },
+        {
+          id: "sunset-after-530",
+          title: "First sunset after 5:30pm",
+          minutes: 17 * 60 + 30,
+          todayHeadline: "Today brings the first sunset after 5:30pm.",
+          todayLede: "Later light is here.",
+        },
+        {
+          id: "sunset-after-6",
+          title: "First sunset after 6pm",
+          minutes: 18 * 60,
+          todayHeadline: "Today brings the first sunset after 6pm.",
+          todayLede: "Longer evenings ahead.",
+        },
+        {
+          id: "sunset-after-7",
+          title: "First sunset after 7pm",
+          minutes: 19 * 60,
+          todayHeadline: "Today brings the first sunset after 7pm.",
+          todayLede: "Hello, summer nights.",
+        },
+        {
+          id: "sunset-after-8",
+          title: "First sunset after 8pm",
+          minutes: 20 * 60,
+          todayHeadline: "Today brings the first sunset after 8pm.",
+          todayLede: "Evening light is peaking.",
+        },
+      ];
+
+      sunsetThresholdMilestones.forEach((milestoneConfig) => {
+        const match = findFirstSunsetAfter(
+          observer,
+          timeZone,
+          previousWinterSolsticeParts,
+          milestoneConfig.minutes
+        );
+        addMilestone(
+          buildMilestone({
+            id: milestoneConfig.id,
+            title: milestoneConfig.title,
+            dateParts: match?.dateParts,
+            todayHeadline: milestoneConfig.todayHeadline,
+            todayLede: milestoneConfig.todayLede,
+          })
+        );
+      });
+
+      const daylightGainMilestones = [
+        {
+          id: "gain-30",
+          title: "Gained 30 minutes of daylight since the winter solstice",
+          minutes: 30,
+          todayHeadline:
+            "You've gained 30 minutes of daylight since the winter solstice.",
+          todayLede: "That's a real shift.",
+        },
+        {
+          id: "gain-60",
+          title: "Gained 1 hour of daylight since the winter solstice",
+          minutes: 60,
+          todayHeadline:
+            "You've gained 1 hour of daylight since the winter solstice.",
+          todayLede: "Evenings feel brighter already.",
+        },
+        {
+          id: "gain-90",
+          title: "Gained 1.5 hours of daylight since the winter solstice",
+          minutes: 90,
+          todayHeadline:
+            "You've gained 1.5 hours of daylight since the winter solstice.",
+          todayLede: "That's a big boost.",
+        },
+        {
+          id: "gain-120",
+          title: "Gained 2 hours of daylight since the winter solstice",
+          minutes: 120,
+          todayHeadline:
+            "You've gained 2 hours of daylight since the winter solstice.",
+          todayLede: "Summer is getting closer.",
+        },
+      ];
+
+      daylightGainMilestones.forEach((milestoneConfig) => {
+        const match = findFirstDaylightGain(
+          observer,
+          timeZone,
+          previousWinterSolsticeParts,
+          milestoneConfig.minutes
+        );
+        addMilestone(
+          buildMilestone({
+            id: milestoneConfig.id,
+            title: milestoneConfig.title,
+            dateParts: match?.dateParts,
+            todayHeadline: milestoneConfig.todayHeadline,
+            todayLede: milestoneConfig.todayLede,
+          })
+        );
+      });
+
+      const milestoneOffsets = milestoneCandidates
+        .map((milestoneItem) => withMilestoneOffset(milestoneItem, todayParts))
+        .filter(Boolean);
+      const todayMilestone = milestoneOffsets.find(
+        (milestoneItem) => milestoneItem.offsetDays === 0
+      );
+      if (todayMilestone) {
+        const todayCopy = getMilestoneTodayCopy(todayMilestone);
+        if (todayCopy) {
+          setText(headline, todayCopy.headline);
+          setText(lede, todayCopy.lede);
+        }
+        celebrateMilestone(todayMilestone);
+      } else {
+        celebrateMilestone(null);
       }
 
-      setText(
-        nextDate,
-        formatLongDateFromParts(milestoneMatch.dateParts, timeZone)
-      );
-      setText(
-        nextAway,
-        `(${milestoneMatch.offsetDays} day${
-          milestoneMatch.offsetDays === 1 ? "" : "s"
-        } away)`
-      );
+      const upcoming = milestoneOffsets
+        .filter((milestoneItem) => milestoneItem.offsetDays > 0)
+        .sort((a, b) => {
+          const dayDiff = a.offsetDays - b.offsetDays;
+          if (dayDiff !== 0) {
+            return dayDiff;
+          }
+          return a.title.localeCompare(b.title);
+        });
+      updateMilestoneCard(upcoming, timeZone);
     };
 
     const US_STATE_ABBR = {
@@ -3634,6 +4272,20 @@
         if (activeLocation) {
           updateDaylightForLocation(activeLocation);
         }
+      });
+    }
+
+    if (milestoneToggle) {
+      milestoneToggle.addEventListener("click", () => {
+        if (!upcomingMilestones.length) {
+          return;
+        }
+        milestoneIndex = (milestoneIndex + 1) % upcomingMilestones.length;
+        updateMilestoneCard(
+          upcomingMilestones,
+          milestoneTimeZone || FALLBACK_TIMEZONE,
+          { resetIndex: false }
+        );
       });
     }
 
