@@ -1301,9 +1301,9 @@
       {
         headline: "Today's sunset is {## minutes} later than it was at its earliest.",
         lede: "Enjoy the extra evening light!",
-        months: [1, 2, 3, 4],
+        months: [1, 2, 3, 4, 12],
         data_needs: ["sunset_today", "sunset_earliest"],
-        additional_requirements: null,
+        additional_requirements: "sunset_today > sunset_earliest",
         getValue: ({ sunset_today, sunset_earliest }) =>
           getDelta(sunset_today, sunset_earliest, true),
       },
@@ -1383,8 +1383,8 @@
         headline: "Most of the daylight loss is already behind you.",
         lede: "The days will start getting longer before you know it!",
         months: [11, 12],
-        data_needs: ["fraction_of_loss_completed"],
-        additional_requirements: "fraction_of_loss_completed > 0.5",
+        data_needs: ["winter_solstice_date", "today_date"],
+        additional_requirements: "today_date < winter_solstice_date",
       },
       {
         headline: "Each day this week adds at least {## minutes} more daylight than the day before.",
@@ -1396,9 +1396,9 @@
           getPositiveNumber(daylight_daily_gain_this_week_min),
       },
       {
-        headline: "In two weeks, you'll have {## more minutes} of daylight.",
-        lede: "Spring is on its way!",
-        months: [1, 2, 3, 4],
+        headline: "In two weeks, you'll have {## minutes} more daylight.",
+        lede: null,
+        months: [1, 2, 3, 4, 12],
         data_needs: ["daylight_today", "daylight_in_14_days"],
         additional_requirements: null,
         getValue: ({ daylight_in_14_days, daylight_today }) =>
@@ -1583,11 +1583,18 @@
         },
       },
       {
-        headline: "The earliest sunset is behind you now.",
-        lede: "And pretty soon, the shortest day will be too!",
+        headline: "Sunsets are getting later again!",
+        lede: null,
         months: [12],
         data_needs: ["date_today", "date_of_earliest_sunset"],
         additional_requirements: "date_today > date_of_earliest_sunset",
+      },
+      {
+        headline: "The shortest day is behind you!",
+        lede: null,
+        months: [12],
+        data_needs: ["date_today", "winter_solstice_date"],
+        additional_requirements: "date_today > winter_solstice_date",
       },
       {
         headline: "Today still has {## minutes} more daylight than the average winter day.",
