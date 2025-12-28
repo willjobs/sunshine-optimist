@@ -51,6 +51,137 @@
       align-items: center;
     }
 
+    .masthead {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      background: radial-gradient(circle at 30% 30%, #ffd59f, #e98a21 72%);
+      color: rgba(255, 255, 255, 0.92);
+      display: grid;
+      place-items: center;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+    }
+
+    .brand-mark svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .brand-title {
+      font-family: var(--serif);
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #9a5200;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .date-picker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: #2f2a26;
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 14px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .date-picker.is-custom {
+      background: rgba(255, 255, 255, 0.46);
+      border-color: rgba(200, 111, 21, 0.35);
+    }
+
+    .date-input {
+      border: none;
+      background: transparent;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 600;
+      color: #2f2a26;
+      width: 116px;
+    }
+
+    .date-input:focus {
+      outline: none;
+    }
+
+    .date-input::-webkit-calendar-picker-indicator {
+      opacity: 0.6;
+      cursor: pointer;
+      filter: sepia(0.4) saturate(1.2);
+    }
+
+    .date-reset {
+      border: 1px solid rgba(200, 111, 21, 0.3);
+      background: rgba(255, 255, 255, 0.7);
+      color: #a35b06;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease,
+        color 120ms ease, border-color 120ms ease;
+    }
+
+    .date-reset:hover {
+      background: #fff4df;
+      color: #a95800;
+      border-color: rgba(200, 111, 21, 0.45);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 16px rgba(164, 88, 0, 0.16);
+    }
+
+    .date-reset:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    .date-reset:focus-visible {
+      outline: 2px solid #d9b079;
+      outline-offset: 2px;
+    }
+
+    .date-reset:disabled {
+      opacity: 0.45;
+      cursor: default;
+      box-shadow: none;
+      transform: none;
+    }
+
     .location {
       display: flex;
       align-items: center;
@@ -582,6 +713,24 @@
         padding: 24px 14px 40px;
       }
 
+      .brand-title {
+        font-size: 16px;
+        letter-spacing: 0.1em;
+      }
+
+      .brand-mark {
+        width: 30px;
+        height: 30px;
+      }
+
+      .controls {
+        flex-direction: column;
+      }
+
+      .date-picker {
+        padding: 6px 10px;
+      }
+
       .card {
         padding: 32px 28px 30px;
         border-radius: 22px;
@@ -604,55 +753,77 @@
 </head>
 <body>
   <div class="shell">
-    <div class="location" aria-label="Location">
-      <button
-        class="location-geolocate"
-        id="location-geolocate"
-        type="button"
-        aria-label="Use my location"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 21s-6-5.33-6-10a6 6 0 0 1 12 0c0 4.67-6 10-6 10z"></path>
-          <circle cx="12" cy="11" r="2.5"></circle>
-        </svg>
-      </button>
-      <div class="location-input">
-        <label class="sr-only" for="city-input">City</label>
-        <input
-          id="city-input"
-          type="text"
-          role="combobox"
-          aria-autocomplete="list"
-          aria-expanded="false"
-          aria-controls="location-results-list"
-          autocomplete="off"
-          placeholder="Enter your city"
-        />
-        <button
-          class="location-clear"
-          id="location-clear"
-          type="button"
-          aria-label="Clear location"
-        >
-          Clear
-        </button>
-        <div class="location-results" id="location-results" aria-label="City suggestions">
-          <div
-            class="location-results-meta"
-            id="location-results-meta"
-            role="status"
-            aria-live="polite"
-          ></div>
-          <div
-            class="location-results-list"
-            id="location-results-list"
-            role="listbox"
-            aria-label="City suggestions"
-          ></div>
-          <div class="location-results-actions" id="location-results-actions"></div>
+    <header class="masthead">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 23h24" />
+            <path d="M8 23a8 8 0 0 1 16 0" />
+            <path d="M16 4v4" />
+            <path d="M6.5 8.5l2.8 2.8" />
+            <path d="M25.5 8.5l-2.8 2.8" />
+          </svg>
+        </div>
+        <span class="brand-title">Sunshine Optimist</span>
+      </div>
+      <div class="controls">
+        <div class="location" aria-label="Location">
+          <button
+            class="location-geolocate"
+            id="location-geolocate"
+            type="button"
+            aria-label="Use my location"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 21s-6-5.33-6-10a6 6 0 0 1 12 0c0 4.67-6 10-6 10z"></path>
+              <circle cx="12" cy="11" r="2.5"></circle>
+            </svg>
+          </button>
+          <div class="location-input">
+            <label class="sr-only" for="city-input">City</label>
+            <input
+              id="city-input"
+              type="text"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded="false"
+              aria-controls="location-results-list"
+              autocomplete="off"
+              placeholder="Enter your city"
+            />
+            <button
+              class="location-clear"
+              id="location-clear"
+              type="button"
+              aria-label="Clear location"
+            >
+              Clear
+            </button>
+            <div class="location-results" id="location-results" aria-label="City suggestions">
+              <div
+                class="location-results-meta"
+                id="location-results-meta"
+                role="status"
+                aria-live="polite"
+              ></div>
+              <div
+                class="location-results-list"
+                id="location-results-list"
+                role="listbox"
+                aria-label="City suggestions"
+              ></div>
+              <div class="location-results-actions" id="location-results-actions"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="date-picker" aria-label="Date">
+          <label class="sr-only" for="date-input">Date</label>
+          <input class="date-input" id="date-input" type="date" />
+          <button class="date-reset" id="date-reset" type="button">Today</button>
         </div>
       </div>
-    </div>
+    </header>
 
     <section class="card" aria-live="polite">
       <h1 id="headline"></h1>
@@ -796,6 +967,9 @@
     const nextHeadline = document.getElementById("next-headline");
     const nextDate = document.getElementById("next-date");
     const nextAway = document.getElementById("next-away");
+    const dateInput = document.getElementById("date-input");
+    const dateReset = document.getElementById("date-reset");
+    const datePicker = document.querySelector(".date-picker");
     let suggestionResults = [];
     let rawResults = [];
     let activeIndex = -1;
@@ -810,6 +984,9 @@
     let lastFilterTokens = [];
     let lastFilterTokensRaw = [];
     let recentLocations = [];
+    let activeLocation = null;
+    let useLiveDate = true;
+    let customDateParts = null;
     const localeSource = navigator.languages?.[0] || navigator.language || "en";
     const languageCode = localeSource.split("-")[0] || "en";
     const regionCode = (localeSource.split("-")[1] || "").toUpperCase();
@@ -885,6 +1062,52 @@
     const getLocalDateParts = (date, timeZone) => {
       const { year, month, day } = getZonedParts(date, timeZone);
       return { year, month, day };
+    };
+
+    const padDatePart = (value) => String(value).padStart(2, "0");
+
+    const formatDateInputValue = (parts) => {
+      if (!parts) {
+        return "";
+      }
+      return `${parts.year}-${padDatePart(parts.month)}-${padDatePart(parts.day)}`;
+    };
+
+    const parseDateInputValue = (value) => {
+      if (!value) {
+        return null;
+      }
+      const [year, month, day] = value.split("-").map(Number);
+      if (!year || !month || !day) {
+        return null;
+      }
+      return { year, month, day };
+    };
+
+    const getActiveDateParts = (timeZone) => {
+      if (!useLiveDate && customDateParts) {
+        return customDateParts;
+      }
+      return getLocalDateParts(new Date(), timeZone);
+    };
+
+    const syncDatePicker = (timeZone) => {
+      if (!dateInput) {
+        return;
+      }
+      const parts = getActiveDateParts(timeZone);
+      if (parts) {
+        const nextValue = formatDateInputValue(parts);
+        if (dateInput.value !== nextValue) {
+          dateInput.value = nextValue;
+        }
+      }
+      if (dateReset) {
+        dateReset.disabled = useLiveDate;
+      }
+      if (datePicker) {
+        datePicker.classList.toggle("is-custom", !useLiveDate);
+      }
     };
 
     const addDaysToDateParts = (parts, deltaDays) => {
@@ -2065,7 +2288,8 @@
         location.elevation || 0
       );
       const hemisphere = location.latitude < 0 ? "south" : "north";
-      const todayParts = getLocalDateParts(new Date(), timeZone);
+      const todayParts = getActiveDateParts(timeZone);
+      syncDatePicker(timeZone);
       const weekParts = addDaysToDateParts(todayParts, -7);
       const monthParts = addMonthsToDateParts(todayParts, -1);
 
@@ -3087,6 +3311,7 @@
       updateRecentLocations(item);
       updateClearButton();
       clearResults();
+      activeLocation = item;
       updateDaylightForLocation(item);
       console.log(`Selected city: ${label}`, {
         latitude: item.latitude,
@@ -3298,6 +3523,36 @@
       });
     }
 
+    if (dateInput) {
+      dateInput.addEventListener("change", () => {
+        const nextParts = parseDateInputValue(dateInput.value);
+        if (nextParts) {
+          customDateParts = nextParts;
+          useLiveDate = false;
+        } else {
+          customDateParts = null;
+          useLiveDate = true;
+        }
+        const timeZone = activeLocation?.timezone || FALLBACK_TIMEZONE;
+        syncDatePicker(timeZone);
+        if (activeLocation) {
+          updateDaylightForLocation(activeLocation);
+        }
+      });
+    }
+
+    if (dateReset) {
+      dateReset.addEventListener("click", () => {
+        useLiveDate = true;
+        customDateParts = null;
+        const timeZone = activeLocation?.timezone || FALLBACK_TIMEZONE;
+        syncDatePicker(timeZone);
+        if (activeLocation) {
+          updateDaylightForLocation(activeLocation);
+        }
+      });
+    }
+
     if (resultsList) {
       resultsList.addEventListener("click", (event) => {
         if (!(event.target instanceof Element)) {
@@ -3389,6 +3644,7 @@
 
     window.addEventListener("resize", updateResultsMaxHeight);
 
+    syncDatePicker(FALLBACK_TIMEZONE);
     updateGeolocateButton();
     fetchDefaultLocation();
 
