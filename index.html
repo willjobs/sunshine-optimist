@@ -910,6 +910,42 @@
       };
     };
 
+    const getDaysInMonth = (year, month) =>
+      new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+    const compareDateParts = (left, right) => {
+      if (!left || !right) {
+        return 0;
+      }
+      if (left.year !== right.year) {
+        return left.year < right.year ? -1 : 1;
+      }
+      if (left.month !== right.month) {
+        return left.month < right.month ? -1 : 1;
+      }
+      if (left.day !== right.day) {
+        return left.day < right.day ? -1 : 1;
+      }
+      return 0;
+    };
+
+    const getDaysBetweenDateParts = (startParts, endParts) => {
+      if (!startParts || !endParts) {
+        return null;
+      }
+      const startUtc = Date.UTC(
+        startParts.year,
+        startParts.month - 1,
+        startParts.day
+      );
+      const endUtc = Date.UTC(
+        endParts.year,
+        endParts.month - 1,
+        endParts.day
+      );
+      return Math.round((endUtc - startUtc) / 86400000);
+    };
+
     const getDaysInYear = (year) => {
       const start = Date.UTC(year, 0, 1);
       const end = Date.UTC(year + 1, 0, 1);
@@ -952,6 +988,13 @@
         options.year = "numeric";
       }
       return new Intl.DateTimeFormat(localeSource, options).format(date);
+    };
+
+    const getLocalNoonDateFromParts = (parts, timeZone) => {
+      if (!parts) {
+        return null;
+      }
+      return zonedTimeToUtc(parts.year, parts.month, parts.day, 12, 0, 0, timeZone);
     };
 
     const formatDuration = (minutes) => {
@@ -1152,27 +1195,540 @@
       }
     });
 
-    const updateHeadlineAndLede = (sunsetDeltaMinutes, daylightDeltaMinutes) => {
+    const PLACEHOLDER_PATTERN = /\{##[^}]*\}/;
+    const PLACEHOLDER_PATTERN_GLOBAL = /\{##([^}]*)\}/g;
+
+    const getPositiveNumber = (value, allowZero = false) => {
+      if (!Number.isFinite(value)) {
+        return null;
+      }
+      if (allowZero ? value < 0 : value <= 0) {
+        return null;
+      }
+      return value;
+    };
+
+    const getDelta = (current, previous, allowZero = false) => {
+      if (!Number.isFinite(current) || !Number.isFinite(previous)) {
+        return null;
+      }
+      const delta = current - previous;
+      return getPositiveNumber(delta, allowZero);
+    };
+
+    const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
+
+    const formatMinutesValue = (value) => {
+      if (!Number.isFinite(value)) {
+        return "";
+      }
+      const rounded = Math.round(Math.abs(value));
+      if (rounded > 60) {
+        const hours = Math.floor(rounded / 60);
+        const mins = rounded % 60;
+        const hourLabel = hours === 1 ? "hr" : "hrs";
+        if (mins === 0) {
+          return `${hours} ${hourLabel}`;
+        }
+        const minLabel = mins === 1 ? "min" : "mins";
+        return `${hours} ${hourLabel} ${mins} ${minLabel}`;
+      }
+      const minLabel = rounded === 1 ? "minute" : "minutes";
+      return `${rounded} ${minLabel}`;
+    };
+
+    const formatDaysValue = (value) => {
+      if (!Number.isFinite(value)) {
+        return "";
+      }
+      const rounded = Math.round(Math.abs(value));
+      if (rounded > 14) {
+        const weeks = Math.ceil(rounded / 7);
+        const weekLabel = weeks === 1 ? "week" : "weeks";
+        return `less than ${weeks} ${weekLabel}`;
+      }
+      const dayLabel = rounded === 1 ? "day" : "days";
+      return `${rounded} ${dayLabel}`;
+    };
+
+    const formatWeeksValue = (value) => {
+      if (!Number.isFinite(value)) {
+        return "";
+      }
+      const rounded = Math.round(Math.abs(value));
+      const weekLabel = rounded === 1 ? "week" : "weeks";
+      return `${rounded} ${weekLabel}`;
+    };
+
+    const formatPercentValue = (value) => {
+      if (!Number.isFinite(value)) {
+        return "";
+      }
+      return `${Math.round(value)}%`;
+    };
+
+    const formatPlaceholderValue = (token, value) => {
+      const normalized = token.trim().toLowerCase();
+      if (normalized.includes("%")) {
+        return formatPercentValue(value);
+      }
+      if (normalized.includes("day")) {
+        return formatDaysValue(value);
+      }
+      if (normalized.includes("week")) {
+        return formatWeeksValue(value);
+      }
+      if (normalized.includes("minute")) {
+        const minutesText = formatMinutesValue(value);
+        if (normalized.includes("more")) {
+          return `${minutesText} more`;
+        }
+        return minutesText;
+      }
+      return String(value);
+    };
+
+    const fillMessageTemplate = (text, value) => {
+      if (!text) {
+        return "";
+      }
+      return text.replace(PLACEHOLDER_PATTERN_GLOBAL, (_match, token) =>
+        formatPlaceholderValue(token, value)
+      );
+    };
+
+    const OPTIMISTIC_MESSAGES = [
+      {
+        headline: "Today's sunset is {## minutes} later than it was at its earliest.",
+        lede: "Enjoy the extra evening light!",
+        months: [1, 2, 3, 4],
+        data_needs: ["sunset_today", "sunset_earliest"],
+        additional_requirements: null,
+        getValue: ({ sunset_today, sunset_earliest }) =>
+          getDelta(sunset_today, sunset_earliest, true),
+      },
+      {
+        headline: "Today's sunset is {## minutes} later than it was at the start of the year.",
+        lede: "So nice to have some evening light",
+        months: [2, 3, 4, 5, 6, 7, 8, 9],
+        data_needs: ["sunset_today", "sunset_start_of_year"],
+        additional_requirements: null,
+        getValue: ({ sunset_today, sunset_start_of_year }) =>
+          getDelta(sunset_today, sunset_start_of_year, true),
+      },
+      {
+        headline: "Today's sunset is {## minutes} later than it was one month ago.",
+        lede: "The days are definitely getting longer!",
+        months: [1, 2, 3, 4, 5],
+        data_needs: ["sunset_today", "sunset_one_month_ago"],
+        additional_requirements: "sunset_one_month_ago < sunset_today",
+        getValue: ({ sunset_today, sunset_one_month_ago }) =>
+          getDelta(sunset_today, sunset_one_month_ago),
+      },
+      {
+        headline: "By the end of this month, days will be {## minutes} longer than the winter solstice.",
+        lede: "Woohoo!",
+        months: [1, 2, 3, 4],
+        data_needs: ["daylight_minimum", "daylight_at_end_of_month"],
+        additional_requirements: null,
+        getValue: ({ daylight_at_end_of_month, daylight_minimum }) =>
+          getDelta(daylight_at_end_of_month, daylight_minimum),
+      },
+      {
+        headline: "You've gained {## minutes} of daylight since the winter solstice.",
+        lede: "Loving that extra light 😎",
+        months: [1, 2, 3, 4, 5],
+        data_needs: ["daylight_today", "daylight_minimum"],
+        additional_requirements: null,
+        getValue: ({ daylight_today, daylight_minimum }) =>
+          getDelta(daylight_today, daylight_minimum),
+      },
+      {
+        headline: "You have {## minutes} of daylight after 5pm.",
+        lede: "Enjoy the extra evening light!",
+        months: [2, 3, 4, 5, 6, 7, 8, 9],
+        data_needs: ["daylight_after_5pm_today"],
+        additional_requirements: "daylight_after_5pm_today > 0",
+        getValue: ({ daylight_after_5pm_today }) =>
+          getPositiveNumber(daylight_after_5pm_today, true),
+      },
+      {
+        headline: "You've gained {## minutes} of daylight in the last month.",
+        lede: "Way to go!",
+        months: [2, 3, 4, 5],
+        data_needs: ["daylight_today", "daylight_one_month_ago"],
+        additional_requirements: null,
+        getValue: ({ daylight_today, daylight_one_month_ago }) =>
+          getDelta(daylight_today, daylight_one_month_ago),
+      },
+      {
+        headline: "You still have {## minutes} more daylight than the winter solstice.",
+        lede: "Plenty of time to enjoy the outdoors 🙂",
+        months: [7, 8, 9, 10],
+        data_needs: ["daylight_today", "daylight_minimum"],
+        additional_requirements: null,
+        getValue: ({ daylight_today, daylight_minimum }) =>
+          getDelta(daylight_today, daylight_minimum),
+      },
+      {
+        headline: "Only {## minutes} of daylight remain to lose before the turnaround.",
+        lede: "You can do this!",
+        months: [11, 12],
+        data_needs: ["daylight_today", "daylight_minimum"],
+        additional_requirements: "today_date < winter_solstice_date",
+        getValue: ({ daylight_today, daylight_minimum }) =>
+          getDelta(daylight_today, daylight_minimum),
+      },
+      {
+        headline: "Most of the daylight loss is already behind you.",
+        lede: "The days will start getting longer before you know it!",
+        months: [11, 12],
+        data_needs: ["fraction_of_loss_completed"],
+        additional_requirements: "fraction_of_loss_completed > 0.5",
+      },
+      {
+        headline: "Each day this week adds at least {## minutes} more daylight than the day before.",
+        lede: "The pace of daylight gain is picking up!",
+        months: [2, 3, 4],
+        data_needs: ["daylight_daily_gain_this_week_min"],
+        additional_requirements: null,
+        getValue: ({ daylight_daily_gain_this_week_min }) =>
+          getPositiveNumber(daylight_daily_gain_this_week_min),
+      },
+      {
+        headline: "In two weeks, you'll have {## more minutes} of daylight.",
+        lede: "Spring is on its way!",
+        months: [1, 2, 3, 4],
+        data_needs: ["daylight_today", "daylight_in_14_days"],
+        additional_requirements: null,
+        getValue: ({ daylight_in_14_days, daylight_today }) =>
+          getDelta(daylight_in_14_days, daylight_today),
+      },
+      {
+        headline: "Daylight gains are accelerating, with {## minutes} added this week.",
+        lede: "Enjoy the extra light!",
+        months: [1, 2, 3],
+        data_needs: ["daylight_gain_this_week", "spring_equinox_date", "today_date"],
+        additional_requirements: "today_date < spring_equinox_date",
+        getValue: ({ daylight_gain_this_week }) =>
+          getPositiveNumber(daylight_gain_this_week),
+      },
+      {
+        headline: "Each day you're gaining {## minutes} of daylight.",
+        lede: "You deserve it for making it through winter!",
+        months: [2, 3, 4, 5],
+        data_needs: ["daylight_gain_today"],
+        additional_requirements: null,
+        getValue: ({ daylight_gain_today }) => getPositiveNumber(daylight_gain_today),
+      },
+      {
+        headline: "You're gaining over {## minutes} of daylight per week right now.",
+        lede: "Now we're talking!",
+        months: [2, 3, 4, 5],
+        data_needs: ["daylight_gain_this_week"],
+        additional_requirements: null,
+        getValue: ({ daylight_gain_this_week }) =>
+          getPositiveNumber(daylight_gain_this_week),
+      },
+      {
+        headline: "You're losing daylight less quickly than you were a month ago.",
+        lede: "The turnaround is coming!",
+        months: [10, 11],
+        data_needs: ["daylight_loss_this_month", "daylight_loss_last_month"],
+        additional_requirements: "daylight_loss_this_month < daylight_loss_last_month",
+      },
+      {
+        headline: "Only {## days} until sunset reaches 5pm.",
+        lede: "Get ready for those longer evenings!",
+        months: [1, 2, 3],
+        data_needs: ["days_until_sunset_after_5pm"],
+        additional_requirements: "days_until_sunset_after_5pm > 0",
+        getValue: ({ days_until_sunset_after_5pm }) =>
+          getPositiveNumber(days_until_sunset_after_5pm),
+      },
+      {
+        headline: "Only {## days} until sunset reaches 6pm.",
+        lede: "Get ready for those longer evenings!",
+        months: [2, 3, 4],
+        data_needs: ["days_until_sunset_after_6pm"],
+        additional_requirements: "days_until_sunset_after_6pm > 0",
+        getValue: ({ days_until_sunset_after_6pm }) =>
+          getPositiveNumber(days_until_sunset_after_6pm),
+      },
+      {
+        headline: "Only {## days} until sunset reaches 7pm.",
+        lede: "Pretty soon it'll feel like summer!",
+        months: [3, 4, 5],
+        data_needs: ["days_until_sunset_after_7pm"],
+        additional_requirements: "days_until_sunset_after_7pm > 0",
+        getValue: ({ days_until_sunset_after_7pm }) =>
+          getPositiveNumber(days_until_sunset_after_7pm),
+      },
+      {
+        headline: "The largest daily increase in daylight is only {## days} away.",
+        lede: "Hang in there!",
+        months: [1, 2, 3],
+        data_needs: ["days_until_max_daily_gain"],
+        additional_requirements: "days_until_max_daily_gain > 0",
+        getValue: ({ days_until_max_daily_gain }) =>
+          getPositiveNumber(days_until_max_daily_gain),
+      },
+      {
+        headline: "Only {## days} until the longest day of the year.",
+        lede: "Summer is almost here!",
+        months: [4, 5, 6],
+        data_needs: ["days_until_summer_solstice"],
+        additional_requirements: "days_until_summer_solstice > 0",
+        getValue: ({ days_until_summer_solstice }) =>
+          getPositiveNumber(days_until_summer_solstice),
+      },
+      {
+        headline: "You still have over {## weeks} of sunset after 7pm.",
+        lede: "Enjoy those long summer evenings!",
+        months: [7, 8, 9],
+        data_needs: ["weeks_with_sunset_after_7pm_remaining"],
+        additional_requirements: "weeks_with_sunset_after_7pm_remaining > 0",
+        getValue: ({ weeks_with_sunset_after_7pm_remaining }) =>
+          getPositiveNumber(weeks_with_sunset_after_7pm_remaining),
+      },
+      {
+        headline: "Only {## days} remain until daylight loss stops entirely.",
+        lede: "The turnaround is near!",
+        months: [11, 12],
+        data_needs: ["days_until_winter_solstice"],
+        additional_requirements: "days_until_winter_solstice > 0",
+        getValue: ({ days_until_winter_solstice }) =>
+          getPositiveNumber(days_until_winter_solstice),
+      },
+      {
+        headline: "The earliest sunset is only {## days} away.",
+        lede: "You can do this!",
+        months: [11, 12],
+        data_needs: ["days_until_earliest_sunset"],
+        additional_requirements: "days_until_earliest_sunset > 0",
+        getValue: ({ days_until_earliest_sunset }) =>
+          getPositiveNumber(days_until_earliest_sunset),
+      },
+      {
+        headline: "You've regained {##%} of the daylight lost.",
+        lede: "It feels better everyday!",
+        months: [2, 3, 4, 5],
+        data_needs: ["daylight_today", "daylight_minimum", "daylight_maximum"],
+        additional_requirements: null,
+        getValue: ({ daylight_today, daylight_minimum, daylight_maximum }) => {
+          if (
+            !Number.isFinite(daylight_today) ||
+            !Number.isFinite(daylight_minimum) ||
+            !Number.isFinite(daylight_maximum)
+          ) {
+            return null;
+          }
+          const range = daylight_maximum - daylight_minimum;
+          if (range <= 0) {
+            return null;
+          }
+          const ratio = (daylight_today - daylight_minimum) / range;
+          return clampValue(ratio * 100, 0, 100);
+        },
+      },
+      {
+        headline: "You're {##%} of the way to the shortest day.",
+        lede: "Then things get longer again; hang in there!.",
+        months: [9, 10, 11, 12],
+        data_needs: ["summer_solstice_date", "winter_solstice_date", "today_date"],
+        additional_requirements: "today_date < winter_solstice_date",
+        getValue: ({ summer_solstice_date, winter_solstice_date, today_date }) => {
+          if (
+            !(summer_solstice_date instanceof Date) ||
+            !(winter_solstice_date instanceof Date) ||
+            !(today_date instanceof Date)
+          ) {
+            return null;
+          }
+          const total = winter_solstice_date.getTime() - summer_solstice_date.getTime();
+          if (total <= 0) {
+            return null;
+          }
+          const progress = today_date.getTime() - summer_solstice_date.getTime();
+          return clampValue((progress / total) * 100, 0, 100);
+        },
+      },
+      {
+        headline: "Today has more daylight than {##%} of the year.",
+        lede: "Pretty amazing, right?",
+        months: [5, 6, 7, 8, 9],
+        data_needs: ["days_with_less_daylight"],
+        additional_requirements: null,
+        getValue: ({ days_with_less_daylight, days_in_year }) => {
+          if (!Number.isFinite(days_with_less_daylight) || !Number.isFinite(days_in_year)) {
+            return null;
+          }
+          if (days_in_year <= 0) {
+            return null;
+          }
+          return clampValue((days_with_less_daylight / days_in_year) * 100, 0, 100);
+        },
+      },
+      {
+        headline: "Daylight is within {## minutes} of its yearly maximum.",
+        lede: "The payoff for making it through winter!",
+        months: [5, 6],
+        data_needs: ["daylight_today", "daylight_maximum"],
+        additional_requirements: null,
+        getValue: ({ daylight_today, daylight_maximum }) => {
+          if (!Number.isFinite(daylight_today) || !Number.isFinite(daylight_maximum)) {
+            return null;
+          }
+          return getPositiveNumber(Math.abs(daylight_maximum - daylight_today), true);
+        },
+      },
+      {
+        headline: "The earliest sunset is behind you now.",
+        lede: "And pretty soon, the shortest day will be too!",
+        months: [12],
+        data_needs: ["date_today", "date_of_earliest_sunset"],
+        additional_requirements: "date_today > date_of_earliest_sunset",
+      },
+      {
+        headline: "Today still has {## minutes} more daylight than the average winter day.",
+        lede: "I'll take it!",
+        months: [9, 10, 11],
+        data_needs: ["daylight_today", "average_winter_daylight"],
+        additional_requirements: null,
+        getValue: ({ daylight_today, average_winter_daylight }) =>
+          getDelta(daylight_today, average_winter_daylight),
+      },
+      {
+        headline: "You're losing less than {## minutes} of daylight per week now.",
+        lede: "You're doing great!",
+        months: [10, 11, 12],
+        data_needs: ["daylight_loss_this_week"],
+        additional_requirements: null,
+        getValue: ({ daylight_loss_this_week }) =>
+          getPositiveNumber(daylight_loss_this_week),
+      },
+    ];
+
+    const isValidDataValue = (value) => {
+      if (value == null) {
+        return false;
+      }
+      if (value instanceof Date) {
+        return Number.isFinite(value.getTime());
+      }
+      return Number.isFinite(value);
+    };
+
+    const resolveRequirementValue = (token, data) => {
+      if (Object.prototype.hasOwnProperty.call(data, token)) {
+        return data[token];
+      }
+      const numeric = Number(token);
+      return Number.isFinite(numeric) ? numeric : null;
+    };
+
+    const compareRequirementValues = (left, operator, right) => {
+      const leftValue = left instanceof Date ? left.getTime() : left;
+      const rightValue = right instanceof Date ? right.getTime() : right;
+      if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
+        return false;
+      }
+      switch (operator) {
+        case ">":
+          return leftValue > rightValue;
+        case "<":
+          return leftValue < rightValue;
+        case ">=":
+          return leftValue >= rightValue;
+        case "<=":
+          return leftValue <= rightValue;
+        case "==":
+          return leftValue == rightValue;
+        case "===":
+          return leftValue === rightValue;
+        default:
+          return false;
+      }
+    };
+
+    const evaluateRequirement = (requirement, data) => {
+      if (!requirement) {
+        return true;
+      }
+      const match = requirement.match(
+        /^([a-z0-9_]+)\s*(<=|>=|<|>|===|==)\s*([a-z0-9_.-]+)$/i
+      );
+      if (!match) {
+        return false;
+      }
+      const left = resolveRequirementValue(match[1], data);
+      const right = resolveRequirementValue(match[3], data);
+      return compareRequirementValues(left, match[2], right);
+    };
+
+    const shiftMonth = (month, offset) => ((month - 1 + offset) % 12) + 1;
+
+    const getAdjustedMonth = (month, hemisphere) =>
+      hemisphere === "south" ? shiftMonth(month, 6) : month;
+
+    const hasPlaceholder = (text) => PLACEHOLDER_PATTERN.test(text || "");
+
+    const selectOptimisticMessage = (data, month, hemisphere) => {
+      const adjustedMonth = getAdjustedMonth(month, hemisphere);
+      const candidates = OPTIMISTIC_MESSAGES.filter((message) =>
+        message.months.includes(adjustedMonth)
+      );
+      const validMessages = candidates
+        .map((message) => {
+          if (
+            !message.data_needs.every((key) => isValidDataValue(data[key])) ||
+            (message.additional_requirements &&
+              !evaluateRequirement(message.additional_requirements, data))
+          ) {
+            return null;
+          }
+          const needsValue =
+            hasPlaceholder(message.headline) || hasPlaceholder(message.lede);
+          if (!needsValue) {
+            return { message, value: null };
+          }
+          const value = message.getValue ? message.getValue(data) : null;
+          if (!Number.isFinite(value)) {
+            return null;
+          }
+          return { message, value };
+        })
+        .filter(Boolean);
+      if (!validMessages.length) {
+        return null;
+      }
+      const chosen =
+        validMessages[Math.floor(Math.random() * validMessages.length)];
+      return {
+        headline: fillMessageTemplate(chosen.message.headline, chosen.value),
+        lede: fillMessageTemplate(chosen.message.lede, chosen.value),
+      };
+    };
+
+    const updateOptimisticMessage = (data, month, hemisphere) => {
       if (
-        sunsetDeltaMinutes == null ||
-        Number.isNaN(sunsetDeltaMinutes) ||
-        daylightDeltaMinutes == null ||
-        Number.isNaN(daylightDeltaMinutes)
+        data.sunset_today == null ||
+        Number.isNaN(data.sunset_today) ||
+        data.daylight_today == null ||
+        Number.isNaN(data.daylight_today)
       ) {
         setText(headline, "Sunlight looks different here.");
         setText(lede, "No sunrise or sunset today.");
         return;
       }
-      const sunsetDeltaText = formatOptimisticDelta(sunsetDeltaMinutes);
-      const daylightDeltaText = formatOptimisticDelta(daylightDeltaMinutes);
-      setText(
-        headline,
-        `Today's sunset is ${sunsetDeltaText} later than the earliest sunset.`
-      );
-      setText(
-        lede,
-        `You have ${daylightDeltaText} more sunlight than a week ago.`
-      );
+      const selection = selectOptimisticMessage(data, month, hemisphere);
+      if (!selection) {
+        setText(headline, "Enjoy the daylight today.");
+        setText(lede, "Every bit of sunshine helps.");
+        return;
+      }
+      setText(headline, selection.headline);
+      setText(lede, selection.lede);
     };
 
     const getSunEvents = (observer, timeZone, dateParts) => {
@@ -1198,13 +1754,28 @@
       return (events.sunset.date - events.sunrise.date) / 60000;
     };
 
-    const getYearlySunExtremes = (observer, timeZone, year) => {
+    const getSunsetMinutesForDateParts = (observer, timeZone, dateParts) => {
+      const { sunset } = getSunEvents(observer, timeZone, dateParts);
+      return sunset ? getMinutesSinceMidnight(sunset.date, timeZone) : null;
+    };
+
+    const getDaylightMinutesForDateParts = (observer, timeZone, dateParts) =>
+      getDaylightMinutes(getSunEvents(observer, timeZone, dateParts));
+
+    const getYearlySunExtremes = (observer, timeZone, year, todayDaylight) => {
       const yearStart = { year, month: 1, day: 1 };
       const daysInYear = getDaysInYear(year);
       let earliestSunsetMinutes = null;
       let earliestSunsetDateParts = null;
       let shortestDayMinutes = null;
       let shortestDayDateParts = null;
+      let longestDayMinutes = null;
+      let longestDayDateParts = null;
+      let maxDailyGainMinutes = null;
+      let maxDailyGainDateParts = null;
+      let previousDaylightMinutes = null;
+      let daysWithLessDaylight =
+        todayDaylight != null && Number.isFinite(todayDaylight) ? 0 : null;
 
       for (let offset = 0; offset < daysInYear; offset += 1) {
         const dateParts = addDaysToDateParts(yearStart, offset);
@@ -1224,6 +1795,27 @@
             shortestDayMinutes = daylightMinutes;
             shortestDayDateParts = dateParts;
           }
+          if (longestDayMinutes == null || daylightMinutes > longestDayMinutes) {
+            longestDayMinutes = daylightMinutes;
+            longestDayDateParts = dateParts;
+          }
+          if (
+            daysWithLessDaylight != null &&
+            Number.isFinite(todayDaylight) &&
+            daylightMinutes < todayDaylight
+          ) {
+            daysWithLessDaylight += 1;
+          }
+          if (previousDaylightMinutes != null) {
+            const gain = daylightMinutes - previousDaylightMinutes;
+            if (maxDailyGainMinutes == null || gain > maxDailyGainMinutes) {
+              maxDailyGainMinutes = gain;
+              maxDailyGainDateParts = dateParts;
+            }
+          }
+          previousDaylightMinutes = daylightMinutes;
+        } else {
+          previousDaylightMinutes = null;
         }
       }
 
@@ -1232,7 +1824,186 @@
         earliestSunsetDateParts,
         shortestDayMinutes,
         shortestDayDateParts,
+        longestDayMinutes,
+        longestDayDateParts,
+        maxDailyGainMinutes,
+        maxDailyGainDateParts,
+        daysWithLessDaylight,
       };
+    };
+
+    const getSeasonDatePartsForYear = (year, timeZone, hemisphere) => {
+      const seasons = Astronomy.Seasons(year);
+      const mapping =
+        hemisphere === "south"
+          ? {
+              spring: seasons.sep_equinox,
+              summer: seasons.dec_solstice,
+              autumn: seasons.mar_equinox,
+              winter: seasons.jun_solstice,
+            }
+          : {
+              spring: seasons.mar_equinox,
+              summer: seasons.jun_solstice,
+              autumn: seasons.sep_equinox,
+              winter: seasons.dec_solstice,
+            };
+      return {
+        spring: getLocalDateParts(mapping.spring.date, timeZone),
+        summer: getLocalDateParts(mapping.summer.date, timeZone),
+        autumn: getLocalDateParts(mapping.autumn.date, timeZone),
+        winter: getLocalDateParts(mapping.winter.date, timeZone),
+      };
+    };
+
+    const getNextSeasonDateParts = (todayParts, timeZone, hemisphere, season) => {
+      const currentYear = getSeasonDatePartsForYear(
+        todayParts.year,
+        timeZone,
+        hemisphere
+      );
+      let target = currentYear[season];
+      if (compareDateParts(target, todayParts) < 0) {
+        const nextYear = getSeasonDatePartsForYear(
+          todayParts.year + 1,
+          timeZone,
+          hemisphere
+        );
+        target = nextYear[season];
+      }
+      return target;
+    };
+
+    const getPreviousSeasonDateParts = (todayParts, timeZone, hemisphere, season) => {
+      const currentYear = getSeasonDatePartsForYear(
+        todayParts.year,
+        timeZone,
+        hemisphere
+      );
+      let target = currentYear[season];
+      if (compareDateParts(target, todayParts) > 0) {
+        const previousYear = getSeasonDatePartsForYear(
+          todayParts.year - 1,
+          timeZone,
+          hemisphere
+        );
+        target = previousYear[season];
+      }
+      return target;
+    };
+
+    const getAverageDaylightForMonths = (observer, timeZone, months) => {
+      let total = 0;
+      let count = 0;
+      months.forEach(({ year, month }) => {
+        const daysInMonth = getDaysInMonth(year, month);
+        for (let day = 1; day <= daysInMonth; day += 1) {
+          const daylight = getDaylightMinutesForDateParts(observer, timeZone, {
+            year,
+            month,
+            day,
+          });
+          if (daylight != null) {
+            total += daylight;
+            count += 1;
+          }
+        }
+      });
+      return count ? total / count : null;
+    };
+
+    const getAverageWinterDaylight = (
+      observer,
+      timeZone,
+      winterSolsticeParts,
+      hemisphere
+    ) => {
+      if (!winterSolsticeParts) {
+        return null;
+      }
+      const months =
+        hemisphere === "south"
+          ? [
+              { year: winterSolsticeParts.year, month: 6 },
+              { year: winterSolsticeParts.year, month: 7 },
+              { year: winterSolsticeParts.year, month: 8 },
+            ]
+          : [
+              { year: winterSolsticeParts.year, month: 12 },
+              { year: winterSolsticeParts.year + 1, month: 1 },
+              { year: winterSolsticeParts.year + 1, month: 2 },
+            ];
+      return getAverageDaylightForMonths(observer, timeZone, months);
+    };
+
+    const getDaysUntilSunsetAfter = (
+      observer,
+      timeZone,
+      todayParts,
+      todaySunsetMinutes,
+      targetMinutes
+    ) => {
+      if (todaySunsetMinutes == null) {
+        return null;
+      }
+      if (todaySunsetMinutes >= targetMinutes) {
+        return 0;
+      }
+      const match = findNextSunsetThreshold(
+        observer,
+        timeZone,
+        todayParts,
+        targetMinutes
+      );
+      return match ? match.offsetDays : null;
+    };
+
+    const getWeeksWithSunsetAfter = (
+      observer,
+      timeZone,
+      startDateParts,
+      targetMinutes,
+      limitDays = 370
+    ) => {
+      let days = 0;
+      for (let offset = 0; offset <= limitDays; offset += 1) {
+        const dateParts = addDaysToDateParts(startDateParts, offset);
+        const { sunset } = getSunEvents(observer, timeZone, dateParts);
+        if (!sunset) {
+          return null;
+        }
+        const sunsetMinutes = getMinutesSinceMidnight(sunset.date, timeZone);
+        if (sunsetMinutes >= targetMinutes) {
+          days += 1;
+        } else {
+          break;
+        }
+      }
+      return days ? Math.floor(days / 7) : 0;
+    };
+
+    const getDaylightDailyGainThisWeekMin = (observer, timeZone, todayParts) => {
+      let minGain = null;
+      let previousDaylight = null;
+      for (let offset = 6; offset >= 0; offset -= 1) {
+        const dateParts = addDaysToDateParts(todayParts, -offset);
+        const daylight = getDaylightMinutesForDateParts(
+          observer,
+          timeZone,
+          dateParts
+        );
+        if (daylight == null) {
+          return null;
+        }
+        if (previousDaylight != null) {
+          const gain = daylight - previousDaylight;
+          if (minGain == null || gain < minGain) {
+            minGain = gain;
+          }
+        }
+        previousDaylight = daylight;
+      }
+      return minGain;
     };
 
     const getNextHalfHour = (minutes) => {
@@ -1286,6 +2057,7 @@
         location.longitude,
         location.elevation || 0
       );
+      const hemisphere = location.latitude < 0 ? "south" : "north";
       const todayParts = getLocalDateParts(new Date(), timeZone);
       const weekParts = addDaysToDateParts(todayParts, -7);
       const monthParts = addMonthsToDateParts(todayParts, -1);
@@ -1310,13 +2082,19 @@
       const monthSunsetMinutes = monthEvents.sunset
         ? getMinutesSinceMidnight(monthEvents.sunset.date, timeZone)
         : null;
+      const todayDaylight = getDaylightMinutes(todayEvents);
+      const weekDaylight = getDaylightMinutes(weekEvents);
+      const monthDaylight = getDaylightMinutes(monthEvents);
       const referenceYear = todayParts.year;
       const {
         earliestSunsetMinutes,
         earliestSunsetDateParts,
         shortestDayMinutes,
         shortestDayDateParts,
-      } = getYearlySunExtremes(observer, timeZone, todayParts.year);
+        longestDayMinutes,
+        maxDailyGainDateParts,
+        daysWithLessDaylight,
+      } = getYearlySunExtremes(observer, timeZone, todayParts.year, todayDaylight);
 
       const sunsetEarliestDelta =
         todaySunsetMinutes != null && earliestSunsetMinutes != null
@@ -1368,10 +2146,6 @@
       updateDeltaRowTooltip(sunsetEarliestRow, sunsetEarliestTooltip);
       updateDeltaRowTooltip(sunsetWeekRow, sunsetWeekTooltip);
       updateDeltaRowTooltip(sunsetMonthRow, sunsetMonthTooltip);
-
-      const todayDaylight = getDaylightMinutes(todayEvents);
-      const weekDaylight = getDaylightMinutes(weekEvents);
-      const monthDaylight = getDaylightMinutes(monthEvents);
 
       setText(
         daylightDurationValue,
@@ -1427,7 +2201,210 @@
       updateDeltaRowTooltip(daylightWeekRow, daylightWeekTooltip);
       updateDeltaRowTooltip(daylightMonthRow, daylightMonthTooltip);
 
-      updateHeadlineAndLede(sunsetEarliestDelta, daylightWeekDelta);
+      const startOfYearParts = { year: todayParts.year, month: 1, day: 1 };
+      const sunsetStartOfYear = getSunsetMinutesForDateParts(
+        observer,
+        timeZone,
+        startOfYearParts
+      );
+      const twoMonthsParts = addMonthsToDateParts(todayParts, -2);
+      const twoMonthsDaylight = getDaylightMinutesForDateParts(
+        observer,
+        timeZone,
+        twoMonthsParts
+      );
+      const endOfMonthParts = {
+        year: todayParts.year,
+        month: todayParts.month,
+        day: getDaysInMonth(todayParts.year, todayParts.month),
+      };
+      const daylightAtEndOfMonth = getDaylightMinutesForDateParts(
+        observer,
+        timeZone,
+        endOfMonthParts
+      );
+      const in14Parts = addDaysToDateParts(todayParts, 14);
+      const daylightIn14Days = getDaylightMinutesForDateParts(
+        observer,
+        timeZone,
+        in14Parts
+      );
+      const yesterdayParts = addDaysToDateParts(todayParts, -1);
+      const yesterdayDaylight = getDaylightMinutesForDateParts(
+        observer,
+        timeZone,
+        yesterdayParts
+      );
+      const daylightGainToday =
+        todayDaylight != null && yesterdayDaylight != null
+          ? todayDaylight - yesterdayDaylight
+          : null;
+      const daylightGainThisWeek =
+        todayDaylight != null && weekDaylight != null
+          ? todayDaylight - weekDaylight
+          : null;
+      const daylightLossThisWeek =
+        todayDaylight != null && weekDaylight != null
+          ? weekDaylight - todayDaylight
+          : null;
+      const daylightLossThisMonthRaw =
+        monthDaylight != null && todayDaylight != null
+          ? monthDaylight - todayDaylight
+          : null;
+      const daylightLossThisMonth =
+        daylightLossThisMonthRaw != null && daylightLossThisMonthRaw > 0
+          ? daylightLossThisMonthRaw
+          : null;
+      const daylightLossLastMonthRaw =
+        twoMonthsDaylight != null && monthDaylight != null
+          ? twoMonthsDaylight - monthDaylight
+          : null;
+      const daylightLossLastMonth =
+        daylightLossLastMonthRaw != null && daylightLossLastMonthRaw > 0
+          ? daylightLossLastMonthRaw
+          : null;
+      const daylightAfter5pm =
+        todaySunsetMinutes != null
+          ? Math.max(0, todaySunsetMinutes - 17 * 60)
+          : null;
+      const daysUntilSunsetAfter5pm = getDaysUntilSunsetAfter(
+        observer,
+        timeZone,
+        todayParts,
+        todaySunsetMinutes,
+        17 * 60
+      );
+      const daysUntilSunsetAfter6pm = getDaysUntilSunsetAfter(
+        observer,
+        timeZone,
+        todayParts,
+        todaySunsetMinutes,
+        18 * 60
+      );
+      const daysUntilSunsetAfter7pm = getDaysUntilSunsetAfter(
+        observer,
+        timeZone,
+        todayParts,
+        todaySunsetMinutes,
+        19 * 60
+      );
+      const daysUntilMaxDailyGain = maxDailyGainDateParts
+        ? getDaysBetweenDateParts(todayParts, maxDailyGainDateParts)
+        : null;
+      const currentSeasonParts = getSeasonDatePartsForYear(
+        todayParts.year,
+        timeZone,
+        hemisphere
+      );
+      const previousSummerSolsticeParts = getPreviousSeasonDateParts(
+        todayParts,
+        timeZone,
+        hemisphere,
+        "summer"
+      );
+      const springEquinoxDate = getLocalNoonDateFromParts(
+        currentSeasonParts.spring,
+        timeZone
+      );
+      const summerSolsticeDate = getLocalNoonDateFromParts(
+        previousSummerSolsticeParts,
+        timeZone
+      );
+      const winterSolsticeDate = getLocalNoonDateFromParts(
+        currentSeasonParts.winter,
+        timeZone
+      );
+      const daysUntilSummerSolsticeRaw = currentSeasonParts.summer
+        ? getDaysBetweenDateParts(todayParts, currentSeasonParts.summer)
+        : null;
+      const daysUntilSummerSolstice =
+        daysUntilSummerSolsticeRaw != null && daysUntilSummerSolsticeRaw > 0
+          ? daysUntilSummerSolsticeRaw
+          : null;
+      const daysUntilWinterSolsticeRaw = currentSeasonParts.winter
+        ? getDaysBetweenDateParts(todayParts, currentSeasonParts.winter)
+        : null;
+      const daysUntilWinterSolstice =
+        daysUntilWinterSolsticeRaw != null && daysUntilWinterSolsticeRaw > 0
+          ? daysUntilWinterSolsticeRaw
+          : null;
+      const daysUntilEarliestSunset = earliestSunsetDateParts
+        ? getDaysBetweenDateParts(todayParts, earliestSunsetDateParts)
+        : null;
+      const daysInYear = getDaysInYear(todayParts.year);
+      let fractionOfLossCompleted = null;
+      if (
+        todayDaylight != null &&
+        Number.isFinite(longestDayMinutes) &&
+        Number.isFinite(shortestDayMinutes)
+      ) {
+        const totalLoss = longestDayMinutes - shortestDayMinutes;
+        if (totalLoss > 0) {
+          fractionOfLossCompleted = clampValue(
+            (longestDayMinutes - todayDaylight) / totalLoss,
+            0,
+            1
+          );
+        }
+      }
+      const weeksWithSunsetAfter7pmRemaining =
+        todaySunsetMinutes != null
+          ? getWeeksWithSunsetAfter(observer, timeZone, todayParts, 19 * 60)
+          : null;
+      const averageWinterDaylight = getAverageWinterDaylight(
+        observer,
+        timeZone,
+        currentSeasonParts.winter,
+        hemisphere
+      );
+      const todayDate = getLocalNoonDateFromParts(todayParts, timeZone);
+      const earliestSunsetDate = getLocalNoonDateFromParts(
+        earliestSunsetDateParts,
+        timeZone
+      );
+      const messageData = {
+        sunset_today: todaySunsetMinutes,
+        sunset_earliest: earliestSunsetMinutes,
+        sunset_start_of_year: sunsetStartOfYear,
+        sunset_one_month_ago: monthSunsetMinutes,
+        daylight_minimum: shortestDayMinutes,
+        daylight_at_end_of_month: daylightAtEndOfMonth,
+        daylight_today: todayDaylight,
+        daylight_after_5pm_today: daylightAfter5pm,
+        daylight_one_month_ago: monthDaylight,
+        fraction_of_loss_completed: fractionOfLossCompleted,
+        daylight_daily_gain_this_week_min: getDaylightDailyGainThisWeekMin(
+          observer,
+          timeZone,
+          todayParts
+        ),
+        daylight_in_14_days: daylightIn14Days,
+        daylight_gain_this_week: daylightGainThisWeek,
+        spring_equinox_date: springEquinoxDate,
+        today_date: todayDate,
+        daylight_gain_today: daylightGainToday,
+        daylight_loss_this_month: daylightLossThisMonth,
+        daylight_loss_last_month: daylightLossLastMonth,
+        days_until_sunset_after_5pm: daysUntilSunsetAfter5pm,
+        days_until_sunset_after_6pm: daysUntilSunsetAfter6pm,
+        days_until_sunset_after_7pm: daysUntilSunsetAfter7pm,
+        days_until_max_daily_gain: daysUntilMaxDailyGain,
+        days_until_summer_solstice: daysUntilSummerSolstice,
+        weeks_with_sunset_after_7pm_remaining: weeksWithSunsetAfter7pmRemaining,
+        days_until_winter_solstice: daysUntilWinterSolstice,
+        days_until_earliest_sunset: daysUntilEarliestSunset,
+        daylight_maximum: longestDayMinutes,
+        summer_solstice_date: summerSolsticeDate,
+        winter_solstice_date: winterSolsticeDate,
+        days_with_less_daylight: daysWithLessDaylight,
+        days_in_year: daysInYear,
+        date_today: todayDate,
+        date_of_earliest_sunset: earliestSunsetDate,
+        average_winter_daylight: averageWinterDaylight,
+        daylight_loss_this_week: daylightLossThisWeek,
+      };
+
+      updateOptimisticMessage(messageData, todayParts.month, hemisphere);
 
       if (todaySunsetMinutes == null) {
         setText(nextHeadline, "Sunset timing varies here");
