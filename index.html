@@ -693,6 +693,10 @@
       z-index: 0;
     }
 
+    .delta-row.is-hidden {
+      display: none;
+    }
+
     .delta-row.has-tooltip {
       cursor: help;
     }
@@ -1058,6 +1062,8 @@
     const daylightShortestRow = document.getElementById("daylight-shortest-row");
     const daylightWeekRow = document.getElementById("daylight-week-row");
     const daylightMonthRow = document.getElementById("daylight-month-row");
+    const sunsetComparisonLabel = sunsetMonthRow?.querySelector(".delta-label");
+    const daylightComparisonLabel = daylightMonthRow?.querySelector(".delta-label");
     const nextHeadline = document.getElementById("next-headline");
     const nextDate = document.getElementById("next-date");
     const nextAway = document.getElementById("next-away");
@@ -2748,10 +2754,62 @@
         todaySunsetMinutes != null && monthSunsetMinutes != null
           ? todaySunsetMinutes - monthSunsetMinutes
           : null;
+      const daylightShortestDelta =
+        todayDaylight != null && shortestDayMinutes != null
+          ? todayDaylight - shortestDayMinutes
+          : null;
+      const daylightWeekDelta =
+        todayDaylight != null && weekDaylight != null
+          ? todayDaylight - weekDaylight
+          : null;
+      const daylightMonthDelta =
+        todayDaylight != null && monthDaylight != null
+          ? todayDaylight - monthDaylight
+          : null;
+
+      const isNegativeDelta = (value) => Number.isFinite(value) && value < 0;
+      const monthHasNegative =
+        isNegativeDelta(sunsetMonthDelta) || isNegativeDelta(daylightMonthDelta);
+      const weekHasNegative =
+        isNegativeDelta(sunsetWeekDelta) || isNegativeDelta(daylightWeekDelta);
+      const comparisonMode = monthHasNegative
+        ? weekHasNegative
+          ? "none"
+          : "week"
+        : "month";
+      const showComparison = comparisonMode !== "none";
+      const comparisonLabel =
+        comparisonMode === "week" ? "vs. 1 week ago" : "vs. 1 month ago";
+      const sunsetComparisonDelta =
+        comparisonMode === "week" ? sunsetWeekDelta : sunsetMonthDelta;
+      const daylightComparisonDelta =
+        comparisonMode === "week" ? daylightWeekDelta : daylightMonthDelta;
 
       setText(sunsetEarliestDeltaValue, formatDeltaMinutes(sunsetEarliestDelta));
-      setText(sunsetWeekDeltaValue, formatDeltaMinutes(sunsetWeekDelta));
-      setText(sunsetMonthDeltaValue, formatDeltaMinutes(sunsetMonthDelta));
+
+      setText(
+        daylightDurationValue,
+        todayDaylight == null ? "—" : formatDuration(todayDaylight)
+      );
+
+      setText(daylightShortestDeltaValue, formatDeltaMinutes(daylightShortestDelta));
+
+      if (sunsetMonthRow) {
+        sunsetMonthRow.classList.toggle("is-hidden", !showComparison);
+      }
+      if (daylightMonthRow) {
+        daylightMonthRow.classList.toggle("is-hidden", !showComparison);
+      }
+
+      if (showComparison) {
+        setText(sunsetComparisonLabel, comparisonLabel);
+        setText(daylightComparisonLabel, comparisonLabel);
+        setText(sunsetMonthDeltaValue, formatDeltaMinutes(sunsetComparisonDelta));
+        setText(daylightMonthDeltaValue, formatDeltaMinutes(daylightComparisonDelta));
+      } else {
+        setText(sunsetMonthDeltaValue, "");
+        setText(daylightMonthDeltaValue, "");
+      }
 
       const sunsetEarliestTooltip =
         earliestSunsetMinutes != null && earliestSunsetDateParts
@@ -2782,32 +2840,14 @@
             referenceYear
           )
         : "";
+      const sunsetComparisonTooltip =
+        comparisonMode === "week" ? sunsetWeekTooltip : sunsetMonthTooltip;
 
       updateDeltaRowTooltip(sunsetEarliestRow, sunsetEarliestTooltip);
-      updateDeltaRowTooltip(sunsetWeekRow, sunsetWeekTooltip);
-      updateDeltaRowTooltip(sunsetMonthRow, sunsetMonthTooltip);
-
-      setText(
-        daylightDurationValue,
-        todayDaylight == null ? "—" : formatDuration(todayDaylight)
+      updateDeltaRowTooltip(
+        sunsetMonthRow,
+        showComparison ? sunsetComparisonTooltip : ""
       );
-
-      const daylightShortestDelta =
-        todayDaylight != null && shortestDayMinutes != null
-          ? todayDaylight - shortestDayMinutes
-          : null;
-      const daylightWeekDelta =
-        todayDaylight != null && weekDaylight != null
-          ? todayDaylight - weekDaylight
-          : null;
-      const daylightMonthDelta =
-        todayDaylight != null && monthDaylight != null
-          ? todayDaylight - monthDaylight
-          : null;
-
-      setText(daylightShortestDeltaValue, formatDeltaMinutes(daylightShortestDelta));
-      setText(daylightWeekDeltaValue, formatDeltaMinutes(daylightWeekDelta));
-      setText(daylightMonthDeltaValue, formatDeltaMinutes(daylightMonthDelta));
 
       const daylightShortestTooltip =
         shortestDayMinutes != null && shortestDayDateParts
@@ -2838,8 +2878,12 @@
           : "";
 
       updateDeltaRowTooltip(daylightShortestRow, daylightShortestTooltip);
-      updateDeltaRowTooltip(daylightWeekRow, daylightWeekTooltip);
-      updateDeltaRowTooltip(daylightMonthRow, daylightMonthTooltip);
+      const daylightComparisonTooltip =
+        comparisonMode === "week" ? daylightWeekTooltip : daylightMonthTooltip;
+      updateDeltaRowTooltip(
+        daylightMonthRow,
+        showComparison ? daylightComparisonTooltip : ""
+      );
 
       const startOfYearParts = { year: todayParts.year, month: 1, day: 1 };
       const sunsetStartOfYear = getSunsetMinutesForDateParts(
