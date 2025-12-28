@@ -2610,8 +2610,17 @@
       if (!Number.isFinite(offsetDays)) {
         return "";
       }
-      const dayLabel = offsetDays === 1 ? "day" : "days";
-      return `(${offsetDays} ${dayLabel} away)`;
+      const rounded = Math.round(Math.abs(offsetDays));
+      if (rounded > 14) {
+        const rawWeeks = rounded / 7;
+        const wholeWeeks = Number.isInteger(rawWeeks);
+        const weeks = wholeWeeks ? rawWeeks : Math.ceil(rawWeeks);
+        const weekLabel = weeks === 1 ? "week" : "weeks";
+        const prefix = wholeWeeks ? "" : "< ";
+        return `(${prefix}${weeks} ${weekLabel} away)`;
+      }
+      const dayLabel = rounded === 1 ? "day" : "days";
+      return `(${rounded} ${dayLabel} away)`;
     };
 
     const getMilestoneKey = (milestone) => {
@@ -3117,6 +3126,68 @@
         return nextYearExtremes[key] || null;
       };
 
+      const previousWinterSolsticeParts = getPreviousSeasonDateParts(
+        todayParts,
+        timeZone,
+        hemisphere,
+        "winter"
+      );
+      const sunsetThresholdMilestones = [
+        {
+          id: "sunset-after-430",
+          title: "Sunset after 4:30pm",
+          minutes: 16 * 60 + 30,
+          todayHeadline: "Today brings the first sunset after 4:30pm.",
+          todayLede: "Evenings are stretching out.",
+        },
+        {
+          id: "sunset-after-5",
+          title: "First sunset after 5pm",
+          minutes: 17 * 60,
+          todayHeadline: "Today brings the first sunset after 5pm.",
+          todayLede: "Evening light is back.",
+        },
+        {
+          id: "sunset-after-530",
+          title: "First sunset after 5:30pm",
+          minutes: 17 * 60 + 30,
+          todayHeadline: "Today brings the first sunset after 5:30pm.",
+          todayLede: "Later light is here.",
+        },
+        {
+          id: "sunset-after-6",
+          title: "First sunset after 6pm",
+          minutes: 18 * 60,
+          todayHeadline: "Today brings the first sunset after 6pm.",
+          todayLede: "Longer evenings ahead.",
+        },
+        {
+          id: "sunset-after-7",
+          title: "First sunset after 7pm",
+          minutes: 19 * 60,
+          todayHeadline: "Today brings the first sunset after 7pm.",
+          todayLede: "Hello, summer nights.",
+        },
+        {
+          id: "sunset-after-8",
+          title: "First sunset after 8pm",
+          minutes: 20 * 60,
+          todayHeadline: "Today brings the first sunset after 8pm.",
+          todayLede: "Evening light is peaking.",
+        },
+      ];
+      const sunsetThresholdMatches = sunsetThresholdMilestones.map(
+        (milestoneConfig) => ({
+          ...milestoneConfig,
+          match: findFirstSunsetAfter(
+            observer,
+            timeZone,
+            previousWinterSolsticeParts,
+            milestoneConfig.minutes
+          ),
+        })
+      );
+
       if (todaySunsetMinutes != null) {
         const targetMinutes = getNextHalfHour(todaySunsetMinutes);
         const targetLabel = formatTimeFromMinutes(
@@ -3131,13 +3202,21 @@
           targetMinutes
         );
         if (milestoneMatch) {
-          addMilestone(
-            buildMilestone({
-              id: `next-sunset-${targetMinutes}`,
-              title: `Next ${targetLabel} Sunset`,
-              dateParts: milestoneMatch.dateParts,
-            })
+          const isThresholdDuplicate = sunsetThresholdMatches.some(
+            (threshold) =>
+              threshold.minutes === targetMinutes &&
+              threshold.match?.dateParts &&
+              compareDateParts(threshold.match.dateParts, milestoneMatch.dateParts) === 0
           );
+          if (!isThresholdDuplicate) {
+            addMilestone(
+              buildMilestone({
+                id: `next-sunset-${targetMinutes}`,
+                title: `Next ${targetLabel} Sunset`,
+                dateParts: milestoneMatch.dateParts,
+              })
+            );
+          }
         }
       }
 
@@ -3192,12 +3271,6 @@
         })
       );
 
-      const previousWinterSolsticeParts = getPreviousSeasonDateParts(
-        todayParts,
-        timeZone,
-        hemisphere,
-        "winter"
-      );
       const firstTwelveHours = findFirstDaylightAtLeast(
         observer,
         timeZone,
@@ -3214,63 +3287,12 @@
         })
       );
 
-      const sunsetThresholdMilestones = [
-        {
-          id: "sunset-after-430",
-          title: "First sunset after 4:30pm",
-          minutes: 16 * 60 + 30,
-          todayHeadline: "Today brings the first sunset after 4:30pm.",
-          todayLede: "Evenings are stretching out.",
-        },
-        {
-          id: "sunset-after-5",
-          title: "First sunset after 5pm",
-          minutes: 17 * 60,
-          todayHeadline: "Today brings the first sunset after 5pm.",
-          todayLede: "Evening light is back.",
-        },
-        {
-          id: "sunset-after-530",
-          title: "First sunset after 5:30pm",
-          minutes: 17 * 60 + 30,
-          todayHeadline: "Today brings the first sunset after 5:30pm.",
-          todayLede: "Later light is here.",
-        },
-        {
-          id: "sunset-after-6",
-          title: "First sunset after 6pm",
-          minutes: 18 * 60,
-          todayHeadline: "Today brings the first sunset after 6pm.",
-          todayLede: "Longer evenings ahead.",
-        },
-        {
-          id: "sunset-after-7",
-          title: "First sunset after 7pm",
-          minutes: 19 * 60,
-          todayHeadline: "Today brings the first sunset after 7pm.",
-          todayLede: "Hello, summer nights.",
-        },
-        {
-          id: "sunset-after-8",
-          title: "First sunset after 8pm",
-          minutes: 20 * 60,
-          todayHeadline: "Today brings the first sunset after 8pm.",
-          todayLede: "Evening light is peaking.",
-        },
-      ];
-
-      sunsetThresholdMilestones.forEach((milestoneConfig) => {
-        const match = findFirstSunsetAfter(
-          observer,
-          timeZone,
-          previousWinterSolsticeParts,
-          milestoneConfig.minutes
-        );
+      sunsetThresholdMatches.forEach((milestoneConfig) => {
         addMilestone(
           buildMilestone({
             id: milestoneConfig.id,
             title: milestoneConfig.title,
-            dateParts: match?.dateParts,
+            dateParts: milestoneConfig.match?.dateParts,
             todayHeadline: milestoneConfig.todayHeadline,
             todayLede: milestoneConfig.todayLede,
           })
