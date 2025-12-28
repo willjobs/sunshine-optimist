@@ -993,6 +993,7 @@
     const MAX_RESULTS = 8;
     const MAX_RECENTS = 5;
     const RECENT_STORAGE_KEY = "sunshine-optimist:recent-locations";
+    const ACTIVE_LOCATION_STORAGE_KEY = "sunshine-optimist:active-location";
     const CAN_USE_GEOLOCATION = "geolocation" in navigator;
     const DEFAULT_LOCATION_QUERY = "Boston";
     const DEFAULT_LOCATION = {
@@ -2753,7 +2754,7 @@
       const parts = isUnitedStates
         ? [item.name, region]
         : [item.name, region, item.country];
-      return parts.join(", ");
+      return parts.filter(Boolean).join(", ");
     };
 
     const formatSuggestionLocation = (item) => {
@@ -2905,6 +2906,36 @@
         return [];
       }
     };
+
+    const loadStoredLocation = () => {
+      try {
+        const stored = localStorage.getItem(ACTIVE_LOCATION_STORAGE_KEY);
+        const parsed = stored ? JSON.parse(stored) : null;
+        if (!parsed || typeof parsed !== "object") {
+          return null;
+        }
+        if (typeof parsed.latitude !== "number" || typeof parsed.longitude !== "number") {
+          return null;
+        }
+        return parsed;
+      } catch (error) {
+        console.warn("Unable to load stored location:", error);
+        return null;
+      }
+    };
+
+    const saveStoredLocation = (location) => {
+      try {
+        localStorage.setItem(
+          ACTIVE_LOCATION_STORAGE_KEY,
+          JSON.stringify(location)
+        );
+      } catch (error) {
+        console.warn("Unable to save stored location:", error);
+      }
+    };
+
+    const isCurrentLocation = (location) => Boolean(location?.isCurrent);
 
     const saveRecentLocations = (items) => {
       try {
@@ -3104,7 +3135,24 @@
       openResultsPanel();
     };
 
-    const requestLocationBias = () => {
+    const buildCurrentLocation = (coords) => ({
+      name: "Current location",
+      admin1: "",
+      admin2: "",
+      country: "",
+      country_code: "",
+      latitude: coords.lat,
+      longitude: coords.lon,
+      elevation: 0,
+      timezone: FALLBACK_TIMEZONE,
+      isCurrent: true,
+    });
+
+    const selectLocationFromCoords = (coords) => {
+      selectResult(buildCurrentLocation(coords));
+    };
+
+    const requestLocationBias = ({ onError } = {}) => {
       if (locationBiasRequested || !("geolocation" in navigator)) {
         return;
       }
@@ -3118,19 +3166,19 @@
             lat: position.coords.latitude,
             lon: position.coords.longitude,
           };
+          selectLocationFromCoords(userCoords);
           locationBiasLoading = false;
+          locationBiasRequested = false;
           updateGeolocateButton();
-          if (rawResults.length) {
-            buildResults(rawResults, lastFilterTokens, lastFilterTokensRaw);
-          } else {
-            renderActions(getActionItems());
-          }
         },
-        () => {
+        (error) => {
           locationBiasLoading = false;
           locationBiasRequested = false;
           updateGeolocateButton();
           renderActions(getActionItems());
+          if (typeof onError === "function") {
+            onError(error);
+          }
         },
         { enableHighAccuracy: false, timeout: 5000 }
       );
@@ -3305,10 +3353,15 @@
       });
     };
 
-    const selectResult = (item) => {
+    const selectResult = (item, { persist = true, updateRecents = true } = {}) => {
       const label = formatSelectedLocation(item);
       setInputValue(cityInput, label);
-      updateRecentLocations(item);
+      if (updateRecents) {
+        updateRecentLocations(item);
+      }
+      if (persist) {
+        saveStoredLocation(item);
+      }
       updateClearButton();
       clearResults();
       activeLocation = item;
@@ -3342,6 +3395,19 @@
       });
     };
 
+    const mapGeocodingResults = (data) =>
+      (data.results || []).map((item) => ({
+        name: item.name,
+        admin1: item.admin1,
+        admin2: item.admin2,
+        country: item.country,
+        country_code: item.country_code,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        elevation: item.elevation,
+        timezone: item.timezone,
+      }));
+
     const fetchSuggestions = async (nameQuery, filterTokens, rawTokens) => {
       if (fetchController) {
         fetchController.abort();
@@ -3359,17 +3425,7 @@
           throw new Error("Failed to fetch city suggestions.");
         }
         const data = await response.json();
-        const results = (data.results || []).map((item) => ({
-          name: item.name,
-          admin1: item.admin1,
-          admin2: item.admin2,
-          country: item.country,
-          country_code: item.country_code,
-          latitude: item.latitude,
-          longitude: item.longitude,
-          elevation: item.elevation,
-          timezone: item.timezone,
-        }));
+        const results = mapGeocodingResults(data);
         buildResults(results, filterTokens, rawTokens);
       } catch (error) {
         if (error.name === "AbortError") {
@@ -3392,17 +3448,7 @@
           throw new Error("Failed to fetch default location.");
         }
         const data = await response.json();
-        const results = (data.results || []).map((item) => ({
-          name: item.name,
-          admin1: item.admin1,
-          admin2: item.admin2,
-          country: item.country,
-          country_code: item.country_code,
-          latitude: item.latitude,
-          longitude: item.longitude,
-          elevation: item.elevation,
-          timezone: item.timezone,
-        }));
+        const results = mapGeocodingResults(data);
         const match =
           results.find(
             (item) =>
@@ -3417,14 +3463,52 @@
           ) ||
           results[0];
         if (match) {
-          selectResult(match);
+          selectResult(match, { persist: false, updateRecents: false });
           return;
         }
-        selectResult(DEFAULT_LOCATION);
+        selectResult(DEFAULT_LOCATION, { persist: false, updateRecents: false });
       } catch (error) {
         console.warn("Default location lookup failed:", error);
-        selectResult(DEFAULT_LOCATION);
+        selectResult(DEFAULT_LOCATION, { persist: false, updateRecents: false });
       }
+    };
+
+    const initializeLocation = () => {
+      const storedLocation = loadStoredLocation();
+      if (storedLocation) {
+        if (isCurrentLocation(storedLocation)) {
+          userCoords = {
+            lat: storedLocation.latitude,
+            lon: storedLocation.longitude,
+          };
+        }
+        selectResult(storedLocation, { persist: false, updateRecents: false });
+      }
+
+      if (!CAN_USE_GEOLOCATION || !navigator.permissions?.query) {
+        if (!storedLocation) {
+          fetchDefaultLocation();
+        }
+        return;
+      }
+
+      navigator.permissions
+        .query({ name: "geolocation" })
+        .then((status) => {
+          if (status.state === "granted") {
+            if (!storedLocation) {
+              requestLocationBias({ onError: fetchDefaultLocation });
+            }
+          } else if (!storedLocation) {
+            fetchDefaultLocation();
+          }
+        })
+        .catch((error) => {
+          console.warn("Unable to check geolocation permission:", error);
+          if (!storedLocation) {
+            fetchDefaultLocation();
+          }
+        });
     };
 
     const handleInput = () => {
@@ -3646,7 +3730,7 @@
 
     syncDatePicker(FALLBACK_TIMEZONE);
     updateGeolocateButton();
-    fetchDefaultLocation();
+    initializeLocation();
 
     if (shareButton) {
       shareButton.addEventListener("click", () => {
