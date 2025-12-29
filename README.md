@@ -18,9 +18,40 @@ The purpose is to provide a website where people can go to get optimistic takes 
   earliest sunset, shortest day, and the prior month (with comparison tooltips).
 - Share button that copies the current headline and lede to the clipboard.
 
+## How the optimistic message is chosen
+
+The headline + lede are computed in `scripts/app.js` from a structured catalog in
+`scripts/messages.js`. The selection flow is:
+
+1. Compute `messageData` for the active location/date (sunset time, daylight
+   duration, seasonal markers, and relative deltas such as “days until sunset
+   after 6pm”). These values come from Astronomy Engine calculations plus local
+   time-zone conversion.
+2. If there is no valid sunrise/sunset for the date (e.g., polar night/day),
+   the copy is hard-coded to “Sunlight looks different here / No sunrise or
+   sunset today.”
+3. Otherwise, adjust the current month for hemisphere (southern hemisphere shifts
+   by six months) so messages align with the local season.
+4. Filter the message catalog to entries whose `months` include the adjusted
+   month, then discard any that do not have all required data (`data_needs`) or
+   fail their `additional_requirements` comparison (simple expressions like
+   `sunset_today > sunset_earliest`).
+5. If a message uses `{## ...}` placeholders, compute its `getValue` number and
+   format it based on the token contents (minutes, days, weeks, or percent).
+6. Choose a random entry from the remaining valid candidates and render the
+   template into the headline + lede. If no candidates remain, fall back to
+   “Enjoy the daylight today / Every bit of sunshine helps.”
+7. Finally, if today matches a milestone date, the milestone copy overrides the
+   optimistic message for that day.
+
 ## Project layout
 
-- `index.html` — markup, styles, and client-side logic.
+- `index.html` — markup and structural layout.
+- `styles.css` — global styles.
+- `scripts/app.js` — UI wiring, state, and orchestration.
+- `scripts/messages.js` — optimistic message templates and selection logic.
+- `scripts/milestones.js` — milestone definitions and copy.
+- `scripts/utils.js` — shared helpers.
 - `astronomy-engine/astronomy.browser.min.js` — bundled Astronomy Engine for solar
   events and seasonal calculations.
 
