@@ -7,16 +7,21 @@ The purpose is to provide a website where people can go to get optimistic takes 
 
 ## Current functionality
 
-- Location search with typeahead backed by the Open-Meteo geocoding API; supports
-  optional geolocation bias, local/worldwide toggling, and recent locations saved
+- City search with typeahead backed by the Open-Meteo geocoding API; supports
+  optional geolocation bias, local/worldwide toggles, and recent locations saved
   in `localStorage`.
-- Dynamic headline and lede that select an optimistic message based on computed
-  daylight metrics and hemisphere-aware season logic.
-- "Coming up" milestone that finds the next sunset after the next half-hour mark
-  and reports the date plus days away.
-- Stats panel for today's sunset time and total daylight, with deltas versus the
-  earliest sunset, shortest day, and the prior month (with comparison tooltips).
-- Share button that copies the current headline and lede to the clipboard.
+- Date picker with a Today reset so you can explore daylight insights for other
+  days in the selected location.
+- Dynamic headline and lede selected from a seasonal, hemisphere-aware catalog
+  and rotated when multiple messages apply, with polar-day/night fallback copy.
+- Stats panel for today's sunset time and total daylight, including comparisons
+  to the earliest sunset, the shortest day, and the most recent week/month with
+  tooltip context.
+- Upcoming milestone carousel covering next half-hour sunsets, seasonal extrema
+  and events, sunset-threshold milestones, and daylight-gain milestones (plus
+  confetti when a milestone lands).
+- Share modal with preview text, a privacy toggle for "My Location",
+  copy-to-clipboard, and social share shortcuts.
 
 ## How the optimistic message is chosen
 
@@ -38,9 +43,9 @@ The headline + lede are computed in `scripts/app.js` from a structured catalog i
    `sunset_today > sunset_earliest`).
 5. If a message uses `{## ...}` placeholders, compute its `getValue` number and
    format it based on the token contents (minutes, days, weeks, or percent).
-6. Choose a random entry from the remaining valid candidates and render the
-   template into the headline + lede. If no candidates remain, fall back to
-   “Enjoy the daylight today / Every bit of sunshine helps.”
+6. Rotate through the remaining valid candidates in the UI every 15 seconds. If
+   no candidates remain, fall back to “Enjoy the daylight today / Every bit of
+   sunshine helps.”
 7. Finally, if today matches a milestone date, the milestone copy overrides the
    optimistic message for that day.
 
@@ -58,5 +63,7 @@ The headline + lede are computed in `scripts/app.js` from a structured catalog i
 ## Data sources and dependencies
 
 - Open-Meteo Geocoding API for city lookup and default location.
+- BigDataCloud reverse geocoding for turning current coordinates into a readable
+  place name.
 - Browser Geolocation API (optional) for nearby result biasing.
 - Astronomy Engine for solar event and seasonal calculations.
