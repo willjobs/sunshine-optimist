@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="sunshine-gradient" cx="32" cy="32" r="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffe2a3" />
+      <stop offset="1" stop-color="#e48721" />
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#fff1cf" />
+  <circle cx="32" cy="32" r="16" fill="url(#sunshine-gradient)" />
+  <g stroke="#e48721" stroke-width="4" stroke-linecap="round">
+    <line x1="32" y1="6" x2="32" y2="14" />
+    <line x1="32" y1="50" x2="32" y2="58" />
+    <line x1="6" y1="32" x2="14" y2="32" />
+    <line x1="50" y1="32" x2="58" y2="32" />
+    <line x1="14.5" y1="14.5" x2="20.5" y2="20.5" />
+    <line x1="43.5" y1="43.5" x2="49.5" y2="49.5" />
+    <line x1="14.5" y1="49.5" x2="20.5" y2="43.5" />
+    <line x1="43.5" y1="20.5" x2="49.5" y2="14.5" />
+  </g>
+</svg>
