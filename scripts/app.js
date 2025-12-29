@@ -91,6 +91,9 @@ const ACTIVE_LOCATION_STORAGE_KEY = "sunshine-optimist:active-location";
 const SHARE_PRIVACY_STORAGE_KEY = "sunshine-optimist:share-privacy";
 const CAN_USE_GEOLOCATION = "geolocation" in navigator;
 const DEFAULT_LOCATION_QUERY = "Boston";
+const CURRENT_LOCATION_LABEL = "Current Location";
+const REVERSE_GEOCODE_URL =
+  "https://api.bigdatacloud.net/data/reverse-geocode-client";
 const DEFAULT_LOCATION = {
   name: "Boston",
   admin1: "Massachusetts",
@@ -2308,7 +2311,8 @@ const saveStoredLocation = (location) => {
 
 const isCurrentLocation = (location) =>
   Boolean(location?.isCurrent) ||
-  (location?.name || "").toLowerCase() === "current location";
+  (location?.name || "").toLowerCase() ===
+    CURRENT_LOCATION_LABEL.toLowerCase();
 
 const saveRecentLocations = (items) => {
   try {
@@ -2508,8 +2512,8 @@ const showErrorState = () => {
   openResultsPanel();
 };
 
-const buildCurrentLocation = (coords) => ({
-  name: "Current location",
+const buildCurrentLocation = (coords, { reverseGeocodeFailed = false } = {}) => ({
+  name: CURRENT_LOCATION_LABEL,
   admin1: "",
   admin2: "",
   country: "",
@@ -2519,10 +2523,17 @@ const buildCurrentLocation = (coords) => ({
   elevation: 0,
   timezone: FALLBACK_TIMEZONE,
   isCurrent: true,
+  reverseGeocodeFailed,
 });
 
-const selectLocationFromCoords = (coords) => {
-  selectResult(buildCurrentLocation(coords));
+const selectLocationFromCoords = async (coords) => {
+  const currentLocation = buildCurrentLocation(coords);
+  const resolved = await fetchReverseGeocodeLocation(currentLocation);
+  if (resolved) {
+    selectResult(resolved);
+    return;
+  }
+  selectResult({ ...currentLocation, reverseGeocodeFailed: true });
 };
 
 const requestLocationBias = ({ onError } = {}) => {
@@ -2534,15 +2545,18 @@ const requestLocationBias = ({ onError } = {}) => {
   updateGeolocateButton();
   renderActions(getActionItems());
   navigator.geolocation.getCurrentPosition(
-    (position) => {
+    async (position) => {
       userCoords = {
         lat: position.coords.latitude,
         lon: position.coords.longitude,
       };
-      selectLocationFromCoords(userCoords);
-      locationBiasLoading = false;
-      locationBiasRequested = false;
-      updateGeolocateButton();
+      try {
+        await selectLocationFromCoords(userCoords);
+      } finally {
+        locationBiasLoading = false;
+        locationBiasRequested = false;
+        updateGeolocateButton();
+      }
     },
     (error) => {
       locationBiasLoading = false;
@@ -2740,7 +2754,7 @@ const selectResult = (item, { persist = true, updateRecents = true } = {}) => {
   clearResults();
   activeLocation = item;
   updateDaylightForLocation(item);
-  if (isCurrentLocation(item)) {
+  if (isCurrentLocation(item) && !item.reverseGeocodeFailed) {
     fetchReverseGeocodeLocation(item);
   }
   console.log(`Selected city: ${label}`, {
@@ -2785,6 +2799,36 @@ const mapGeocodingResults = (data) =>
     timezone: item.timezone,
   }));
 
+const mapReverseGeocodeResponse = (data, location) => {
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+  const name =
+    [data.locality, data.city, data.principalSubdivision, data.countryName].find(
+      (value) => typeof value === "string" && value.trim()
+    ) || "";
+  if (!name) {
+    return null;
+  }
+  const latitude = Number.isFinite(data.latitude)
+    ? data.latitude
+    : location.latitude;
+  const longitude = Number.isFinite(data.longitude)
+    ? data.longitude
+    : location.longitude;
+  return {
+    name,
+    admin1: data.principalSubdivision || "",
+    admin2: "",
+    country: data.countryName || "",
+    country_code: data.countryCode || "",
+    latitude,
+    longitude,
+    elevation: 0,
+    timezone: FALLBACK_TIMEZONE,
+  };
+};
+
 const clearReverseGeocodeCache = () => {
   reverseGeocodeCache = null;
   reverseGeocodeCacheKey = "";
@@ -2808,17 +2852,16 @@ const fetchReverseGeocodeLocation = async (location) => {
   }
   reverseGeocodeCacheKey = cacheKey;
   reverseGeocodePromise = (async () => {
-    const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${location.latitude}&longitude=${location.longitude}&count=1&language=${encodeURIComponent(
+    const url = `${REVERSE_GEOCODE_URL}?latitude=${location.latitude}&longitude=${location.longitude}&localityLanguage=${encodeURIComponent(
       languageCode
-    )}&format=json`;
+    )}`;
     try {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error("Failed to reverse geocode location.");
       }
       const data = await response.json();
-      const results = mapGeocodingResults(data);
-      return results[0] || null;
+      return mapReverseGeocodeResponse(data, location);
     } catch (error) {
       console.warn("Reverse geocoding failed:", error);
       return null;
@@ -2981,8 +3024,11 @@ const resolveShareLocationLabel = async (location) => {
   if (!isCurrentLocation(location)) {
     return formatSelectedLocation(location);
   }
+  if (location.reverseGeocodeFailed) {
+    return CURRENT_LOCATION_LABEL;
+  }
   const resolved = await fetchReverseGeocodeLocation(location);
-  return resolved ? formatSelectedLocation(resolved) : "Current location";
+  return resolved ? formatSelectedLocation(resolved) : CURRENT_LOCATION_LABEL;
 };
 
 const buildShareMilestoneLine = () => {
