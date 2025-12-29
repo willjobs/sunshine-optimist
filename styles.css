@@ -663,49 +663,63 @@ h1 {
 
 .stat-deltas {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: grid;
-  gap: 10px;
+  gap: 8px;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 16px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  align-self: stretch;
+  text-align: left;
 }
 
-.delta-row {
+.delta-line {
   display: flex;
+  flex-wrap: nowrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 4px;
   position: relative;
-  z-index: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(255, 248, 238, 0.7);
+  border: 1px solid rgba(216, 188, 149, 0.35);
+  white-space: nowrap;
 }
 
-.delta-row.is-hidden {
+.delta-line.is-hidden {
   display: none;
 }
 
-.delta-row.has-tooltip {
+.delta-emphasis {
+  font-size: clamp(11px, 1.4vw, 13px);
+  font-weight: 700;
+  color: #d8861c;
+  letter-spacing: 0;
+}
+
+.delta-text {
+  font-size: clamp(11px, 1.2vw, 12.5px);
+  color: #5b4f45;
+  letter-spacing: 0;
+}
+
+.delta-reference {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  color: #5b4f45;
+}
+
+.delta-reference.has-tooltip {
   cursor: help;
-}
-
-.delta-row.has-tooltip:hover,
-.delta-row.has-tooltip:focus-visible,
-.delta-row.has-tooltip.is-tooltip-open {
-  z-index: 5;
-}
-
-.delta-label {
-  font-size: 12px;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.delta-row.has-tooltip .delta-label {
   text-decoration-line: underline;
   text-decoration-style: dashed;
   text-decoration-thickness: 1px;
@@ -713,21 +727,13 @@ h1 {
   text-underline-offset: 3px;
 }
 
-.delta-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: #d8861c;
+.delta-reference.has-tooltip:hover,
+.delta-reference.has-tooltip:focus-visible,
+.delta-reference.has-tooltip.is-tooltip-open {
+  z-index: 5;
 }
 
-.delta-row.has-tooltip .delta-value {
-  text-decoration-line: underline;
-  text-decoration-style: dashed;
-  text-decoration-thickness: 1px;
-  text-decoration-color: rgba(216, 134, 28, 0.5);
-  text-underline-offset: 3px;
-}
-
-.delta-row.has-tooltip::after {
+.delta-reference.has-tooltip::after {
   content: attr(data-tooltip);
   position: absolute;
   left: var(--tooltip-x, 50%);
@@ -746,11 +752,12 @@ h1 {
   pointer-events: none;
   transition: opacity 120ms ease, transform 120ms ease;
   z-index: 2;
+  white-space: normal;
 }
 
-.delta-row.has-tooltip:hover::after,
-.delta-row.has-tooltip:focus-visible::after,
-.delta-row.has-tooltip.is-tooltip-open::after {
+.delta-reference.has-tooltip:hover::after,
+.delta-reference.has-tooltip:focus-visible::after,
+.delta-reference.has-tooltip.is-tooltip-open::after {
   opacity: 1;
   transform: translate(-50%, 0);
 }

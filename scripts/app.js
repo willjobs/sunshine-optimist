@@ -20,20 +20,24 @@ const milestoneToggle = document.getElementById("milestone-toggle");
 const confettiRoot = document.getElementById("confetti");
 const sunsetTimeValue = document.getElementById("sunset-time");
 const sunsetEarliestDeltaValue = document.getElementById("sunset-earliest-delta");
-const sunsetWeekDeltaValue = document.getElementById("sunset-week-delta");
-const sunsetMonthDeltaValue = document.getElementById("sunset-month-delta");
+const sunsetComparisonDeltaValue = document.getElementById("sunset-month-delta");
 const daylightDurationValue = document.getElementById("daylight-duration");
 const daylightShortestDeltaValue = document.getElementById("daylight-shortest-delta");
-const daylightWeekDeltaValue = document.getElementById("daylight-week-delta");
-const daylightMonthDeltaValue = document.getElementById("daylight-month-delta");
+const daylightComparisonDeltaValue = document.getElementById("daylight-month-delta");
 const sunsetEarliestRow = document.getElementById("sunset-earliest-row");
-const sunsetWeekRow = document.getElementById("sunset-week-row");
-const sunsetMonthRow = document.getElementById("sunset-month-row");
+const sunsetComparisonRow = document.getElementById("sunset-month-row");
 const daylightShortestRow = document.getElementById("daylight-shortest-row");
-const daylightWeekRow = document.getElementById("daylight-week-row");
-const daylightMonthRow = document.getElementById("daylight-month-row");
-const sunsetComparisonLabel = sunsetMonthRow?.querySelector(".delta-label");
-const daylightComparisonLabel = daylightMonthRow?.querySelector(".delta-label");
+const daylightComparisonRow = document.getElementById("daylight-month-row");
+const sunsetEarliestReference = document.getElementById("sunset-earliest-reference");
+const sunsetComparisonReference = document.getElementById(
+  "sunset-comparison-reference"
+);
+const daylightShortestReference = document.getElementById(
+  "daylight-shortest-reference"
+);
+const daylightComparisonReference = document.getElementById(
+  "daylight-comparison-reference"
+);
 const nextHeadline = document.getElementById("next-headline");
 const nextDate = document.getElementById("next-date");
 const nextAway = document.getElementById("next-away");
@@ -379,6 +383,18 @@ const formatDeltaMinutes = (minutes) => {
   return `${sign}${body}`;
 };
 
+const formatDeltaStatement = (minutes, positiveLabel, negativeLabel) => {
+  if (minutes == null || Number.isNaN(minutes)) {
+    return "";
+  }
+  const rounded = Math.round(minutes);
+  const abs = Math.abs(rounded);
+  const value =
+    abs >= 60 ? formatDuration(abs) : `${abs} ${abs === 1 ? "minute" : "minutes"}`;
+  const descriptor = rounded >= 0 ? positiveLabel : negativeLabel;
+  return `${value} ${descriptor}`;
+};
+
 const formatComparisonTooltip = (value, parts, timeZone, referenceYear) => {
   if (!value || !parts) {
     return "";
@@ -387,7 +403,7 @@ const formatComparisonTooltip = (value, parts, timeZone, referenceYear) => {
   if (!dateLabel) {
     return "";
   }
-  return `vs. ${value} on ${dateLabel}`;
+  return `${value} on ${dateLabel}`;
 };
 
 const formatOptimisticDelta = (minutes) => {
@@ -476,124 +492,122 @@ const launchConfetti = () => {
   }, (maxDuration + 0.5) * 1000);
 };
 
-const deltaTooltipRows = [
-  sunsetEarliestRow,
-  sunsetWeekRow,
-  sunsetMonthRow,
-  daylightShortestRow,
-  daylightWeekRow,
-  daylightMonthRow,
+const deltaTooltipTargets = [
+  sunsetEarliestReference,
+  sunsetComparisonReference,
+  daylightShortestReference,
+  daylightComparisonReference,
 ].filter(Boolean);
 
-const closeDeltaTooltips = (exceptRow = null) => {
-  deltaTooltipRows.forEach((row) => {
-    if (row === exceptRow) {
+const closeDeltaTooltips = (exceptTarget = null) => {
+  deltaTooltipTargets.forEach((target) => {
+    if (target === exceptTarget) {
       return;
     }
-    if (!row.classList.contains("is-tooltip-open")) {
+    if (!target.classList.contains("is-tooltip-open")) {
       return;
     }
-    row.classList.remove("is-tooltip-open");
-    row.setAttribute("aria-expanded", "false");
+    target.classList.remove("is-tooltip-open");
+    target.setAttribute("aria-expanded", "false");
   });
 };
 
-const buildDeltaRowAriaLabel = (row, tooltipText) => {
-  const labelText = getText(row.querySelector(".delta-label"));
-  const valueText = getText(row.querySelector(".delta-value"));
-  return [labelText, valueText, tooltipText].filter(Boolean).join(". ");
+const buildDeltaTooltipAriaLabel = (target, tooltipText) => {
+  const line = target.closest(".delta-line");
+  const lineText = line ? getText(line) : getText(target);
+  return [lineText, tooltipText].filter(Boolean).join(". ");
 };
 
-const updateDeltaRowPointerPosition = (row, clientX, clientY) => {
-  if (!row || !Number.isFinite(clientX) || !Number.isFinite(clientY)) {
+const updateDeltaTooltipPointerPosition = (target, clientX, clientY) => {
+  if (!target || !Number.isFinite(clientX) || !Number.isFinite(clientY)) {
     return;
   }
-  const rect = row.getBoundingClientRect();
+  const rect = target.getBoundingClientRect();
   const x = clientX - rect.left;
   const y = clientY - rect.top;
-  row.style.setProperty("--tooltip-x", `${x}px`);
-  row.style.setProperty("--tooltip-y", `${y}px`);
+  target.style.setProperty("--tooltip-x", `${x}px`);
+  target.style.setProperty("--tooltip-y", `${y}px`);
 };
 
-const updateDeltaRowTooltip = (row, tooltipText) => {
-  if (!row) {
+const updateDeltaTooltip = (target, tooltipText) => {
+  if (!target) {
     return;
   }
   if (!tooltipText) {
-    row.classList.remove("has-tooltip", "is-tooltip-open");
-    row.removeAttribute("data-tooltip");
-    row.removeAttribute("tabindex");
-    row.removeAttribute("role");
-    row.removeAttribute("aria-label");
-    row.removeAttribute("aria-expanded");
+    target.classList.remove("has-tooltip", "is-tooltip-open");
+    target.removeAttribute("data-tooltip");
+    target.removeAttribute("tabindex");
+    target.removeAttribute("role");
+    target.removeAttribute("aria-label");
+    target.removeAttribute("aria-expanded");
     return;
   }
-  row.dataset.tooltip = tooltipText;
-  row.classList.add("has-tooltip");
-  row.setAttribute("tabindex", "0");
-  row.setAttribute("role", "button");
-  row.setAttribute("aria-label", buildDeltaRowAriaLabel(row, tooltipText));
-  row.setAttribute(
+  target.dataset.tooltip = tooltipText;
+  target.classList.add("has-tooltip");
+  target.setAttribute("tabindex", "0");
+  target.setAttribute("role", "button");
+  target.setAttribute("aria-label", buildDeltaTooltipAriaLabel(target, tooltipText));
+  target.setAttribute(
     "aria-expanded",
-    row.classList.contains("is-tooltip-open") ? "true" : "false"
+    target.classList.contains("is-tooltip-open") ? "true" : "false"
   );
 };
 
-deltaTooltipRows.forEach((row) => {
-  row.addEventListener("pointerenter", (event) => {
-    if (!row.classList.contains("has-tooltip")) {
+deltaTooltipTargets.forEach((target) => {
+  target.addEventListener("pointerenter", (event) => {
+    if (!target.classList.contains("has-tooltip")) {
       return;
     }
     if (event.pointerType === "mouse" || event.pointerType === "pen") {
-      updateDeltaRowPointerPosition(row, event.clientX, event.clientY);
+      updateDeltaTooltipPointerPosition(target, event.clientX, event.clientY);
     }
   });
 
-  row.addEventListener("pointermove", (event) => {
-    if (!row.classList.contains("has-tooltip")) {
+  target.addEventListener("pointermove", (event) => {
+    if (!target.classList.contains("has-tooltip")) {
       return;
     }
     if (event.pointerType === "mouse" || event.pointerType === "pen") {
-      updateDeltaRowPointerPosition(row, event.clientX, event.clientY);
+      updateDeltaTooltipPointerPosition(target, event.clientX, event.clientY);
     }
   });
 
-  row.addEventListener("pointerdown", (event) => {
-    if (!row.classList.contains("has-tooltip")) {
+  target.addEventListener("pointerdown", (event) => {
+    if (!target.classList.contains("has-tooltip")) {
       return;
     }
     if (event.pointerType !== "touch" && event.pointerType !== "pen") {
       return;
     }
-    updateDeltaRowPointerPosition(row, event.clientX, event.clientY);
-    const isOpen = row.classList.toggle("is-tooltip-open");
-    row.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    updateDeltaTooltipPointerPosition(target, event.clientX, event.clientY);
+    const isOpen = target.classList.toggle("is-tooltip-open");
+    target.setAttribute("aria-expanded", isOpen ? "true" : "false");
     if (isOpen) {
-      closeDeltaTooltips(row);
+      closeDeltaTooltips(target);
     }
   });
 
-  row.addEventListener("keydown", (event) => {
-    if (!row.classList.contains("has-tooltip")) {
+  target.addEventListener("keydown", (event) => {
+    if (!target.classList.contains("has-tooltip")) {
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      const isOpen = row.classList.toggle("is-tooltip-open");
-      row.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      const isOpen = target.classList.toggle("is-tooltip-open");
+      target.setAttribute("aria-expanded", isOpen ? "true" : "false");
       if (isOpen) {
-        closeDeltaTooltips(row);
+        closeDeltaTooltips(target);
       }
     } else if (event.key === "Escape") {
-      row.classList.remove("is-tooltip-open");
-      row.setAttribute("aria-expanded", "false");
+      target.classList.remove("is-tooltip-open");
+      target.setAttribute("aria-expanded", "false");
     }
   });
 });
 
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : null;
-  if (!target || !target.closest(".delta-row.has-tooltip")) {
+  if (!target || !target.closest(".delta-reference.has-tooltip")) {
     closeDeltaTooltips();
   }
 });
@@ -1294,38 +1308,60 @@ const updateDaylightForLocation = (location) => {
       : "week"
     : "month";
   const showComparison = comparisonMode !== "none";
-  const comparisonLabel =
-    comparisonMode === "week" ? "vs. 1 week ago" : "vs. 1 month ago";
+  const comparisonReference =
+    comparisonMode === "week" ? "1 week ago" : "1 month ago";
   const sunsetComparisonDelta =
     comparisonMode === "week" ? sunsetWeekDelta : sunsetMonthDelta;
   const daylightComparisonDelta =
     comparisonMode === "week" ? daylightWeekDelta : daylightMonthDelta;
 
-  setText(sunsetEarliestDeltaValue, formatDeltaMinutes(sunsetEarliestDelta));
+  const sunsetEarliestText = formatDeltaStatement(
+    sunsetEarliestDelta,
+    "later",
+    "earlier"
+  );
+  const daylightShortestText = formatDeltaStatement(
+    daylightShortestDelta,
+    "longer",
+    "shorter"
+  );
+  const sunsetComparisonText = showComparison
+    ? formatDeltaStatement(sunsetComparisonDelta, "later", "earlier")
+    : "";
+  const daylightComparisonText = showComparison
+    ? formatDeltaStatement(daylightComparisonDelta, "longer", "shorter")
+    : "";
+
+  setText(sunsetEarliestDeltaValue, sunsetEarliestText);
 
   setText(
     daylightDurationValue,
     todayDaylight == null ? "—" : formatDuration(todayDaylight)
   );
 
-  setText(daylightShortestDeltaValue, formatDeltaMinutes(daylightShortestDelta));
+  setText(daylightShortestDeltaValue, daylightShortestText);
 
-  if (sunsetMonthRow) {
-    sunsetMonthRow.classList.toggle("is-hidden", !showComparison);
+  if (sunsetEarliestRow) {
+    sunsetEarliestRow.classList.toggle("is-hidden", !sunsetEarliestText);
   }
-  if (daylightMonthRow) {
-    daylightMonthRow.classList.toggle("is-hidden", !showComparison);
+  if (daylightShortestRow) {
+    daylightShortestRow.classList.toggle("is-hidden", !daylightShortestText);
   }
 
-  if (showComparison) {
-    setText(sunsetComparisonLabel, comparisonLabel);
-    setText(daylightComparisonLabel, comparisonLabel);
-    setText(sunsetMonthDeltaValue, formatDeltaMinutes(sunsetComparisonDelta));
-    setText(daylightMonthDeltaValue, formatDeltaMinutes(daylightComparisonDelta));
-  } else {
-    setText(sunsetMonthDeltaValue, "");
-    setText(daylightMonthDeltaValue, "");
+  const showSunsetComparison = Boolean(sunsetComparisonText);
+  const showDaylightComparison = Boolean(daylightComparisonText);
+
+  if (sunsetComparisonRow) {
+    sunsetComparisonRow.classList.toggle("is-hidden", !showSunsetComparison);
   }
+  if (daylightComparisonRow) {
+    daylightComparisonRow.classList.toggle("is-hidden", !showDaylightComparison);
+  }
+
+  setText(sunsetComparisonReference, showSunsetComparison ? comparisonReference : "");
+  setText(daylightComparisonReference, showDaylightComparison ? comparisonReference : "");
+  setText(sunsetComparisonDeltaValue, sunsetComparisonText);
+  setText(daylightComparisonDeltaValue, daylightComparisonText);
 
   const sunsetEarliestTooltip =
     earliestSunsetMinutes != null && earliestSunsetDateParts
@@ -1359,10 +1395,13 @@ const updateDaylightForLocation = (location) => {
   const sunsetComparisonTooltip =
     comparisonMode === "week" ? sunsetWeekTooltip : sunsetMonthTooltip;
 
-  updateDeltaRowTooltip(sunsetEarliestRow, sunsetEarliestTooltip);
-  updateDeltaRowTooltip(
-    sunsetMonthRow,
-    showComparison ? sunsetComparisonTooltip : ""
+  updateDeltaTooltip(
+    sunsetEarliestReference,
+    sunsetEarliestText ? sunsetEarliestTooltip : ""
+  );
+  updateDeltaTooltip(
+    sunsetComparisonReference,
+    showSunsetComparison ? sunsetComparisonTooltip : ""
   );
 
   const daylightShortestTooltip =
@@ -1393,12 +1432,15 @@ const updateDaylightForLocation = (location) => {
         )
       : "";
 
-  updateDeltaRowTooltip(daylightShortestRow, daylightShortestTooltip);
+  updateDeltaTooltip(
+    daylightShortestReference,
+    daylightShortestText ? daylightShortestTooltip : ""
+  );
   const daylightComparisonTooltip =
     comparisonMode === "week" ? daylightWeekTooltip : daylightMonthTooltip;
-  updateDeltaRowTooltip(
-    daylightMonthRow,
-    showComparison ? daylightComparisonTooltip : ""
+  updateDeltaTooltip(
+    daylightComparisonReference,
+    showDaylightComparison ? daylightComparisonTooltip : ""
   );
 
   const startOfYearParts = { year: todayParts.year, month: 1, day: 1 };
