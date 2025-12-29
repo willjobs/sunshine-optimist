@@ -57,6 +57,8 @@ let recentLocations = [];
 let activeLocation = null;
 let useLiveDate = true;
 let customDateParts = null;
+let dateCommitTimeoutId = null;
+let lastDateKeydownAt = 0;
 let upcomingMilestones = [];
 let milestoneIndex = 0;
 let milestoneTimeZone = null;
@@ -83,6 +85,8 @@ const DEFAULT_LOCATION = {
 };
 const FALLBACK_TIMEZONE =
   Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+const DATE_COMMIT_DELAY_MS = 300;
+const DATE_KEYBOARD_GRACE_MS = 800;
 const getZonedParts = (date, timeZone) => {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -185,6 +189,61 @@ const syncDatePicker = (timeZone) => {
     datePicker.classList.toggle("is-custom", !useLiveDate);
   }
 };
+
+const clearDateCommitTimeout = () => {
+  if (dateCommitTimeoutId) {
+    clearTimeout(dateCommitTimeoutId);
+    dateCommitTimeoutId = null;
+  }
+};
+
+const applyDateSelection = (nextParts) => {
+  if (nextParts) {
+    if (
+      !useLiveDate &&
+      customDateParts &&
+      customDateParts.year === nextParts.year &&
+      customDateParts.month === nextParts.month &&
+      customDateParts.day === nextParts.day
+    ) {
+      return false;
+    }
+    customDateParts = nextParts;
+    useLiveDate = false;
+    return true;
+  }
+  if (useLiveDate) {
+    return false;
+  }
+  customDateParts = null;
+  useLiveDate = true;
+  return true;
+};
+
+const commitDateSelection = () => {
+  if (!dateInput) {
+    return;
+  }
+  clearDateCommitTimeout();
+  const nextParts = parseDateInputValue(dateInput.value);
+  const didChange = applyDateSelection(nextParts);
+  const timeZone = activeLocation?.timezone || FALLBACK_TIMEZONE;
+  syncDatePicker(timeZone);
+  if (activeLocation && didChange) {
+    updateDaylightForLocation(activeLocation);
+  }
+};
+
+const scheduleDateCommit = () => {
+  clearDateCommitTimeout();
+  dateCommitTimeoutId = window.setTimeout(() => {
+    dateCommitTimeoutId = null;
+    commitDateSelection();
+  }, DATE_COMMIT_DELAY_MS);
+};
+
+const isRecentDateKeyboardInput = () =>
+  Date.now() - lastDateKeydownAt < DATE_KEYBOARD_GRACE_MS;
 
 const addDaysToDateParts = (parts, deltaDays) => {
   const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
@@ -2681,30 +2740,50 @@ if (geolocateButton && cityInput) {
 }
 
 if (dateInput) {
-  dateInput.addEventListener("change", () => {
-    const nextParts = parseDateInputValue(dateInput.value);
-    if (nextParts) {
-      customDateParts = nextParts;
-      useLiveDate = false;
-    } else {
-      customDateParts = null;
-      useLiveDate = true;
+  const handleDateCommitInput = () => {
+    if (isRecentDateKeyboardInput()) {
+      return;
     }
-    const timeZone = activeLocation?.timezone || FALLBACK_TIMEZONE;
-    syncDatePicker(timeZone);
-    if (activeLocation) {
-      updateDaylightForLocation(activeLocation);
+    scheduleDateCommit();
+  };
+
+  dateInput.addEventListener("input", handleDateCommitInput);
+  dateInput.addEventListener("change", handleDateCommitInput);
+  dateInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      commitDateSelection();
+      return;
     }
+    if (
+      event.key === "Tab" ||
+      event.key === "Shift" ||
+      event.key === "Alt" ||
+      event.key === "Control" ||
+      event.key === "Meta"
+    ) {
+      return;
+    }
+    lastDateKeydownAt = Date.now();
+    clearDateCommitTimeout();
+  });
+  dateInput.addEventListener("pointerdown", () => {
+    lastDateKeydownAt = 0;
+    clearDateCommitTimeout();
+  });
+  dateInput.addEventListener("blur", () => {
+    clearDateCommitTimeout();
+    commitDateSelection();
   });
 }
 
 if (dateReset) {
   dateReset.addEventListener("click", () => {
-    useLiveDate = true;
-    customDateParts = null;
+    clearDateCommitTimeout();
+    lastDateKeydownAt = 0;
+    const didChange = applyDateSelection(null);
     const timeZone = activeLocation?.timezone || FALLBACK_TIMEZONE;
     syncDatePicker(timeZone);
-    if (activeLocation) {
+    if (activeLocation && didChange) {
       updateDaylightForLocation(activeLocation);
     }
   });
