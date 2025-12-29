@@ -6,6 +6,13 @@ import {
 import { clampValue } from "./utils.js";
 
 const shareButton = document.getElementById("share");
+const shareModal = document.getElementById("share-modal");
+const shareModalClose = document.getElementById("share-modal-close");
+const sharePreview = document.getElementById("share-preview");
+const sharePrivacyToggle = document.getElementById("share-privacy-toggle");
+const shareActionButtons = document.querySelectorAll(
+  ".share-icon-button[data-share], .share-copy-button[data-share]"
+);
 const headline = document.getElementById("headline");
 const lede = document.getElementById("lede");
 const cityInput = document.getElementById("city-input");
@@ -68,6 +75,12 @@ let milestoneIndex = 0;
 let milestoneTimeZone = null;
 let lastCelebratedKey = null;
 let confettiTimeoutId = null;
+let shareSnapshot = null;
+let sharePrivacyEnabled = false;
+let shareText = "";
+let reverseGeocodeCache = null;
+let reverseGeocodeCacheKey = "";
+let reverseGeocodePromise = null;
 const localeSource = navigator.languages?.[0] || navigator.language || "en";
 const languageCode = localeSource.split("-")[0] || "en";
 const regionCode = (localeSource.split("-")[1] || "").toUpperCase();
@@ -75,6 +88,7 @@ const MAX_RESULTS = 8;
 const MAX_RECENTS = 5;
 const RECENT_STORAGE_KEY = "sunshine-optimist:recent-locations";
 const ACTIVE_LOCATION_STORAGE_KEY = "sunshine-optimist:active-location";
+const SHARE_PRIVACY_STORAGE_KEY = "sunshine-optimist:share-privacy";
 const CAN_USE_GEOLOCATION = "geolocation" in navigator;
 const DEFAULT_LOCATION_QUERY = "Boston";
 const DEFAULT_LOCATION = {
@@ -91,6 +105,21 @@ const FALLBACK_TIMEZONE =
   Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 const DATE_COMMIT_DELAY_MS = 300;
 const DATE_KEYBOARD_GRACE_MS = 800;
+const SHARE_BAR_LENGTH = 20;
+const SHARE_MONTHS = [
+  "Jan.",
+  "Feb.",
+  "Mar.",
+  "Apr.",
+  "May",
+  "Jun.",
+  "Jul.",
+  "Aug.",
+  "Sep.",
+  "Oct.",
+  "Nov.",
+  "Dec.",
+];
 const getZonedParts = (date, timeZone) => {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -367,6 +396,144 @@ const formatDuration = (minutes) => {
     return `${hours}h ${mins}m`;
   }
   return `${mins}m`;
+};
+
+const formatShareDateFromParts = (parts) => {
+  if (!parts) {
+    return "";
+  }
+  const monthLabel = SHARE_MONTHS[parts.month - 1];
+  if (!monthLabel) {
+    return "";
+  }
+  return `${monthLabel} ${parts.day}`;
+};
+
+const formatShareMinutes = (minutes) => {
+  if (!Number.isFinite(minutes)) {
+    return "—";
+  }
+  const rounded = Math.round(Math.abs(minutes));
+  const label = rounded === 1 ? "min" : "mins";
+  return `${rounded} ${label}`;
+};
+
+const formatShareDayCount = (days) => {
+  if (!Number.isFinite(days)) {
+    return "";
+  }
+  const rounded = Math.round(days);
+  if (rounded <= 0) {
+    return "";
+  }
+  const label = rounded === 1 ? "day" : "days";
+  return `${rounded} ${label}`;
+};
+
+const lowerCaseFirstLetter = (value) => {
+  if (!value) {
+    return "";
+  }
+  const first = value[0];
+  if (first.toLowerCase() === first) {
+    return value;
+  }
+  return `${first.toLowerCase()}${value.slice(1)}`;
+};
+
+const formatSharePercent = (fraction) => {
+  if (!Number.isFinite(fraction)) {
+    return "";
+  }
+  return `${Math.round(clampValue(fraction, 0, 1) * 100)}%`;
+};
+
+const buildShareBar = (fraction) => {
+  if (!Number.isFinite(fraction)) {
+    return "";
+  }
+  const clamped = clampValue(fraction, 0, 1);
+  const filledCount = Math.round(clamped * SHARE_BAR_LENGTH);
+  const emptyCount = SHARE_BAR_LENGTH - filledCount;
+  return `${"█".repeat(filledCount)}${"░".repeat(emptyCount)}`;
+};
+
+const shiftMonth = (month, offset) => ((month - 1 + offset) % 12) + 1;
+
+const getAdjustedMonth = (month, hemisphere) =>
+  hemisphere === "south" ? shiftMonth(month, 6) : month;
+
+const getShareProgressMode = (month, hemisphere) => {
+  if (!Number.isFinite(month)) {
+    return "max";
+  }
+  const adjustedMonth = getAdjustedMonth(month, hemisphere);
+  if (adjustedMonth >= 6 && adjustedMonth <= 8) {
+    return "none";
+  }
+  if (adjustedMonth >= 9 && adjustedMonth <= 12) {
+    return "shortest";
+  }
+  return "max";
+};
+
+const getLossFraction = (snapshot) => {
+  if (
+    !Number.isFinite(snapshot?.todayDaylight) ||
+    !Number.isFinite(snapshot?.longestDayMinutes) ||
+    !Number.isFinite(snapshot?.shortestDayMinutes)
+  ) {
+    return null;
+  }
+  const totalLoss = snapshot.longestDayMinutes - snapshot.shortestDayMinutes;
+  if (totalLoss <= 0) {
+    return null;
+  }
+  return clampValue(
+    (snapshot.longestDayMinutes - snapshot.todayDaylight) / totalLoss,
+    0,
+    1
+  );
+};
+
+const buildShareProgressLine = (snapshot) => {
+  if (!snapshot) {
+    return "";
+  }
+  const isShortening = Number.isFinite(snapshot.daylightGainToday)
+    ? snapshot.daylightGainToday < 0
+    : false;
+  const mode = isShortening
+    ? getShareProgressMode(snapshot.dateParts?.month, snapshot.hemisphere)
+    : "max";
+  if (mode === "none") {
+    return "";
+  }
+  if (mode === "shortest") {
+    const fraction =
+      snapshot.fractionOfLossCompleted != null
+        ? snapshot.fractionOfLossCompleted
+        : getLossFraction(snapshot);
+    if (!Number.isFinite(fraction)) {
+      return "";
+    }
+    const percentText = formatSharePercent(fraction);
+    return `${buildShareBar(fraction)} Progress towards shortest day${
+      percentText ? ` (${percentText})` : ""
+    }`.trim();
+  }
+  if (!Number.isFinite(snapshot.longestDayMinutes)) {
+    return "";
+  }
+  const fraction =
+    Number.isFinite(snapshot.todayDaylight) && snapshot.longestDayMinutes > 0
+      ? snapshot.todayDaylight / snapshot.longestDayMinutes
+      : null;
+  if (!Number.isFinite(fraction)) {
+    return "";
+  }
+  const percentText = formatSharePercent(fraction);
+  return `${buildShareBar(fraction)} ${percentText} of maximum daylight`.trim();
 };
 
 const formatDeltaMinutes = (minutes) => {
@@ -1849,6 +2016,19 @@ const updateDaylightForLocation = (location) => {
       return a.title.localeCompare(b.title);
     });
   updateMilestoneCard(upcoming, timeZone);
+
+  shareSnapshot = {
+    location,
+    timeZone,
+    dateParts: todayParts,
+    todayDaylight,
+    daylightGainToday,
+    longestDayMinutes,
+    shortestDayMinutes,
+    sunsetEarliestDelta,
+    hemisphere,
+    fractionOfLossCompleted,
+  };
 };
 
 const US_STATE_ABBR = {
@@ -2098,6 +2278,23 @@ const loadStoredLocation = () => {
   }
 };
 
+const loadSharePrivacyPreference = () => {
+  try {
+    return localStorage.getItem(SHARE_PRIVACY_STORAGE_KEY) === "true";
+  } catch (error) {
+    console.warn("Unable to load share privacy preference:", error);
+    return false;
+  }
+};
+
+const saveSharePrivacyPreference = (value) => {
+  try {
+    localStorage.setItem(SHARE_PRIVACY_STORAGE_KEY, value ? "true" : "false");
+  } catch (error) {
+    console.warn("Unable to save share privacy preference:", error);
+  }
+};
+
 const saveStoredLocation = (location) => {
   try {
     localStorage.setItem(
@@ -2109,7 +2306,9 @@ const saveStoredLocation = (location) => {
   }
 };
 
-const isCurrentLocation = (location) => Boolean(location?.isCurrent);
+const isCurrentLocation = (location) =>
+  Boolean(location?.isCurrent) ||
+  (location?.name || "").toLowerCase() === "current location";
 
 const saveRecentLocations = (items) => {
   try {
@@ -2528,6 +2727,7 @@ const buildResults = (
 };
 
 const selectResult = (item, { persist = true, updateRecents = true } = {}) => {
+  clearReverseGeocodeCache();
   const label = formatSelectedLocation(item);
   setInputValue(cityInput, label);
   if (updateRecents) {
@@ -2540,6 +2740,9 @@ const selectResult = (item, { persist = true, updateRecents = true } = {}) => {
   clearResults();
   activeLocation = item;
   updateDaylightForLocation(item);
+  if (isCurrentLocation(item)) {
+    fetchReverseGeocodeLocation(item);
+  }
   console.log(`Selected city: ${label}`, {
     latitude: item.latitude,
     longitude: item.longitude,
@@ -2581,6 +2784,51 @@ const mapGeocodingResults = (data) =>
     elevation: item.elevation,
     timezone: item.timezone,
   }));
+
+const clearReverseGeocodeCache = () => {
+  reverseGeocodeCache = null;
+  reverseGeocodeCacheKey = "";
+  reverseGeocodePromise = null;
+};
+
+const fetchReverseGeocodeLocation = async (location) => {
+  if (
+    !location ||
+    !Number.isFinite(location.latitude) ||
+    !Number.isFinite(location.longitude)
+  ) {
+    return null;
+  }
+  const cacheKey = `${location.latitude},${location.longitude}`;
+  if (reverseGeocodeCache && reverseGeocodeCacheKey === cacheKey) {
+    return reverseGeocodeCache;
+  }
+  if (reverseGeocodePromise && reverseGeocodeCacheKey === cacheKey) {
+    return reverseGeocodePromise;
+  }
+  reverseGeocodeCacheKey = cacheKey;
+  reverseGeocodePromise = (async () => {
+    const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${location.latitude}&longitude=${location.longitude}&count=1&language=${encodeURIComponent(
+      languageCode
+    )}&format=json`;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to reverse geocode location.");
+      }
+      const data = await response.json();
+      const results = mapGeocodingResults(data);
+      return results[0] || null;
+    } catch (error) {
+      console.warn("Reverse geocoding failed:", error);
+      return null;
+    }
+  })();
+  const resolved = await reverseGeocodePromise;
+  reverseGeocodePromise = null;
+  reverseGeocodeCache = resolved;
+  return resolved;
+};
 
 const fetchSuggestions = async (nameQuery, filterTokens, rawTokens) => {
   if (fetchController) {
@@ -2718,6 +2966,137 @@ const handleInput = () => {
   debounceId = window.setTimeout(() => {
     fetchSuggestions(nameQuery, filterTokens, rawFilterTokens);
   }, 250);
+};
+
+const getSharePrivacySetting = () =>
+  sharePrivacyToggle ? sharePrivacyToggle.checked : sharePrivacyEnabled;
+
+const resolveShareLocationLabel = async (location) => {
+  if (getSharePrivacySetting()) {
+    return "My Location";
+  }
+  if (!location) {
+    return "Your location";
+  }
+  if (!isCurrentLocation(location)) {
+    return formatSelectedLocation(location);
+  }
+  const resolved = await fetchReverseGeocodeLocation(location);
+  return resolved ? formatSelectedLocation(resolved) : "Current location";
+};
+
+const buildShareMilestoneLine = () => {
+  if (!upcomingMilestones.length) {
+    return "📈 Upcoming milestone to be announced";
+  }
+  const active = upcomingMilestones[milestoneIndex] || upcomingMilestones[0];
+  if (!active) {
+    return "📈 Upcoming milestone to be announced";
+  }
+  const title = lowerCaseFirstLetter(active.title || "");
+  const dayCount = formatShareDayCount(active.offsetDays);
+  if (!dayCount) {
+    return `📈 ${title || active.title}`;
+  }
+  return `📈 ${dayCount} until ${title || active.title}`;
+};
+
+const buildShareMessage = async () => {
+  const snapshot = shareSnapshot;
+  const timeZone = snapshot?.timeZone || FALLBACK_TIMEZONE;
+  const dateParts = snapshot?.dateParts || getActiveDateParts(timeZone);
+  const dateLabel = formatShareDateFromParts(dateParts) || "—";
+  const headlineText = getText(headline) || "Sunshine Optimist";
+  const locationLabel = await resolveShareLocationLabel(
+    snapshot?.location || activeLocation
+  );
+  const progressLine = buildShareProgressLine(snapshot);
+  const daylightText = Number.isFinite(snapshot?.todayDaylight)
+    ? formatDuration(snapshot.todayDaylight)
+    : "—";
+  const sunsetDeltaText = formatShareMinutes(snapshot?.sunsetEarliestDelta);
+  const milestoneLine = buildShareMilestoneLine();
+  const lines = [`☀️ ${locationLabel} — ${dateLabel}`, "", headlineText, ""];
+  if (progressLine) {
+    lines.push(progressLine, "");
+  }
+  lines.push(`☀️ ${daylightText} of daylight today`);
+  lines.push(`🌅 Sunset ${sunsetDeltaText} later than the earliest sunset`);
+  if (milestoneLine) {
+    lines.push(milestoneLine);
+  }
+  lines.push("", "SunshineOptimist.com");
+  return lines.join("\n");
+};
+
+const setSharePreviewText = (text) => {
+  shareText = text || "";
+  setText(sharePreview, shareText);
+};
+
+const refreshSharePreview = async () => {
+  if (!sharePreview) {
+    return;
+  }
+  shareText = "";
+  setText(sharePreview, "Preparing your share...");
+  try {
+    const message = await buildShareMessage();
+    setSharePreviewText(message);
+  } catch (error) {
+    console.warn("Share preview failed:", error);
+    setText(sharePreview, "Unable to prepare share text.");
+  }
+};
+
+const openShareModal = () => {
+  if (!shareModal) {
+    return;
+  }
+  if (typeof shareModal.showModal === "function") {
+    if (!shareModal.open) {
+      shareModal.showModal();
+    }
+  } else {
+    shareModal.setAttribute("open", "true");
+  }
+  refreshSharePreview();
+};
+
+const closeShareModal = () => {
+  if (!shareModal) {
+    return;
+  }
+  if (typeof shareModal.close === "function") {
+    shareModal.close();
+  } else {
+    shareModal.removeAttribute("open");
+  }
+};
+
+const ensureShareText = async () => {
+  if (shareText) {
+    return shareText;
+  }
+  const message = await buildShareMessage();
+  setSharePreviewText(message);
+  return message;
+};
+
+const copyShareText = async () => {
+  const text = await ensureShareText();
+  if (!navigator.clipboard?.writeText) {
+    return false;
+  }
+  await navigator.clipboard.writeText(text);
+  return true;
+};
+
+const openShareLink = (url) => {
+  if (!url) {
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
 };
 
 if (cityInput) {
@@ -2939,28 +3318,113 @@ window.addEventListener("resize", updateResultsMaxHeight);
 syncDatePicker(FALLBACK_TIMEZONE);
 updateGeolocateButton();
 initializeLocation();
+sharePrivacyEnabled = loadSharePrivacyPreference();
+
+if (sharePrivacyToggle) {
+  sharePrivacyToggle.checked = sharePrivacyEnabled;
+  sharePrivacyToggle.addEventListener("change", () => {
+    sharePrivacyEnabled = sharePrivacyToggle.checked;
+    saveSharePrivacyPreference(sharePrivacyEnabled);
+    if (shareModal?.open || shareModal?.hasAttribute("open")) {
+      refreshSharePreview();
+    }
+  });
+}
+
+if (shareModalClose) {
+  shareModalClose.addEventListener("click", () => {
+    closeShareModal();
+  });
+}
+
+if (shareModal) {
+  shareModal.addEventListener("click", (event) => {
+    if (event.target === shareModal) {
+      closeShareModal();
+    }
+  });
+  shareModal.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeShareModal();
+  });
+}
+
+const flashActionLabel = (button, message) => {
+  if (!button) {
+    return;
+  }
+  if (button.classList.contains("share-copy-button")) {
+    const previousText = button.textContent;
+    setText(button, message);
+    button.classList.add("is-flash");
+    setTimeout(() => {
+      setText(button, previousText);
+      button.classList.remove("is-flash");
+    }, 1200);
+    return;
+  }
+  const previousLabel = button.getAttribute("aria-label") || "";
+  const previousTitle = button.getAttribute("title") || "";
+  button.setAttribute("aria-label", message);
+  button.setAttribute("title", message);
+  button.classList.add("is-flash");
+  setTimeout(() => {
+    button.setAttribute("aria-label", previousLabel);
+    button.setAttribute("title", previousTitle);
+    button.classList.remove("is-flash");
+  }, 1200);
+};
+
+if (shareActionButtons.length) {
+  shareActionButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const action = button.dataset.share;
+      if (!action) {
+        return;
+      }
+      try {
+        if (action === "copy") {
+          const success = await copyShareText();
+          if (success) {
+            flashActionLabel(button, "Copied!");
+          }
+          return;
+        }
+        if (action === "instagram") {
+          const success = await copyShareText();
+          if (success) {
+            flashActionLabel(button, "Copied!");
+          }
+          openShareLink("https://www.instagram.com/");
+          return;
+        }
+        const text = await ensureShareText();
+        const encodedText = encodeURIComponent(text);
+        if (action === "facebook") {
+          const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+            "https://sunshineoptimist.com"
+          )}&quote=${encodedText}`;
+          openShareLink(url);
+          return;
+        }
+        if (action === "x") {
+          const url = `https://twitter.com/intent/tweet?text=${encodedText}`;
+          openShareLink(url);
+          return;
+        }
+        if (action === "bluesky") {
+          const url = `https://bsky.app/intent/compose?text=${encodedText}`;
+          openShareLink(url);
+        }
+      } catch (error) {
+        console.warn("Share action failed:", error);
+      }
+    });
+  });
+}
 
 if (shareButton) {
   shareButton.addEventListener("click", () => {
-    const headlineText = getText(headline) || "Sunshine Optimist";
-    const ledeText = getText(lede);
-    const message = `${headlineText}${ledeText ? ` ${ledeText}` : ""} — via Sunshine Optimist`;
-    const writePromise = navigator.clipboard?.writeText(message);
-    if (!writePromise) {
-      return;
-    }
-    writePromise
-      .then(() => {
-        const label = shareButton.querySelector("span");
-        if (!label) {
-          return;
-        }
-        const previous = label.textContent;
-        setText(label, "Copied!");
-        setTimeout(() => setText(label, previous), 1200);
-      })
-      .catch((error) => {
-        console.warn("Share failed:", error);
-      });
+    openShareModal();
   });
 }
