@@ -449,6 +449,47 @@ h1 {
   color: #36302a;
 }
 
+#headline.is-optimistic-out,
+#lede.is-optimistic-out {
+  animation: optimistic-slide-out 0.32s cubic-bezier(0.4, 0, 0.9, 0.6);
+}
+
+#headline.is-optimistic-in,
+#lede.is-optimistic-in {
+  animation: optimistic-slide-in 0.42s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+@keyframes optimistic-slide-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+@keyframes optimistic-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #headline.is-optimistic-out,
+  #lede.is-optimistic-out,
+  #headline.is-optimistic-in,
+  #lede.is-optimistic-in {
+    animation: none;
+  }
+}
+
 .secondary {
   margin: 0 0 30px;
   font-size: 16px;

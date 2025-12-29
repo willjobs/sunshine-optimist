@@ -483,7 +483,7 @@ const getAdjustedMonth = (month, hemisphere) =>
 
 const hasPlaceholder = (text) => PLACEHOLDER_PATTERN.test(text || "");
 
-export const selectOptimisticMessage = (data, month, hemisphere) => {
+export const getOptimisticMessageOptions = (data, month, hemisphere) => {
   const adjustedMonth = getAdjustedMonth(month, hemisphere);
   const candidates = OPTIMISTIC_MESSAGES.filter((message) =>
     message.months.includes(adjustedMonth)
@@ -509,13 +509,16 @@ export const selectOptimisticMessage = (data, month, hemisphere) => {
       return { message, value };
     })
     .filter(Boolean);
-  if (!validMessages.length) {
+  return validMessages.map((entry) => ({
+    headline: fillMessageTemplate(entry.message.headline, entry.value),
+    lede: fillMessageTemplate(entry.message.lede, entry.value),
+  }));
+};
+
+export const selectOptimisticMessage = (data, month, hemisphere) => {
+  const options = getOptimisticMessageOptions(data, month, hemisphere);
+  if (!options.length) {
     return null;
   }
-  const chosen =
-    validMessages[Math.floor(Math.random() * validMessages.length)];
-  return {
-    headline: fillMessageTemplate(chosen.message.headline, chosen.value),
-    lede: fillMessageTemplate(chosen.message.lede, chosen.value),
-  };
+  return options[Math.floor(Math.random() * options.length)];
 };

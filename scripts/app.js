@@ -1,4 +1,4 @@
-import { selectOptimisticMessage } from "./messages.js";
+import { getOptimisticMessageOptions } from "./messages.js";
 import {
   DAYLIGHT_GAIN_MILESTONES,
   SUNSET_THRESHOLD_MILESTONES,
@@ -75,7 +75,13 @@ let milestoneIndex = 0;
 let milestoneTimeZone = null;
 let lastCelebratedKey = null;
 let confettiTimeoutId = null;
+let optimisticMessageOptions = [];
+let optimisticMessageIndex = 0;
+let optimisticRotationId = null;
+let optimisticSwapId = 0;
+let optimisticSwapTimeoutId = null;
 let shareSnapshot = null;
+let shareModalSnapshot = null;
 let sharePrivacyEnabled = false;
 let shareText = "";
 let reverseGeocodeCache = null;
@@ -611,6 +617,133 @@ const setInputValue = (node, value) => {
 
 const getText = (node) => (node?.textContent || "").trim();
 
+const OPTIMISTIC_ROTATION_MS = 15000;
+const OPTIMISTIC_OUT_CLASS = "is-optimistic-out";
+const OPTIMISTIC_IN_CLASS = "is-optimistic-in";
+const OPTIMISTIC_OUT_DURATION_MS = 320;
+const OPTIMISTIC_POLAR_COPY = {
+  headline: "Sunlight looks different here.",
+  lede: "No sunrise or sunset today.",
+};
+const OPTIMISTIC_FALLBACK_COPY = {
+  headline: "Enjoy the daylight today.",
+  lede: "Every bit of sunshine helps.",
+};
+
+const clearOptimisticSwapTimeout = () => {
+  if (optimisticSwapTimeoutId) {
+    window.clearTimeout(optimisticSwapTimeoutId);
+    optimisticSwapTimeoutId = null;
+  }
+};
+
+const clearOptimisticRotation = () => {
+  if (optimisticRotationId) {
+    window.clearInterval(optimisticRotationId);
+    optimisticRotationId = null;
+  }
+};
+
+const resetOptimisticAnimation = () => {
+  clearOptimisticSwapTimeout();
+  optimisticSwapId += 1;
+  [headline, lede].forEach((node) => {
+    if (!node) {
+      return;
+    }
+    node.classList.remove(OPTIMISTIC_OUT_CLASS, OPTIMISTIC_IN_CLASS);
+  });
+};
+
+const stopOptimisticRotation = () => {
+  clearOptimisticRotation();
+  resetOptimisticAnimation();
+  optimisticMessageOptions = [];
+  optimisticMessageIndex = 0;
+};
+
+const prefersReducedMotion = () => {
+  if (!window.matchMedia) {
+    return false;
+  }
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+};
+
+const setOptimisticCopyImmediate = (copy) => {
+  if (!copy) {
+    return;
+  }
+  resetOptimisticAnimation();
+  setText(headline, copy.headline);
+  setText(lede, copy.lede);
+};
+
+const animateOptimisticSwap = (copy) => {
+  if (!copy) {
+    return;
+  }
+  if (!headline || !lede || prefersReducedMotion()) {
+    setOptimisticCopyImmediate(copy);
+    return;
+  }
+  resetOptimisticAnimation();
+  const swapId = optimisticSwapId;
+  [headline, lede].forEach((node) => {
+    if (!node) {
+      return;
+    }
+    node.classList.remove(OPTIMISTIC_IN_CLASS);
+    void node.offsetWidth;
+    node.classList.add(OPTIMISTIC_OUT_CLASS);
+  });
+  optimisticSwapTimeoutId = window.setTimeout(() => {
+    if (swapId !== optimisticSwapId) {
+      return;
+    }
+    setText(headline, copy.headline);
+    setText(lede, copy.lede);
+    [headline, lede].forEach((node) => {
+      if (!node) {
+        return;
+      }
+      node.classList.remove(OPTIMISTIC_OUT_CLASS);
+      void node.offsetWidth;
+      node.classList.add(OPTIMISTIC_IN_CLASS);
+    });
+  }, OPTIMISTIC_OUT_DURATION_MS);
+};
+
+const setOptimisticCopy = (copy, { animate = false } = {}) => {
+  if (!copy) {
+    return;
+  }
+  if (!animate) {
+    setOptimisticCopyImmediate(copy);
+    return;
+  }
+  animateOptimisticSwap(copy);
+};
+
+const startOptimisticRotation = (messages) => {
+  stopOptimisticRotation();
+  optimisticMessageOptions = Array.isArray(messages) ? messages : [];
+  if (!optimisticMessageOptions.length) {
+    return;
+  }
+  optimisticMessageIndex = 0;
+  setOptimisticCopy(optimisticMessageOptions[0], { animate: false });
+  if (optimisticMessageOptions.length < 2) {
+    return;
+  }
+  optimisticRotationId = window.setInterval(() => {
+    optimisticMessageIndex =
+      (optimisticMessageIndex + 1) % optimisticMessageOptions.length;
+    setOptimisticCopy(optimisticMessageOptions[optimisticMessageIndex], {
+      animate: true,
+    });
+  }, OPTIMISTIC_ROTATION_MS);
+};
+
 const CONFETTI_COLORS = [
   "#f94144",
   "#f3722c",
@@ -795,18 +928,15 @@ const updateOptimisticMessage = (data, month, hemisphere) => {
     data.daylight_today == null ||
     Number.isNaN(data.daylight_today)
   ) {
-    setText(headline, "Sunlight looks different here.");
-    setText(lede, "No sunrise or sunset today.");
+    startOptimisticRotation([OPTIMISTIC_POLAR_COPY]);
     return;
   }
-  const selection = selectOptimisticMessage(data, month, hemisphere);
-  if (!selection) {
-    setText(headline, "Enjoy the daylight today.");
-    setText(lede, "Every bit of sunshine helps.");
+  const options = getOptimisticMessageOptions(data, month, hemisphere);
+  if (!options.length) {
+    startOptimisticRotation([OPTIMISTIC_FALLBACK_COPY]);
     return;
   }
-  setText(headline, selection.headline);
-  setText(lede, selection.lede);
+  startOptimisticRotation(options);
 };
 
 const getSunEvents = (observer, timeZone, dateParts) => {
@@ -1999,10 +2129,10 @@ const updateDaylightForLocation = (location) => {
     (milestoneItem) => milestoneItem.offsetDays === 0
   );
   if (todayMilestone) {
+    stopOptimisticRotation();
     const todayCopy = getMilestoneTodayCopy(todayMilestone);
     if (todayCopy) {
-      setText(headline, todayCopy.headline);
-      setText(lede, todayCopy.lede);
+      setOptimisticCopy(todayCopy, { animate: false });
     }
     celebrateMilestone(todayMilestone);
   } else {
@@ -3014,6 +3144,15 @@ const handleInput = () => {
 const getSharePrivacySetting = () =>
   sharePrivacyToggle ? sharePrivacyToggle.checked : sharePrivacyEnabled;
 
+const captureShareSnapshot = () => {
+  const baseSnapshot = shareSnapshot ? { ...shareSnapshot } : {};
+  shareModalSnapshot = {
+    ...baseSnapshot,
+    headline: getText(headline),
+    lede: getText(lede),
+  };
+};
+
 const resolveShareLocationLabel = async (location) => {
   if (getSharePrivacySetting()) {
     return "My Location";
@@ -3048,11 +3187,12 @@ const buildShareMilestoneLine = () => {
 };
 
 const buildShareMessage = async () => {
-  const snapshot = shareSnapshot;
+  const snapshot = shareModalSnapshot || shareSnapshot;
   const timeZone = snapshot?.timeZone || FALLBACK_TIMEZONE;
   const dateParts = snapshot?.dateParts || getActiveDateParts(timeZone);
   const dateLabel = formatShareDateFromParts(dateParts) || "—";
-  const headlineText = getText(headline) || "Sunshine Optimist";
+  const headlineText =
+    snapshot?.headline || getText(headline) || "Sunshine Optimist";
   const locationLabel = await resolveShareLocationLabel(
     snapshot?.location || activeLocation
   );
@@ -3099,6 +3239,7 @@ const openShareModal = () => {
   if (!shareModal) {
     return;
   }
+  captureShareSnapshot();
   if (typeof shareModal.showModal === "function") {
     if (!shareModal.open) {
       shareModal.showModal();
@@ -3113,6 +3254,7 @@ const closeShareModal = () => {
   if (!shareModal) {
     return;
   }
+  shareModalSnapshot = null;
   if (typeof shareModal.close === "function") {
     shareModal.close();
   } else {
