@@ -6,23 +6,77 @@ calculations into optimistic daylight insights for any city and date. It runs
 entirely in the browser with no backend services.
 
 ## Architecture overview
-- `index.html` defines the UI: location search, date picker, headline/lede, stats,
+
+The application follows a modular architecture with clear separation of concerns:
+
+### Directory Structure
+```
+scripts/
+├── app.js                    # Main entry point, orchestration, event handlers
+├── state/
+│   └── app-state.js          # Centralized state management
+├── ui/
+│   ├── confetti-ui.js        # Confetti animation for milestones
+│   ├── message-ui.js         # Optimistic message rotation
+│   ├── milestone-ui.js       # Milestone card rendering
+│   ├── share-modal-ui.js     # Share modal functionality
+│   ├── stats-ui.js           # Stats panel rendering
+│   └── tooltip-ui.js         # Delta tooltip behavior
+├── services/
+│   ├── geocoding-service.js  # Open-Meteo API for city search
+│   ├── reverse-geocode-service.js # BigDataCloud API for coords to place name
+│   └── storage-service.js    # localStorage abstraction
+├── formatters/
+│   └── formatters.js         # All formatting functions consolidated
+├── messages.js               # Optimistic message templates
+├── milestones.js             # Milestone definitions
+├── astronomy-utils.js        # Astronomy Engine wrapper with caching
+├── date-utils.js             # Date/time utilities
+├── location-utils.js         # Location formatting and filtering
+├── dom-utils.js              # Basic DOM helpers
+└── utils.js                  # General utilities
+```
+
+### Core Files
+- **`index.html`** defines the UI: location search, date picker, headline/lede, stats,
   milestone card, and share modal.
-- `styles.css` contains all styling and responsive layout rules.
-- `scripts/app.js` owns state, event wiring, and DOM updates.
-- `scripts/date-utils.js` handles date parts math, time-zone conversion, and
-  date/time formatting helpers.
-- `scripts/astronomy-utils.js` wraps Astronomy Engine calculations with caching
-  for sun events, yearly extremes, and seasonal dates.
-- `scripts/location-utils.js` formats locations, parses query tokens, and
-  filters/sorts suggestion results.
-- `scripts/share-utils.js` builds share formatting helpers and progress lines.
-- `scripts/dom-utils.js` contains small DOM helpers.
-- `scripts/messages.js` is the message catalog and filtering helpers.
-- `scripts/milestones.js` defines threshold and daylight-gain milestone templates.
-- `astronomy-engine/astronomy.browser.min.js` provides solar and seasonal math.
+- **`styles.css`** contains all styling and responsive layout rules.
+- **`scripts/app.js`** orchestrates initialization, event handlers, and coordinates
+  between modules.
+
+### State Management
+All application state is centralized in **`scripts/state/app-state.js`**:
+- Location state (search results, active location, user coordinates, recent locations)
+- Date state (live vs custom date, commit timeout)
+- Milestone state (upcoming milestones, current index)
+- Optimistic message state (rotation interval, current index)
+- Share state (snapshot, privacy preference)
+
+State is accessed and modified through exported getter/setter functions.
+
+### Services
+API calls are isolated in service modules:
+- **`geocoding-service.js`**: City search via Open-Meteo API
+- **`reverse-geocode-service.js`**: Coordinate to place name via BigDataCloud
+- **`storage-service.js`**: localStorage for persisting preferences
+
+### UI Modules
+Each UI component is in its own module:
+- **`message-ui.js`**: Message rotation with fade animations
+- **`milestone-ui.js`**: Milestone card display and cycling
+- **`share-modal-ui.js`**: Share modal, preview, and social links
+- **`tooltip-ui.js`**: Interactive tooltips for delta references
+- **`confetti-ui.js`**: Celebration animation for milestone days
+
+### Formatters
+All formatting logic is consolidated in **`formatters/formatters.js`**:
+- Duration formatting (hours/minutes)
+- Delta statements ("X minutes later")
+- Placeholder values for messages
+- Share text formatting
 
 ## Key flows
+
 ### Location selection
 - Typing in the search field triggers Open-Meteo geocoding. Results are grouped
   into matches and nearby results, with optional region token filtering.
@@ -36,26 +90,25 @@ entirely in the browser with no backend services.
 - The date picker defaults to today, but custom dates are supported.
 - The app always evaluates dates in the selected location's time zone, not the
   user's.
-- Helpers in `app.js` convert between UTC and local date parts to keep
-  comparisons consistent.
+- Helpers in `date-utils.js` convert between UTC and local date parts.
 
 ### Daylight calculations
 - `app.js` uses Astronomy Engine to compute sunrise and sunset plus derived
   values like day length.
 - It scans the year to find extremes (earliest sunset, shortest/longest day) and
-  seasonal dates (equinoxes and solstices), now cached in `scripts/astronomy-utils.js`.
+  seasonal dates (equinoxes and solstices), cached in `astronomy-utils.js`.
 - These values feed the stats panel and the message/milestone logic.
 
 ### Optimistic messaging
-- `scripts/messages.js` defines templates with `months`, `data_needs`, and
+- `messages.js` defines templates with `months`, `data_needs`, and
   optional `additional_requirements`.
 - Placeholders like `{## minutes}` are filled via `getValue` when needed.
-- `getOptimisticMessageOptions` returns the valid messages; `app.js` rotates them
-  and falls back to default copy when nothing matches.
+- `getOptimisticMessageOptions` returns the valid messages; `message-ui.js`
+  rotates them and falls back to default copy when nothing matches.
 - If a milestone is today, milestone copy overrides the rotating message.
 
 ### Milestones
-- `scripts/milestones.js` contains threshold and daylight-gain milestones.
+- `milestones.js` contains threshold and daylight-gain milestones.
 - `app.js` adds computed milestones such as earliest/shortest/longest day,
   equinoxes, DST start, and the next half-hour sunset.
 - The milestone card cycles through upcoming entries; a confetti effect fires on
@@ -68,16 +121,32 @@ entirely in the browser with no backend services.
 - The share preview is updated when the modal opens or the privacy toggle changes.
 
 ## Development and contributions
+
 - This is a static site with ES modules. Run a local server (for example
   `python3 -m http.server`) and open `http://localhost:8000`.
 - The console logs the full optimistic message list whenever the location/date
   recalculates. `window.SunshineOptimistDebug` exposes
   `getOptimisticMessages()` and `printOptimisticMessages()` for ad-hoc checks.
-- When adding messages in `scripts/messages.js`, ensure required `data_needs`
-  keys exist in the `messageData` object in `scripts/app.js`.
-- When adding new milestones, update `scripts/milestones.js` or the milestone
-  builder in `scripts/app.js` and verify ordering and labels in the UI.
+- When adding messages in `messages.js`, ensure required `data_needs`
+  keys exist in the `messageData` object in `app.js`.
+- When adding new milestones, update `milestones.js` or the milestone
+  builder in `app.js` and verify ordering and labels in the UI.
 - If you change `index.html` ids/classes, update the DOM selectors in
-  `scripts/app.js` and keep the ARIA attributes for the location combobox intact.
+  `app.js` and keep the ARIA attributes for the location combobox intact.
 - Manual checks usually cover the main flows: search, local/worldwide toggle,
   date picker, milestone rotation, and the share modal.
+
+## Module responsibilities
+
+| Module | Responsibility |
+|--------|----------------|
+| `app.js` | Entry point, event wiring, orchestration |
+| `state/app-state.js` | All application state |
+| `services/*` | External API calls |
+| `ui/*` | UI component logic |
+| `formatters/formatters.js` | All display formatting |
+| `astronomy-utils.js` | Sun/season calculations with caching |
+| `date-utils.js` | Date/time manipulation |
+| `location-utils.js` | Location parsing and formatting |
+| `messages.js` | Message template definitions |
+| `milestones.js` | Milestone definitions |

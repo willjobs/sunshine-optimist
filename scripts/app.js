@@ -1,3 +1,10 @@
+/**
+ * Sunshine Optimist - Main Application Entry Point
+ *
+ * This module initializes the application, wires up event handlers,
+ * and coordinates between UI modules, services, and state management.
+ */
+
 import { getOptimisticMessageOptions } from "./messages.js";
 import {
   DAYLIGHT_GAIN_MILESTONES,
@@ -29,15 +36,150 @@ import {
   parseQuery,
   sortByDistance,
 } from "./location-utils.js";
-import {
-  buildShareProgressLine,
-  formatShareDateFromParts,
-  formatShareDayCount,
-  formatShareMinutes,
-  lowerCaseFirstLetter,
-} from "./share-utils.js";
 import { clampValue } from "./utils.js";
 
+// State management
+import {
+  // Location state
+  getSuggestionResults,
+  setSuggestionResults,
+  getRawResults,
+  setRawResults,
+  getActiveIndex,
+  setActiveIndex,
+  getDebounceId,
+  setDebounceId,
+  getFetchController,
+  setFetchController,
+  getPreferLocalResults,
+  togglePreferLocalResults,
+  getLastNameQuery,
+  setLastNameQuery,
+  isLocationBiasRequested,
+  setLocationBiasRequested,
+  isLocationBiasLoading,
+  setLocationBiasLoading,
+  getUserCoords,
+  setUserCoords,
+  getLastFilterTokens,
+  setLastFilterTokens,
+  getLastFilterTokensRaw,
+  setLastFilterTokensRaw,
+  getRecentLocations,
+  setRecentLocations,
+  getActiveLocation,
+  setActiveLocation,
+  // Date state
+  isUsingLiveDate,
+  setUseLiveDate,
+  getCustomDateParts,
+  setCustomDateParts,
+  getDateCommitTimeoutId,
+  setDateCommitTimeoutId,
+  getLastKeydownAt,
+  setLastKeydownAt,
+  // Milestone state
+  getUpcomingMilestones,
+  getMilestoneIndex,
+  setMilestoneIndex,
+  getMilestoneTimeZone,
+  // Optimistic state
+  getOptimisticOptions,
+  getOptimisticIndex,
+  // Debug state
+  getOptimisticDebugState,
+  updateDebugState,
+  // Share state
+  setShareSnapshot,
+  isSharePrivacyEnabled,
+  setSharePrivacyEnabled,
+  // Reverse geocode
+  clearReverseGeocodeCache,
+} from "./state/app-state.js";
+
+// Services
+import {
+  loadRecentLocations,
+  saveRecentLocations,
+  loadStoredLocation,
+  saveStoredLocation,
+  loadSharePrivacyPreference,
+  saveSharePrivacyPreference,
+} from "./services/storage-service.js";
+import {
+  searchCities,
+  fetchDefaultLocationData,
+  DEFAULT_LOCATION,
+} from "./services/geocoding-service.js";
+import { fetchReverseGeocodeLocation } from "./services/reverse-geocode-service.js";
+
+// Formatters
+import {
+  formatDuration,
+  formatDeltaStatement,
+  formatComparisonTooltip,
+  formatOptimisticLogHeadline,
+  buildOptimisticLogLine,
+} from "./formatters/formatters.js";
+
+// UI modules
+import { launchConfetti } from "./ui/confetti-ui.js";
+import {
+  updateDeltaTooltip,
+  closeDeltaTooltips,
+  initializeTooltipTarget,
+  initializeGlobalTooltipHandlers,
+} from "./ui/tooltip-ui.js";
+import {
+  startOptimisticRotation,
+  stopOptimisticRotation,
+  setOptimisticCopy,
+  OPTIMISTIC_POLAR_COPY,
+  OPTIMISTIC_FALLBACK_COPY,
+} from "./ui/message-ui.js";
+import {
+  updateMilestoneCard,
+  getMilestoneKey,
+  getMilestoneTodayCopy,
+  celebrateMilestone,
+} from "./ui/milestone-ui.js";
+import {
+  openShareModal,
+  closeShareModal,
+  refreshSharePreview,
+  copyShareText,
+  openShareLink,
+  flashActionLabel,
+  updateShareSnapshot,
+} from "./ui/share-modal-ui.js";
+
+// ============================================================================
+// Constants
+// ============================================================================
+const MAX_RESULTS = 8;
+const MAX_RECENTS = 5;
+const CAN_USE_GEOLOCATION = "geolocation" in navigator;
+const CURRENT_LOCATION_LABEL = "Current Location";
+const DATE_COMMIT_DELAY_MS = 300;
+const DATE_KEYBOARD_GRACE_MS = 800;
+const FALLBACK_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+// Locale detection
+const localeSource = navigator.languages?.[0] || navigator.language || "en";
+const languageCode = localeSource.split("-")[0] || "en";
+const regionCode = (localeSource.split("-")[1] || "").toUpperCase();
+
+// Date formatters
+const {
+  formatLongDateFromParts,
+  formatShortDateFromParts,
+  formatTime,
+  formatTimeFromMinutes,
+} = createDateFormatter(localeSource);
+
+// ============================================================================
+// DOM Elements
+// ============================================================================
 const dom = {
   shareButton: document.getElementById("share"),
   shareModal: document.getElementById("share-modal"),
@@ -70,15 +212,9 @@ const dom = {
   daylightShortestRow: document.getElementById("daylight-shortest-row"),
   daylightComparisonRow: document.getElementById("daylight-month-row"),
   sunsetEarliestReference: document.getElementById("sunset-earliest-reference"),
-  sunsetComparisonReference: document.getElementById(
-    "sunset-comparison-reference"
-  ),
-  daylightShortestReference: document.getElementById(
-    "daylight-shortest-reference"
-  ),
-  daylightComparisonReference: document.getElementById(
-    "daylight-comparison-reference"
-  ),
+  sunsetComparisonReference: document.getElementById("sunset-comparison-reference"),
+  daylightShortestReference: document.getElementById("daylight-shortest-reference"),
+  daylightComparisonReference: document.getElementById("daylight-comparison-reference"),
   nextHeadline: document.getElementById("next-headline"),
   nextDate: document.getElementById("next-date"),
   nextAway: document.getElementById("next-away"),
@@ -87,6 +223,7 @@ const dom = {
   datePicker: document.querySelector(".date-picker"),
 };
 
+// Destructure for convenience
 const {
   shareButton,
   shareModal,
@@ -106,128 +243,23 @@ const {
   milestone,
   milestoneToggle,
   confettiRoot,
-  sunsetTimeValue,
-  sunsetEarliestDeltaValue,
-  sunsetComparisonDeltaValue,
-  daylightDurationValue,
-  daylightShortestDeltaValue,
-  daylightComparisonDeltaValue,
-  sunsetEarliestRow,
-  sunsetComparisonRow,
-  daylightShortestRow,
-  daylightComparisonRow,
-  sunsetEarliestReference,
-  sunsetComparisonReference,
-  daylightShortestReference,
-  daylightComparisonReference,
-  nextHeadline,
-  nextDate,
-  nextAway,
   dateInput,
   dateReset,
   datePicker,
 } = dom;
-const searchState = {
-  suggestionResults: [],
-  rawResults: [],
-  activeIndex: -1,
-  debounceId: null,
-  fetchController: null,
-  preferLocalResults: true,
-  lastNameQuery: "",
-  locationBiasRequested: false,
-  locationBiasLoading: false,
-  userCoords: null,
-  lastFilterTokens: [],
-  lastFilterTokensRaw: [],
-  recentLocations: [],
-  activeLocation: null,
-};
-const dateState = {
-  useLiveDate: true,
-  customDateParts: null,
-  commitTimeoutId: null,
-  lastKeydownAt: 0,
-};
-const milestoneState = {
-  upcoming: [],
-  index: 0,
-  timeZone: null,
-  lastCelebratedKey: null,
-  confettiTimeoutId: null,
-};
-const optimisticState = {
-  options: [],
-  index: 0,
-  rotationId: null,
-  swapId: 0,
-  swapTimeoutId: null,
-};
-const optimisticDebugState = {
-  validOptions: [],
-  displayedOptions: [],
-  data: null,
-  month: null,
-  hemisphere: null,
-  reason: "uninitialized",
-  lastUpdatedAt: null,
-};
-const shareState = {
-  snapshot: null,
-  modalSnapshot: null,
-  privacyEnabled: false,
-  text: "",
-};
-const reverseGeocodeState = {
-  cache: null,
-  cacheKey: "",
-  promise: null,
-};
-const localeSource = navigator.languages?.[0] || navigator.language || "en";
-const languageCode = localeSource.split("-")[0] || "en";
-const regionCode = (localeSource.split("-")[1] || "").toUpperCase();
-const {
-  formatLongDateFromParts,
-  formatShortDateFromParts,
-  formatTime,
-  formatTimeFromMinutes,
-} = createDateFormatter(localeSource);
-const MAX_RESULTS = 8;
-const MAX_RECENTS = 5;
-const RECENT_STORAGE_KEY = "sunshine-optimist:recent-locations";
-const ACTIVE_LOCATION_STORAGE_KEY = "sunshine-optimist:active-location";
-const SHARE_PRIVACY_STORAGE_KEY = "sunshine-optimist:share-privacy";
-const CAN_USE_GEOLOCATION = "geolocation" in navigator;
-const DEFAULT_LOCATION_QUERY = "Boston";
-const CURRENT_LOCATION_LABEL = "Current Location";
-const REVERSE_GEOCODE_URL =
-  "https://api.bigdatacloud.net/data/reverse-geocode-client";
-const DEFAULT_LOCATION = {
-  name: "Boston",
-  admin1: "Massachusetts",
-  country: "United States",
-  country_code: "US",
-  latitude: 42.3601,
-  longitude: -71.0589,
-  elevation: 0,
-  timezone: "America/New_York",
-};
-const FALLBACK_TIMEZONE =
-  Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-const DATE_COMMIT_DELAY_MS = 300;
-const DATE_KEYBOARD_GRACE_MS = 800;
 
+// ============================================================================
+// Date Picker Functions
+// ============================================================================
 const getActiveDateParts = (timeZone) => {
-  if (!dateState.useLiveDate && dateState.customDateParts) {
-    return dateState.customDateParts;
+  if (!isUsingLiveDate() && getCustomDateParts()) {
+    return getCustomDateParts();
   }
   return getLocalDateParts(new Date(), timeZone);
 };
 
 const syncDatePicker = (timeZone) => {
-  if (!dateInput) {
-    return;
-  }
+  if (!dateInput) return;
   const parts = getActiveDateParts(timeZone);
   if (parts) {
     const nextValue = formatDateInputValue(parts);
@@ -236,139 +268,83 @@ const syncDatePicker = (timeZone) => {
     }
   }
   if (dateReset) {
-    dateReset.disabled = dateState.useLiveDate;
+    dateReset.disabled = isUsingLiveDate();
   }
   if (datePicker) {
-    datePicker.classList.toggle("is-custom", !dateState.useLiveDate);
+    datePicker.classList.toggle("is-custom", !isUsingLiveDate());
   }
 };
 
 const clearDateCommitTimeout = () => {
-  if (dateState.commitTimeoutId) {
-    clearTimeout(dateState.commitTimeoutId);
-    dateState.commitTimeoutId = null;
+  const timeoutId = getDateCommitTimeoutId();
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+    setDateCommitTimeoutId(null);
   }
 };
 
 const applyDateSelection = (nextParts) => {
   if (nextParts) {
+    const currentCustom = getCustomDateParts();
     if (
-      !dateState.useLiveDate &&
-      dateState.customDateParts &&
-      dateState.customDateParts.year === nextParts.year &&
-      dateState.customDateParts.month === nextParts.month &&
-      dateState.customDateParts.day === nextParts.day
+      !isUsingLiveDate() &&
+      currentCustom &&
+      currentCustom.year === nextParts.year &&
+      currentCustom.month === nextParts.month &&
+      currentCustom.day === nextParts.day
     ) {
       return false;
     }
-    dateState.customDateParts = nextParts;
-    dateState.useLiveDate = false;
+    setCustomDateParts(nextParts);
+    setUseLiveDate(false);
     return true;
   }
-  if (dateState.useLiveDate) {
+  if (isUsingLiveDate()) {
     return false;
   }
-  dateState.customDateParts = null;
-  dateState.useLiveDate = true;
+  setCustomDateParts(null);
+  setUseLiveDate(true);
   return true;
 };
 
 const commitDateSelection = () => {
-  if (!dateInput) {
-    return;
-  }
+  if (!dateInput) return;
   clearDateCommitTimeout();
   const nextParts = parseDateInputValue(dateInput.value);
   const didChange = applyDateSelection(nextParts);
-  const timeZone = searchState.activeLocation?.timezone || FALLBACK_TIMEZONE;
+  const timeZone = getActiveLocation()?.timezone || FALLBACK_TIMEZONE;
   syncDatePicker(timeZone);
-  if (searchState.activeLocation && didChange) {
-    updateDaylightForLocation(searchState.activeLocation);
+  if (getActiveLocation() && didChange) {
+    updateDaylightForLocation(getActiveLocation());
   }
 };
 
 const scheduleDateCommit = () => {
   clearDateCommitTimeout();
-  dateState.commitTimeoutId = window.setTimeout(() => {
-    dateState.commitTimeoutId = null;
+  const timeoutId = window.setTimeout(() => {
+    setDateCommitTimeoutId(null);
     commitDateSelection();
   }, DATE_COMMIT_DELAY_MS);
+  setDateCommitTimeoutId(timeoutId);
 };
 
 const isRecentDateKeyboardInput = () =>
-  Date.now() - dateState.lastKeydownAt < DATE_KEYBOARD_GRACE_MS;
+  Date.now() - getLastKeydownAt() < DATE_KEYBOARD_GRACE_MS;
 
-const formatDuration = (minutes) => {
-  const totalMinutes = Math.round(Math.abs(minutes));
-  const hours = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  if (hours) {
-    return `${hours}h ${mins}m`;
-  }
-  return `${mins}m`;
-};
-
-const formatDeltaStatement = (minutes, positiveLabel, negativeLabel) => {
-  if (minutes == null || Number.isNaN(minutes)) {
-    return "";
-  }
-  const rounded = Math.round(minutes);
-  const abs = Math.abs(rounded);
-  const value =
-    abs >= 60 ? formatDuration(abs) : `${abs} ${abs === 1 ? "minute" : "minutes"}`;
-  const descriptor = rounded >= 0 ? positiveLabel : negativeLabel;
-  return `${value} ${descriptor}`;
-};
-
-const formatComparisonTooltip = (value, parts, timeZone, referenceYear) => {
-  if (!value || !parts) {
-    return "";
-  }
-  const dateLabel = formatShortDateFromParts(parts, timeZone, referenceYear);
-  if (!dateLabel) {
-    return "";
-  }
-  return `${value} on ${dateLabel}`;
-};
-
-const formatOptimisticLogHeadline = (headline) => {
-  const trimmed = (headline || "").trim();
-  if (!trimmed) {
-    return "";
-  }
-  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
-};
-
-const buildOptimisticLogLine = (entry) => {
-  if (!entry) {
-    return "-";
-  }
-  const headline = formatOptimisticLogHeadline(entry.headline);
-  const lede = (entry.lede || "").trim();
-  if (headline && lede) {
-    return `- ${headline} ${lede}`;
-  }
-  if (headline) {
-    return `- ${headline}`;
-  }
-  if (lede) {
-    return `- ${lede}`;
-  }
-  return "-";
-};
-
+// ============================================================================
+// Logging Functions
+// ============================================================================
 const logOptimisticMessages = () => {
-  if (typeof console === "undefined" || typeof console.log !== "function") {
-    return;
-  }
-  const location = searchState.activeLocation;
+  if (typeof console === "undefined" || typeof console.log !== "function") return;
+  const location = getActiveLocation();
   const timeZone = location?.timezone || FALLBACK_TIMEZONE;
   const dateParts = getActiveDateParts(timeZone);
   const locationLabel = location ? formatSelectedLocation(location) : "";
   const dateLabel = dateParts ? formatLongDateFromParts(dateParts, timeZone) : "";
-  const list = optimisticDebugState.validOptions.length
-    ? optimisticDebugState.validOptions
-    : optimisticDebugState.displayedOptions;
+  const debugState = getOptimisticDebugState();
+  const list = debugState.validOptions.length
+    ? debugState.validOptions
+    : debugState.displayedOptions;
   const header = `Optimistic messages for ${
     locationLabel || "Unknown location"
   } on ${dateLabel || "Unknown date"}:`;
@@ -376,484 +352,602 @@ const logOptimisticMessages = () => {
   console.log([header, ...lines].join("\n"));
 };
 
-const OPTIMISTIC_ROTATION_MS = 15000;
-const OPTIMISTIC_OUT_CLASS = "is-optimistic-out";
-const OPTIMISTIC_IN_CLASS = "is-optimistic-in";
-const OPTIMISTIC_OUT_DURATION_MS = 320;
-const OPTIMISTIC_POLAR_COPY = {
-  headline: "Sunlight looks different here.",
-  lede: "No sunrise or sunset today.",
-};
-const OPTIMISTIC_FALLBACK_COPY = {
-  headline: "Enjoy the daylight today.",
-  lede: "Every bit of sunshine helps.",
-};
-
-const clearOptimisticSwapTimeout = () => {
-  if (optimisticState.swapTimeoutId) {
-    window.clearTimeout(optimisticState.swapTimeoutId);
-    optimisticState.swapTimeoutId = null;
-  }
-};
-
-const clearOptimisticRotation = () => {
-  if (optimisticState.rotationId) {
-    window.clearInterval(optimisticState.rotationId);
-    optimisticState.rotationId = null;
-  }
-};
-
-const resetOptimisticAnimation = () => {
-  clearOptimisticSwapTimeout();
-  optimisticState.swapId += 1;
-  [headline, lede].forEach((node) => {
-    if (!node) {
-      return;
-    }
-    node.classList.remove(OPTIMISTIC_OUT_CLASS, OPTIMISTIC_IN_CLASS);
-  });
-};
-
-const stopOptimisticRotation = () => {
-  clearOptimisticRotation();
-  resetOptimisticAnimation();
-  optimisticState.options = [];
-  optimisticState.index = 0;
-};
-
-const prefersReducedMotion = () => {
-  if (!window.matchMedia) {
-    return false;
-  }
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-};
-
-const setOptimisticCopyImmediate = (copy) => {
-  if (!copy) {
-    return;
-  }
-  resetOptimisticAnimation();
-  setText(headline, copy.headline);
-  setText(lede, copy.lede);
-};
-
-const animateOptimisticSwap = (copy) => {
-  if (!copy) {
-    return;
-  }
-  if (!headline || !lede || prefersReducedMotion()) {
-    setOptimisticCopyImmediate(copy);
-    return;
-  }
-  resetOptimisticAnimation();
-  const swapId = optimisticState.swapId;
-  [headline, lede].forEach((node) => {
-    if (!node) {
-      return;
-    }
-    node.classList.remove(OPTIMISTIC_IN_CLASS);
-    void node.offsetWidth;
-    node.classList.add(OPTIMISTIC_OUT_CLASS);
-  });
-  optimisticState.swapTimeoutId = window.setTimeout(() => {
-    if (swapId !== optimisticState.swapId) {
-      return;
-    }
-    setText(headline, copy.headline);
-    setText(lede, copy.lede);
-    [headline, lede].forEach((node) => {
-      if (!node) {
-        return;
-      }
-      node.classList.remove(OPTIMISTIC_OUT_CLASS);
-      void node.offsetWidth;
-      node.classList.add(OPTIMISTIC_IN_CLASS);
-    });
-  }, OPTIMISTIC_OUT_DURATION_MS);
-};
-
-const setOptimisticCopy = (copy, { animate = false } = {}) => {
-  if (!copy) {
-    return;
-  }
-  if (!animate) {
-    setOptimisticCopyImmediate(copy);
-    return;
-  }
-  animateOptimisticSwap(copy);
-};
-
-const startOptimisticRotation = (messages) => {
-  stopOptimisticRotation();
-  optimisticState.options = Array.isArray(messages) ? messages : [];
-  if (!optimisticState.options.length) {
-    return;
-  }
-  optimisticState.index = 0;
-  setOptimisticCopy(optimisticState.options[0], { animate: false });
-  if (optimisticState.options.length < 2) {
-    return;
-  }
-  optimisticState.rotationId = window.setInterval(() => {
-    optimisticState.index =
-      (optimisticState.index + 1) % optimisticState.options.length;
-    setOptimisticCopy(optimisticState.options[optimisticState.index], {
-      animate: true,
-    });
-  }, OPTIMISTIC_ROTATION_MS);
-};
-
-const CONFETTI_COLORS = [
-  "#f94144",
-  "#f3722c",
-  "#f9c74f",
-  "#90be6d",
-  "#43aa8b",
-  "#577590",
-];
-const CONFETTI_COUNT = 72;
-
-const launchConfetti = () => {
-  if (!confettiRoot) {
-    return;
-  }
-  confettiRoot.innerHTML = "";
-  if (milestoneState.confettiTimeoutId) {
-    window.clearTimeout(milestoneState.confettiTimeoutId);
-    milestoneState.confettiTimeoutId = null;
-  }
-  const fragment = document.createDocumentFragment();
-  let maxDuration = 0;
-  for (let i = 0; i < CONFETTI_COUNT; i += 1) {
-    const piece = document.createElement("span");
-    piece.className = "confetti-piece";
-    const size = 6 + Math.random() * 6;
-    const duration = 3.2 + Math.random() * 1.8;
-    const delay = Math.random() * 0.6;
-    const drift = (Math.random() * 80 - 40).toFixed(1);
-    const rotate = Math.floor(Math.random() * 360);
-    const spin = rotate + (Math.random() > 0.5 ? 300 : -300);
-    piece.style.setProperty("--confetti-x", `${Math.random() * 100}%`);
-    piece.style.setProperty("--confetti-size", `${size.toFixed(1)}px`);
-    piece.style.setProperty(
-      "--confetti-color",
-      CONFETTI_COLORS[i % CONFETTI_COLORS.length]
-    );
-    piece.style.setProperty("--confetti-delay", `${delay.toFixed(2)}s`);
-    piece.style.setProperty("--confetti-duration", `${duration.toFixed(2)}s`);
-    piece.style.setProperty("--confetti-drift", `${drift}px`);
-    piece.style.setProperty("--confetti-rotate", `${rotate}deg`);
-    piece.style.setProperty("--confetti-spin", `${spin}deg`);
-    fragment.appendChild(piece);
-    maxDuration = Math.max(maxDuration, duration + delay);
-  }
-  confettiRoot.appendChild(fragment);
-  milestoneState.confettiTimeoutId = window.setTimeout(() => {
-    confettiRoot.innerHTML = "";
-    milestoneState.confettiTimeoutId = null;
-  }, (maxDuration + 0.5) * 1000);
-};
-
-const deltaTooltipTargets = [
-  sunsetEarliestReference,
-  sunsetComparisonReference,
-  daylightShortestReference,
-  daylightComparisonReference,
-].filter(Boolean);
-
-const closeDeltaTooltips = (exceptTarget = null) => {
-  deltaTooltipTargets.forEach((target) => {
-    if (target === exceptTarget) {
-      return;
-    }
-    if (!target.classList.contains("is-tooltip-open")) {
-      return;
-    }
-    target.classList.remove("is-tooltip-open");
-    target.setAttribute("aria-expanded", "false");
-  });
-};
-
-const buildDeltaTooltipAriaLabel = (target, tooltipText) => {
-  const line = target.closest(".delta-line");
-  const lineText = line ? getText(line) : getText(target);
-  return [lineText, tooltipText].filter(Boolean).join(". ");
-};
-
-const updateDeltaTooltipPointerPosition = (target, clientX, clientY) => {
-  if (!target || !Number.isFinite(clientX) || !Number.isFinite(clientY)) {
-    return;
-  }
-  const rect = target.getBoundingClientRect();
-  const x = clientX - rect.left;
-  const y = clientY - rect.top;
-  target.style.setProperty("--tooltip-x", `${x}px`);
-  target.style.setProperty("--tooltip-y", `${y}px`);
-};
-
-const updateDeltaTooltip = (target, tooltipText) => {
-  if (!target) {
-    return;
-  }
-  if (!tooltipText) {
-    target.classList.remove("has-tooltip", "is-tooltip-open");
-    target.removeAttribute("data-tooltip");
-    target.removeAttribute("tabindex");
-    target.removeAttribute("role");
-    target.removeAttribute("aria-label");
-    target.removeAttribute("aria-expanded");
-    return;
-  }
-  target.dataset.tooltip = tooltipText;
-  target.classList.add("has-tooltip");
-  target.setAttribute("tabindex", "0");
-  target.setAttribute("role", "button");
-  target.setAttribute("aria-label", buildDeltaTooltipAriaLabel(target, tooltipText));
-  target.setAttribute(
-    "aria-expanded",
-    target.classList.contains("is-tooltip-open") ? "true" : "false"
-  );
-};
-
-deltaTooltipTargets.forEach((target) => {
-  target.addEventListener("pointerenter", (event) => {
-    if (!target.classList.contains("has-tooltip")) {
-      return;
-    }
-    if (event.pointerType === "mouse" || event.pointerType === "pen") {
-      updateDeltaTooltipPointerPosition(target, event.clientX, event.clientY);
-    }
-  });
-
-  target.addEventListener("pointermove", (event) => {
-    if (!target.classList.contains("has-tooltip")) {
-      return;
-    }
-    if (event.pointerType === "mouse" || event.pointerType === "pen") {
-      updateDeltaTooltipPointerPosition(target, event.clientX, event.clientY);
-    }
-  });
-
-  target.addEventListener("pointerdown", (event) => {
-    if (!target.classList.contains("has-tooltip")) {
-      return;
-    }
-    if (event.pointerType !== "touch" && event.pointerType !== "pen") {
-      return;
-    }
-    updateDeltaTooltipPointerPosition(target, event.clientX, event.clientY);
-    const isOpen = target.classList.toggle("is-tooltip-open");
-    target.setAttribute("aria-expanded", isOpen ? "true" : "false");
-    if (isOpen) {
-      closeDeltaTooltips(target);
-    }
-  });
-
-  target.addEventListener("keydown", (event) => {
-    if (!target.classList.contains("has-tooltip")) {
-      return;
-    }
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      const isOpen = target.classList.toggle("is-tooltip-open");
-      target.setAttribute("aria-expanded", isOpen ? "true" : "false");
-      if (isOpen) {
-        closeDeltaTooltips(target);
-      }
-    } else if (event.key === "Escape") {
-      target.classList.remove("is-tooltip-open");
-      target.setAttribute("aria-expanded", "false");
-    }
-  });
-});
-
-document.addEventListener("click", (event) => {
-  const target = event.target instanceof Element ? event.target : null;
-  if (!target || !target.closest(".delta-reference.has-tooltip")) {
-    closeDeltaTooltips();
-  }
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
-    closeDeltaTooltips();
-  }
-});
-
+// ============================================================================
+// Optimistic Message Functions
+// ============================================================================
 const updateOptimisticMessage = (data, month, hemisphere) => {
-  optimisticDebugState.data = data;
-  optimisticDebugState.month = month;
-  optimisticDebugState.hemisphere = hemisphere;
-  optimisticDebugState.lastUpdatedAt = new Date();
+  updateDebugState({ data, month, hemisphere });
+
   if (
     data.sunset_today == null ||
     Number.isNaN(data.sunset_today) ||
     data.daylight_today == null ||
     Number.isNaN(data.daylight_today)
   ) {
-    optimisticDebugState.validOptions = [];
-    optimisticDebugState.displayedOptions = [OPTIMISTIC_POLAR_COPY];
-    optimisticDebugState.reason = "polar";
-    startOptimisticRotation([OPTIMISTIC_POLAR_COPY]);
+    updateDebugState({
+      validOptions: [],
+      displayedOptions: [OPTIMISTIC_POLAR_COPY],
+      reason: "polar",
+    });
+    startOptimisticRotation(headline, lede, [OPTIMISTIC_POLAR_COPY]);
     logOptimisticMessages();
     return;
   }
+
   const options = getOptimisticMessageOptions(data, month, hemisphere);
-  optimisticDebugState.validOptions = options;
+  updateDebugState({ validOptions: options });
+
   if (!options.length) {
-    optimisticDebugState.displayedOptions = [OPTIMISTIC_FALLBACK_COPY];
-    optimisticDebugState.reason = "fallback";
-    startOptimisticRotation([OPTIMISTIC_FALLBACK_COPY]);
+    updateDebugState({
+      displayedOptions: [OPTIMISTIC_FALLBACK_COPY],
+      reason: "fallback",
+    });
+    startOptimisticRotation(headline, lede, [OPTIMISTIC_FALLBACK_COPY]);
     logOptimisticMessages();
     return;
   }
-  optimisticDebugState.displayedOptions = options;
-  optimisticDebugState.reason = "ok";
-  startOptimisticRotation(options);
+
+  updateDebugState({
+    displayedOptions: options,
+    reason: "ok",
+  });
+  startOptimisticRotation(headline, lede, options);
   logOptimisticMessages();
 };
 
-const buildMilestone = ({
-  id,
-  title,
-  dateParts,
-  todayHeadline,
-  todayLede,
-}) => {
-  if (!dateParts) {
-    return null;
-  }
+// ============================================================================
+// Milestone Functions
+// ============================================================================
+const buildMilestone = ({ id, title, dateParts, todayHeadline, todayLede }) => {
+  if (!dateParts) return null;
   return { id, title, dateParts, todayHeadline, todayLede };
 };
 
-const withMilestoneOffset = (milestone, todayParts) => {
-  if (!milestone || !todayParts) {
-    return null;
-  }
-  const offsetDays = getDaysBetweenDateParts(todayParts, milestone.dateParts);
-  if (!Number.isFinite(offsetDays)) {
-    return null;
-  }
-  return { ...milestone, offsetDays };
+const withMilestoneOffset = (milestoneItem, todayParts) => {
+  if (!milestoneItem || !todayParts) return null;
+  const offsetDays = getDaysBetweenDateParts(todayParts, milestoneItem.dateParts);
+  if (!Number.isFinite(offsetDays)) return null;
+  return { ...milestoneItem, offsetDays };
 };
 
-const formatMilestoneAway = (offsetDays) => {
-  if (!Number.isFinite(offsetDays)) {
-    return "";
-  }
-  const rounded = Math.round(Math.abs(offsetDays));
-  if (rounded > 14) {
-    const rawWeeks = rounded / 7;
-    const wholeWeeks = Number.isInteger(rawWeeks);
-    const weeks = wholeWeeks ? rawWeeks : Math.ceil(rawWeeks);
-    const weekLabel = weeks === 1 ? "week" : "weeks";
-    const prefix = wholeWeeks ? "" : "< ";
-    return `(${prefix}${weeks} ${weekLabel} away)`;
-  }
-  const dayLabel = rounded === 1 ? "day" : "days";
-  return `(${rounded} ${dayLabel} away)`;
+// ============================================================================
+// Location Search Functions
+// ============================================================================
+const isCurrentLocation = (location) =>
+  Boolean(location?.isCurrent) ||
+  (location?.name || "").toLowerCase() === CURRENT_LOCATION_LABEL.toLowerCase();
+
+const updateClearButton = () => {
+  if (!cityInput || !clearButton) return;
+  const hasValue = cityInput.value.trim().length > 0;
+  clearButton.classList.toggle("is-visible", hasValue);
 };
 
-const getMilestoneKey = (milestone) => {
-  if (!milestone) {
-    return "";
-  }
-  const dateStamp = formatDateInputValue(milestone.dateParts);
-  return `${milestone.id || milestone.title}:${dateStamp}`;
-};
-
-const getMilestoneTodayCopy = (milestone) => {
-  if (!milestone) {
-    return null;
-  }
-  return {
-    headline: milestone.todayHeadline || `${milestone.title} is today.`,
-    lede: milestone.todayLede || "Enjoy the moment!",
-  };
-};
-
-const updateMilestoneCard = (milestones, timeZone, { resetIndex = true } = {}) => {
-  milestoneState.upcoming = milestones;
-  if (resetIndex) {
-    milestoneState.index = 0;
-  } else if (milestoneState.index >= milestones.length) {
-    milestoneState.index = 0;
-  }
-  milestoneState.timeZone = timeZone;
-  if (!nextHeadline || !nextDate || !nextAway) {
+const updateGeolocateButton = () => {
+  if (!geolocateButton) return;
+  if (!CAN_USE_GEOLOCATION) {
+    geolocateButton.disabled = true;
+    geolocateButton.title = "Location unavailable";
     return;
   }
-  if (!milestones.length) {
-    setText(nextHeadline, "No upcoming milestones");
-    setText(nextDate, "—");
-    setText(nextAway, "");
-    if (milestone) {
-      milestone.setAttribute("aria-label", "Upcoming milestone");
+  geolocateButton.disabled = isLocationBiasLoading();
+  geolocateButton.title = isLocationBiasLoading() ? "Locating..." : "Use my location";
+};
+
+const updateRecentLocations = (item) => {
+  const recentLocations = getRecentLocations();
+  const updated = [
+    item,
+    ...recentLocations.filter(
+      (entry) =>
+        entry.name !== item.name ||
+        entry.admin1 !== item.admin1 ||
+        entry.country_code !== item.country_code
+    ),
+  ].slice(0, MAX_RECENTS);
+  setRecentLocations(updated);
+  saveRecentLocations(updated);
+};
+
+const setStatusMessages = (messages) => {
+  if (!resultsMeta) return;
+  resultsMeta.innerHTML = "";
+  messages.forEach((message) => {
+    const status = document.createElement("div");
+    status.className = `location-status${message.type ? ` is-${message.type}` : ""}`;
+    status.textContent = message.text;
+    resultsMeta.appendChild(status);
+  });
+  if (resultsPanel?.classList.contains("is-open")) {
+    updateResultsMaxHeight();
+  }
+};
+
+const renderActions = (actions) => {
+  if (!resultsActions) return;
+  resultsActions.innerHTML = "";
+  actions.forEach((action) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `location-action${action.variant ? ` ${action.variant}` : ""}`;
+    button.dataset.action = action.action;
+    button.textContent = action.label;
+    if (action.disabled) button.disabled = true;
+    resultsActions.appendChild(button);
+  });
+  if (resultsPanel?.classList.contains("is-open")) {
+    updateResultsMaxHeight();
+  }
+};
+
+const openResultsPanel = () => {
+  if (!resultsPanel || !cityInput) return;
+  resultsPanel.classList.add("is-open");
+  cityInput.setAttribute("aria-expanded", "true");
+  updateResultsMaxHeight();
+};
+
+const getActionItems = ({ toggleLabel, includeRetry } = {}) => {
+  const actions = [];
+  if (toggleLabel) {
+    actions.push({ action: "toggle-preference", label: toggleLabel });
+  }
+  if (includeRetry) {
+    actions.push({ action: "retry", label: "Retry search", variant: "is-secondary" });
+  }
+  return actions;
+};
+
+const groupResults = (results, nameQuery) => {
+  const exactMatches = [];
+  const nearbyMatches = [];
+  results.forEach((item) => {
+    if (isNameMatch(item, nameQuery)) {
+      exactMatches.push(item);
+    } else {
+      nearbyMatches.push(item);
     }
-    if (milestoneToggle) {
-      milestoneToggle.disabled = true;
-      milestoneToggle.setAttribute("aria-label", "Next milestone");
+  });
+  const groups = [];
+  if (exactMatches.length) {
+    groups.push({
+      label: nearbyMatches.length ? "Matches" : null,
+      items: exactMatches,
+    });
+  }
+  if (nearbyMatches.length) {
+    groups.push({
+      label: exactMatches.length ? "Nearby" : null,
+      items: nearbyMatches,
+    });
+  }
+  return groups;
+};
+
+const renderGroup = (group) => {
+  if (!resultsList) return;
+  const wrapper = document.createElement("div");
+  wrapper.className = "location-group";
+  wrapper.role = group.label ? "group" : "presentation";
+  if (group.label) {
+    wrapper.setAttribute("aria-label", group.label);
+    const label = document.createElement("div");
+    label.className = "location-group-label";
+    label.textContent = group.label;
+    label.setAttribute("aria-hidden", "true");
+    wrapper.appendChild(label);
+  }
+  const suggestionResults = getSuggestionResults();
+  group.items.forEach((item) => {
+    const index = suggestionResults.length;
+    setSuggestionResults([...suggestionResults, item]);
+    const option = document.createElement("div");
+    option.id = `location-option-${index}`;
+    option.className = "location-option";
+    option.role = "option";
+    option.tabIndex = -1;
+    option.dataset.index = String(index);
+    option.textContent = formatSuggestionLocation(item);
+    wrapper.appendChild(option);
+  });
+  resultsList.appendChild(wrapper);
+};
+
+const showLoadingState = () => {
+  setSuggestionResults([]);
+  setActiveIndex(-1);
+  if (!resultsList || !cityInput) return;
+  resultsList.innerHTML = "";
+  cityInput.removeAttribute("aria-activedescendant");
+  setStatusMessages([{ text: "Searching for cities...", type: "hint" }]);
+  renderActions(getActionItems());
+  openResultsPanel();
+};
+
+const showErrorState = () => {
+  setSuggestionResults([]);
+  setActiveIndex(-1);
+  if (!resultsList || !cityInput) return;
+  resultsList.innerHTML = "";
+  cityInput.removeAttribute("aria-activedescendant");
+  setStatusMessages([
+    {
+      text: "Could not fetch city suggestions. Check your connection and try again.",
+      type: "error",
+    },
+  ]);
+  renderActions(getActionItems({ includeRetry: true }));
+  openResultsPanel();
+};
+
+const clearResults = () => {
+  setSuggestionResults([]);
+  setRawResults([]);
+  setActiveIndex(-1);
+  if (!resultsList || !resultsMeta || !resultsActions || !resultsPanel || !cityInput) return;
+  resultsList.innerHTML = "";
+  resultsMeta.innerHTML = "";
+  resultsActions.innerHTML = "";
+  resultsPanel.classList.remove("is-open");
+  cityInput.setAttribute("aria-expanded", "false");
+  cityInput.removeAttribute("aria-activedescendant");
+  resultsList.style.maxHeight = "";
+};
+
+const updateResultsMaxHeight = () => {
+  if (!resultsPanel || !cityInput || !resultsList) return;
+  if (!resultsPanel.classList.contains("is-open")) return;
+  const locationRect = cityInput.getBoundingClientRect();
+  const milestoneRect = milestone?.getBoundingClientRect();
+  const spacing = 12;
+  const available =
+    milestoneRect && milestoneRect.top > locationRect.bottom + spacing
+      ? milestoneRect.top - locationRect.bottom - spacing
+      : window.innerHeight - locationRect.bottom - spacing;
+  const chromeHeight =
+    (resultsMeta?.offsetHeight || 0) + (resultsActions?.offsetHeight || 0) + 24;
+  const maxHeight = Math.max(0, Math.min(260, available - chromeHeight));
+  resultsList.style.maxHeight = `${maxHeight}px`;
+};
+
+const renderResults = (groups, options = {}) => {
+  if (!resultsList || !cityInput) return;
+  resultsList.innerHTML = "";
+  setSuggestionResults([]);
+  setActiveIndex(-1);
+
+  const statusMessages = [...(options.statusMessages || [])];
+  const hasItems = groups.some((group) => group.items.length);
+  if (!hasItems && options.emptyMessage) {
+    statusMessages.push({ text: options.emptyMessage, type: "hint" });
+  }
+  setStatusMessages(statusMessages);
+  renderActions(options.actions || []);
+
+  if (hasItems) {
+    groups.forEach(renderGroup);
+  }
+
+  openResultsPanel();
+
+  if (hasItems) {
+    updateActiveOption(0);
+  } else {
+    cityInput.removeAttribute("aria-activedescendant");
+  }
+};
+
+const buildResults = (
+  results,
+  filterTokens = getLastFilterTokens(),
+  rawTokens = getLastFilterTokensRaw()
+) => {
+  setRawResults(results);
+  const filteredResults = applyFilterTokens(results, filterTokens);
+  const effectiveResults = filteredResults.length ? filteredResults : results;
+  const localResults = regionCode
+    ? effectiveResults.filter((item) => normalizeCountryCode(item) === regionCode)
+    : [];
+  const otherResults = regionCode
+    ? effectiveResults.filter((item) => normalizeCountryCode(item) !== regionCode)
+    : effectiveResults;
+  const sortedLocal = sortByDistance(localResults, getUserCoords());
+  const sortedAll = sortByDistance(effectiveResults, getUserCoords());
+  const filterHint =
+    rawTokens.length && !filteredResults.length
+      ? `No matches for "${formatFilterTokensForHint(rawTokens)}". Showing broader results.`
+      : null;
+  const localityLabel = getUserCoords() ? "nearby" : "local";
+  let displayResults = sortedAll;
+  let toggleLabel = null;
+  const statusMessages = [];
+
+  if (getPreferLocalResults() && sortedLocal.length) {
+    displayResults = sortedLocal;
+    toggleLabel = otherResults.length ? "Show worldwide results" : null;
+  } else if (getPreferLocalResults() && !sortedLocal.length && regionCode) {
+    displayResults = sortedAll;
+    statusMessages.push({
+      text: `No ${localityLabel} matches. Showing worldwide results.`,
+      type: "hint",
+    });
+  } else {
+    displayResults = sortedAll;
+    if (sortedLocal.length && otherResults.length) {
+      toggleLabel = getUserCoords() ? "Prefer nearby results" : "Prefer local results";
+      statusMessages.push({ text: "Showing worldwide results.", type: "hint" });
+    }
+  }
+
+  if (filterHint) {
+    statusMessages.unshift({ text: filterHint, type: "hint" });
+  }
+
+  const groups = groupResults(displayResults.slice(0, MAX_RESULTS), getLastNameQuery());
+  renderResults(groups, {
+    statusMessages,
+    actions: getActionItems({ toggleLabel }),
+    emptyMessage: "No matches yet.",
+  });
+};
+
+const showRecentResults = () => {
+  const recentLocations = getRecentLocations();
+  if (!recentLocations.length) {
+    clearResults();
+    return;
+  }
+  const statusMessages = [{ text: "Recent locations.", type: "hint" }];
+  const groups = [{ label: "Recent", items: recentLocations }];
+  renderResults(groups, {
+    statusMessages,
+    actions: getActionItems(),
+    emptyMessage: "No recent locations yet.",
+  });
+};
+
+const selectResult = (item, { persist = true, updateRecents = true } = {}) => {
+  clearReverseGeocodeCache();
+  const label = formatSelectedLocation(item);
+  setInputValue(cityInput, label);
+  if (updateRecents) {
+    updateRecentLocations(item);
+  }
+  if (persist) {
+    saveStoredLocation(item);
+  }
+  updateClearButton();
+  clearResults();
+  setActiveLocation(item);
+  console.log(`Selected city: ${label}`, {
+    latitude: item.latitude,
+    longitude: item.longitude,
+  });
+  updateDaylightForLocation(item);
+  if (isCurrentLocation(item) && !item.reverseGeocodeFailed) {
+    void resolveCurrentLocationName(item);
+  }
+};
+
+const updateActiveOption = (nextIndex) => {
+  if (!resultsList || !cityInput) return;
+  const options = resultsList.querySelectorAll(".location-option");
+  if (!options.length) {
+    setActiveIndex(-1);
+    cityInput.removeAttribute("aria-activedescendant");
+    return;
+  }
+  const safeIndex = Math.max(0, Math.min(nextIndex, options.length - 1));
+  setActiveIndex(safeIndex);
+  options.forEach((option, index) => {
+    const isActive = index === safeIndex;
+    option.classList.toggle("is-active", isActive);
+    option.setAttribute("aria-selected", isActive ? "true" : "false");
+    option.tabIndex = isActive ? 0 : -1;
+    if (isActive) {
+      cityInput.setAttribute("aria-activedescendant", option.id);
+      option.scrollIntoView({ block: "nearest" });
+    }
+  });
+};
+
+const buildCurrentLocation = (coords, { reverseGeocodeFailed = false } = {}) => ({
+  name: CURRENT_LOCATION_LABEL,
+  admin1: "",
+  admin2: "",
+  country: "",
+  country_code: "",
+  latitude: coords.lat,
+  longitude: coords.lon,
+  elevation: 0,
+  timezone: FALLBACK_TIMEZONE,
+  isCurrent: true,
+  reverseGeocodeFailed,
+});
+
+const selectLocationFromCoords = async (coords) => {
+  const currentLocation = buildCurrentLocation(coords);
+  const resolved = await fetchReverseGeocodeLocation(currentLocation, languageCode);
+  if (resolved) {
+    selectResult(resolved);
+    return;
+  }
+  selectResult({ ...currentLocation, reverseGeocodeFailed: true });
+};
+
+const requestLocationBias = ({ onError } = {}) => {
+  if (isLocationBiasRequested() || !("geolocation" in navigator)) return;
+  setLocationBiasRequested(true);
+  setLocationBiasLoading(true);
+  updateGeolocateButton();
+  renderActions(getActionItems());
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const coords = {
+        lat: position.coords.latitude,
+        lon: position.coords.longitude,
+      };
+      setUserCoords(coords);
+      try {
+        await selectLocationFromCoords(coords);
+      } finally {
+        setLocationBiasLoading(false);
+        setLocationBiasRequested(false);
+        updateGeolocateButton();
+      }
+    },
+    (error) => {
+      setLocationBiasLoading(false);
+      setLocationBiasRequested(false);
+      updateGeolocateButton();
+      renderActions(getActionItems());
+      if (typeof onError === "function") {
+        onError(error);
+      }
+    },
+    { enableHighAccuracy: false, timeout: 5000 }
+  );
+};
+
+const resolveCurrentLocationName = async (location) => {
+  if (!isCurrentLocation(location) || location?.reverseGeocodeFailed) return;
+  const resolved = await fetchReverseGeocodeLocation(location, languageCode);
+  if (resolved) {
+    selectResult(resolved, { persist: true, updateRecents: false });
+  }
+};
+
+const fetchSuggestions = async (nameQuery, filterTokens, rawTokens) => {
+  const currentController = getFetchController();
+  if (currentController) {
+    currentController.abort();
+  }
+  const controller = new AbortController();
+  setFetchController(controller);
+  showLoadingState();
+  try {
+    const results = await searchCities(nameQuery, languageCode, controller.signal);
+    buildResults(results, filterTokens, rawTokens);
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    console.error("City lookup failed:", error);
+    showErrorState();
+  }
+};
+
+const fetchDefaultLocation = async () => {
+  try {
+    const match = await fetchDefaultLocationData(languageCode);
+    if (match) {
+      selectResult(match, { persist: false, updateRecents: false });
+      return;
+    }
+    selectResult(DEFAULT_LOCATION, { persist: false, updateRecents: false });
+  } catch (error) {
+    console.warn("Default location lookup failed:", error);
+    selectResult(DEFAULT_LOCATION, { persist: false, updateRecents: false });
+  }
+};
+
+const initializeLocation = () => {
+  const storedLocation = loadStoredLocation();
+  if (storedLocation) {
+    if (isCurrentLocation(storedLocation)) {
+      setUserCoords({
+        lat: storedLocation.latitude,
+        lon: storedLocation.longitude,
+      });
+    }
+    selectResult(storedLocation, { persist: false, updateRecents: false });
+  }
+
+  if (!CAN_USE_GEOLOCATION || !navigator.permissions?.query) {
+    if (!storedLocation) {
+      fetchDefaultLocation();
     }
     return;
   }
-  const active = milestones[milestoneState.index];
-  setText(nextHeadline, active.title);
-  setText(nextDate, formatLongDateFromParts(active.dateParts, timeZone));
-  setText(nextAway, formatMilestoneAway(active.offsetDays));
-  if (milestone) {
-    milestone.setAttribute("aria-label", `Upcoming milestone: ${active.title}`);
-  }
-  if (milestoneToggle) {
-    const hasMultiple = milestones.length > 1;
-    milestoneToggle.disabled = !hasMultiple;
-    milestoneToggle.setAttribute(
-      "aria-label",
-      hasMultiple
-        ? `Next milestone (${milestoneState.index + 1} of ${milestones.length})`
-        : "Next milestone"
-    );
-  }
+
+  navigator.permissions
+    .query({ name: "geolocation" })
+    .then((status) => {
+      if (status.state === "granted") {
+        if (!storedLocation) {
+          requestLocationBias({ onError: fetchDefaultLocation });
+        }
+      } else if (!storedLocation) {
+        fetchDefaultLocation();
+      }
+    })
+    .catch((error) => {
+      console.warn("Unable to check geolocation permission:", error);
+      if (!storedLocation) {
+        fetchDefaultLocation();
+      }
+    });
 };
 
-const celebrateMilestone = (milestone) => {
-  if (!milestone) {
-    milestoneState.lastCelebratedKey = null;
+const handleInput = () => {
+  if (!cityInput) return;
+  const query = cityInput.value.trim();
+  const { nameQuery, filterTokens, rawFilterTokens } = parseQuery(query);
+  setLastNameQuery(nameQuery);
+  setLastFilterTokens(filterTokens);
+  setLastFilterTokensRaw(rawFilterTokens);
+  updateClearButton();
+  if (nameQuery.length < 2) {
+    const debounceId = getDebounceId();
+    if (debounceId) {
+      clearTimeout(debounceId);
+      setDebounceId(null);
+    }
+    const fetchController = getFetchController();
+    if (fetchController) {
+      fetchController.abort();
+      setFetchController(null);
+    }
+    if (getRecentLocations().length) {
+      showRecentResults();
+    } else {
+      clearResults();
+    }
     return;
   }
-  const key = getMilestoneKey(milestone);
-  if (!key) {
-    milestoneState.lastCelebratedKey = null;
-    return;
+  const existingDebounceId = getDebounceId();
+  if (existingDebounceId) {
+    clearTimeout(existingDebounceId);
   }
-  if (key !== milestoneState.lastCelebratedKey) {
-    milestoneState.lastCelebratedKey = key;
-    launchConfetti();
-  }
+  const newDebounceId = window.setTimeout(() => {
+    fetchSuggestions(nameQuery, filterTokens, rawFilterTokens);
+  }, 250);
+  setDebounceId(newDebounceId);
 };
 
+// ============================================================================
+// Daylight Calculations
+// ============================================================================
 const updateDaylightForLocation = (location) => {
-  if (!window.Astronomy || !location) {
-    return;
-  }
+  if (!window.Astronomy || !location) return;
+
   const timeZone = location.timezone || FALLBACK_TIMEZONE;
   const hemisphere = location.latitude < 0 ? "south" : "north";
   const astronomy = createAstronomyContext(location, timeZone);
   const todayParts = getActiveDateParts(timeZone);
   syncDatePicker(timeZone);
+
   const weekParts = addDaysToDateParts(todayParts, -7);
   const monthParts = addMonthsToDateParts(todayParts, -1);
-
   const todayEvents = astronomy.getSunEvents(todayParts);
   const weekEvents = astronomy.getSunEvents(weekParts);
   const monthEvents = astronomy.getSunEvents(monthParts);
 
+  // Update sunset time display
   setText(
-    sunsetTimeValue,
-    todayEvents.sunset
-      ? formatTime(todayEvents.sunset.date, timeZone)
-      : "—"
+    dom.sunsetTimeValue,
+    todayEvents.sunset ? formatTime(todayEvents.sunset.date, timeZone) : "—"
   );
 
+  // Calculate deltas
   const todaySunsetMinutes = todayEvents.sunset
     ? getMinutesSinceMidnight(todayEvents.sunset.date, timeZone)
     : null;
@@ -867,6 +961,7 @@ const updateDaylightForLocation = (location) => {
   const weekDaylight = astronomy.getDaylightMinutesForDateParts(weekParts);
   const monthDaylight = astronomy.getDaylightMinutesForDateParts(monthParts);
   const referenceYear = todayParts.year;
+
   const {
     earliestSunsetMinutes,
     earliestSunsetDateParts,
@@ -921,16 +1016,9 @@ const updateDaylightForLocation = (location) => {
   const daylightComparisonDelta =
     comparisonMode === "week" ? daylightWeekDelta : daylightMonthDelta;
 
-  const sunsetEarliestText = formatDeltaStatement(
-    sunsetEarliestDelta,
-    "later",
-    "earlier"
-  );
-  const daylightShortestText = formatDeltaStatement(
-    daylightShortestDelta,
-    "longer",
-    "shorter"
-  );
+  // Update stats display
+  const sunsetEarliestText = formatDeltaStatement(sunsetEarliestDelta, "later", "earlier");
+  const daylightShortestText = formatDeltaStatement(daylightShortestDelta, "longer", "shorter");
   const sunsetComparisonText = showComparison
     ? formatDeltaStatement(sunsetComparisonDelta, "later", "earlier")
     : "";
@@ -938,48 +1026,41 @@ const updateDaylightForLocation = (location) => {
     ? formatDeltaStatement(daylightComparisonDelta, "longer", "shorter")
     : "";
 
-  setText(sunsetEarliestDeltaValue, sunsetEarliestText);
+  setText(dom.sunsetEarliestDeltaValue, sunsetEarliestText);
+  setText(dom.daylightDurationValue, todayDaylight == null ? "—" : formatDuration(todayDaylight));
+  setText(dom.daylightShortestDeltaValue, daylightShortestText);
 
-  setText(
-    daylightDurationValue,
-    todayDaylight == null ? "—" : formatDuration(todayDaylight)
-  );
-
-  setText(daylightShortestDeltaValue, daylightShortestText);
-
-  if (sunsetEarliestRow) {
-    sunsetEarliestRow.classList.toggle("is-hidden", !sunsetEarliestText);
+  if (dom.sunsetEarliestRow) {
+    dom.sunsetEarliestRow.classList.toggle("is-hidden", !sunsetEarliestText);
   }
-  if (daylightShortestRow) {
-    daylightShortestRow.classList.toggle("is-hidden", !daylightShortestText);
+  if (dom.daylightShortestRow) {
+    dom.daylightShortestRow.classList.toggle("is-hidden", !daylightShortestText);
   }
 
   const showSunsetComparison = Boolean(sunsetComparisonText);
   const showDaylightComparison = Boolean(daylightComparisonText);
 
-  if (sunsetComparisonRow) {
-    sunsetComparisonRow.classList.toggle("is-hidden", !showSunsetComparison);
+  if (dom.sunsetComparisonRow) {
+    dom.sunsetComparisonRow.classList.toggle("is-hidden", !showSunsetComparison);
   }
-  if (daylightComparisonRow) {
-    daylightComparisonRow.classList.toggle("is-hidden", !showDaylightComparison);
+  if (dom.daylightComparisonRow) {
+    dom.daylightComparisonRow.classList.toggle("is-hidden", !showDaylightComparison);
   }
 
-  setText(sunsetComparisonReference, showSunsetComparison ? comparisonReference : "");
-  setText(daylightComparisonReference, showDaylightComparison ? comparisonReference : "");
-  setText(sunsetComparisonDeltaValue, sunsetComparisonText);
-  setText(daylightComparisonDeltaValue, daylightComparisonText);
+  setText(dom.sunsetComparisonReference, showSunsetComparison ? comparisonReference : "");
+  setText(dom.daylightComparisonReference, showDaylightComparison ? comparisonReference : "");
+  setText(dom.sunsetComparisonDeltaValue, sunsetComparisonText);
+  setText(dom.daylightComparisonDeltaValue, daylightComparisonText);
 
+  // Update tooltips
   const sunsetEarliestTooltip =
     earliestSunsetMinutes != null && earliestSunsetDateParts
       ? formatComparisonTooltip(
-          formatTimeFromMinutes(
-            earliestSunsetMinutes,
-            earliestSunsetDateParts,
-            timeZone
-          ),
+          formatTimeFromMinutes(earliestSunsetMinutes, earliestSunsetDateParts, timeZone),
           earliestSunsetDateParts,
           timeZone,
-          referenceYear
+          referenceYear,
+          formatShortDateFromParts
         )
       : "";
   const sunsetWeekTooltip = weekEvents.sunset
@@ -987,7 +1068,8 @@ const updateDaylightForLocation = (location) => {
         formatTime(weekEvents.sunset.date, timeZone),
         weekParts,
         timeZone,
-        referenceYear
+        referenceYear,
+        formatShortDateFromParts
       )
     : "";
   const sunsetMonthTooltip = monthEvents.sunset
@@ -995,20 +1077,15 @@ const updateDaylightForLocation = (location) => {
         formatTime(monthEvents.sunset.date, timeZone),
         monthParts,
         timeZone,
-        referenceYear
+        referenceYear,
+        formatShortDateFromParts
       )
     : "";
   const sunsetComparisonTooltip =
     comparisonMode === "week" ? sunsetWeekTooltip : sunsetMonthTooltip;
 
-  updateDeltaTooltip(
-    sunsetEarliestReference,
-    sunsetEarliestText ? sunsetEarliestTooltip : ""
-  );
-  updateDeltaTooltip(
-    sunsetComparisonReference,
-    showSunsetComparison ? sunsetComparisonTooltip : ""
-  );
+  updateDeltaTooltip(dom.sunsetEarliestReference, sunsetEarliestText ? sunsetEarliestTooltip : "");
+  updateDeltaTooltip(dom.sunsetComparisonReference, showSunsetComparison ? sunsetComparisonTooltip : "");
 
   const daylightShortestTooltip =
     shortestDayMinutes != null && shortestDayDateParts
@@ -1016,7 +1093,8 @@ const updateDaylightForLocation = (location) => {
           formatDuration(shortestDayMinutes),
           shortestDayDateParts,
           timeZone,
-          referenceYear
+          referenceYear,
+          formatShortDateFromParts
         )
       : "";
   const daylightWeekTooltip =
@@ -1025,7 +1103,8 @@ const updateDaylightForLocation = (location) => {
           formatDuration(weekDaylight),
           weekParts,
           timeZone,
-          referenceYear
+          referenceYear,
+          formatShortDateFromParts
         )
       : "";
   const daylightMonthTooltip =
@@ -1034,56 +1113,41 @@ const updateDaylightForLocation = (location) => {
           formatDuration(monthDaylight),
           monthParts,
           timeZone,
-          referenceYear
+          referenceYear,
+          formatShortDateFromParts
         )
       : "";
-
-  updateDeltaTooltip(
-    daylightShortestReference,
-    daylightShortestText ? daylightShortestTooltip : ""
-  );
   const daylightComparisonTooltip =
     comparisonMode === "week" ? daylightWeekTooltip : daylightMonthTooltip;
-  updateDeltaTooltip(
-    daylightComparisonReference,
-    showDaylightComparison ? daylightComparisonTooltip : ""
-  );
 
+  updateDeltaTooltip(dom.daylightShortestReference, daylightShortestText ? daylightShortestTooltip : "");
+  updateDeltaTooltip(dom.daylightComparisonReference, showDaylightComparison ? daylightComparisonTooltip : "");
+
+  // Build message data
   const startOfYearParts = { year: todayParts.year, month: 1, day: 1 };
-  const sunsetStartOfYear =
-    astronomy.getSunsetMinutesForDateParts(startOfYearParts);
+  const sunsetStartOfYear = astronomy.getSunsetMinutesForDateParts(startOfYearParts);
   const twoMonthsParts = addMonthsToDateParts(todayParts, -2);
-  const twoMonthsDaylight =
-    astronomy.getDaylightMinutesForDateParts(twoMonthsParts);
+  const twoMonthsDaylight = astronomy.getDaylightMinutesForDateParts(twoMonthsParts);
   const endOfMonthParts = {
     year: todayParts.year,
     month: todayParts.month,
     day: getDaysInMonth(todayParts.year, todayParts.month),
   };
-  const daylightAtEndOfMonth =
-    astronomy.getDaylightMinutesForDateParts(endOfMonthParts);
+  const daylightAtEndOfMonth = astronomy.getDaylightMinutesForDateParts(endOfMonthParts);
   const in14Parts = addDaysToDateParts(todayParts, 14);
-  const daylightIn14Days =
-    astronomy.getDaylightMinutesForDateParts(in14Parts);
+  const daylightIn14Days = astronomy.getDaylightMinutesForDateParts(in14Parts);
   const yesterdayParts = addDaysToDateParts(todayParts, -1);
-  const yesterdayDaylight =
-    astronomy.getDaylightMinutesForDateParts(yesterdayParts);
+  const yesterdayDaylight = astronomy.getDaylightMinutesForDateParts(yesterdayParts);
   const daylightGainToday =
     todayDaylight != null && yesterdayDaylight != null
       ? todayDaylight - yesterdayDaylight
       : null;
   const daylightGainThisWeek =
-    todayDaylight != null && weekDaylight != null
-      ? todayDaylight - weekDaylight
-      : null;
+    todayDaylight != null && weekDaylight != null ? todayDaylight - weekDaylight : null;
   const daylightLossThisWeek =
-    todayDaylight != null && weekDaylight != null
-      ? weekDaylight - todayDaylight
-      : null;
+    todayDaylight != null && weekDaylight != null ? weekDaylight - todayDaylight : null;
   const daylightLossThisMonthRaw =
-    monthDaylight != null && todayDaylight != null
-      ? monthDaylight - todayDaylight
-      : null;
+    monthDaylight != null && todayDaylight != null ? monthDaylight - todayDaylight : null;
   const daylightLossThisMonth =
     daylightLossThisMonthRaw != null && daylightLossThisMonthRaw > 0
       ? daylightLossThisMonthRaw
@@ -1097,9 +1161,7 @@ const updateDaylightForLocation = (location) => {
       ? daylightLossLastMonthRaw
       : null;
   const daylightAfter5pm =
-    todaySunsetMinutes != null
-      ? Math.max(0, todaySunsetMinutes - 17 * 60)
-      : null;
+    todaySunsetMinutes != null ? Math.max(0, todaySunsetMinutes - 17 * 60) : null;
   const daysUntilSunsetAfter5pm = astronomy.getDaysUntilSunsetAfter(
     todayParts,
     todaySunsetMinutes,
@@ -1118,27 +1180,15 @@ const updateDaylightForLocation = (location) => {
   const daysUntilMaxDailyGain = maxDailyGainDateParts
     ? getDaysBetweenDateParts(todayParts, maxDailyGainDateParts)
     : null;
-  const currentSeasonParts = astronomy.getSeasonDatePartsForYear(
-    todayParts.year,
-    hemisphere
-  );
+  const currentSeasonParts = astronomy.getSeasonDatePartsForYear(todayParts.year, hemisphere);
   const previousSummerSolsticeParts = astronomy.getPreviousSeasonDateParts(
     todayParts,
     hemisphere,
     "summer"
   );
-  const springEquinoxDate = getLocalNoonDateFromParts(
-    currentSeasonParts.spring,
-    timeZone
-  );
-  const summerSolsticeDate = getLocalNoonDateFromParts(
-    previousSummerSolsticeParts,
-    timeZone
-  );
-  const winterSolsticeDate = getLocalNoonDateFromParts(
-    currentSeasonParts.winter,
-    timeZone
-  );
+  const springEquinoxDate = getLocalNoonDateFromParts(currentSeasonParts.spring, timeZone);
+  const summerSolsticeDate = getLocalNoonDateFromParts(previousSummerSolsticeParts, timeZone);
+  const winterSolsticeDate = getLocalNoonDateFromParts(currentSeasonParts.winter, timeZone);
   const daysUntilSummerSolsticeRaw = currentSeasonParts.summer
     ? getDaysBetweenDateParts(todayParts, currentSeasonParts.summer)
     : null;
@@ -1157,6 +1207,7 @@ const updateDaylightForLocation = (location) => {
     ? getDaysBetweenDateParts(todayParts, earliestSunsetDateParts)
     : null;
   const daysInYear = getDaysInYear(todayParts.year);
+
   let fractionOfLossCompleted = null;
   if (
     todayDaylight != null &&
@@ -1172,6 +1223,7 @@ const updateDaylightForLocation = (location) => {
       );
     }
   }
+
   const weeksWithSunsetAfter7pmRemaining =
     todaySunsetMinutes != null
       ? astronomy.getWeeksWithSunsetAfter(todayParts, 19 * 60)
@@ -1181,10 +1233,8 @@ const updateDaylightForLocation = (location) => {
     hemisphere
   );
   const todayDate = getLocalNoonDateFromParts(todayParts, timeZone);
-  const earliestSunsetDate = getLocalNoonDateFromParts(
-    earliestSunsetDateParts,
-    timeZone
-  );
+  const earliestSunsetDate = getLocalNoonDateFromParts(earliestSunsetDateParts, timeZone);
+
   const messageData = {
     sunset_today: todaySunsetMinutes,
     sunset_earliest: earliestSunsetMinutes,
@@ -1196,8 +1246,7 @@ const updateDaylightForLocation = (location) => {
     daylight_after_5pm_today: daylightAfter5pm,
     daylight_one_month_ago: monthDaylight,
     fraction_of_loss_completed: fractionOfLossCompleted,
-    daylight_daily_gain_this_week_min:
-      astronomy.getDaylightDailyGainThisWeekMin(todayParts),
+    daylight_daily_gain_this_week_min: astronomy.getDaylightDailyGainThisWeekMin(todayParts),
     daylight_in_14_days: daylightIn14Days,
     daylight_gain_this_week: daylightGainThisWeek,
     spring_equinox_date: springEquinoxDate,
@@ -1226,12 +1275,12 @@ const updateDaylightForLocation = (location) => {
 
   updateOptimisticMessage(messageData, todayParts.month, hemisphere);
 
+  // Build milestones
   const milestoneCandidates = [];
-  const addMilestone = (milestone) => {
-    if (milestone) {
-      milestoneCandidates.push(milestone);
-    }
+  const addMilestone = (milestoneItem) => {
+    if (milestoneItem) milestoneCandidates.push(milestoneItem);
   };
+
   let nextYearExtremes = null;
   const resolveNextExtreme = (key) => {
     const current = {
@@ -1243,10 +1292,7 @@ const updateDaylightForLocation = (location) => {
       return current;
     }
     if (!nextYearExtremes) {
-      nextYearExtremes = astronomy.getYearlySunExtremes(
-        todayParts.year + 1,
-        null
-      );
+      nextYearExtremes = astronomy.getYearlySunExtremes(todayParts.year + 1, null);
     }
     return nextYearExtremes[key] || null;
   };
@@ -1256,28 +1302,21 @@ const updateDaylightForLocation = (location) => {
     hemisphere,
     "winter"
   );
-  const sunsetThresholdMatches = SUNSET_THRESHOLD_MILESTONES.map(
-    (milestoneConfig) => ({
-      ...milestoneConfig,
-      match: astronomy.findFirstSunsetAfter(
-        previousWinterSolsticeParts,
-        milestoneConfig.minutes
-      ),
-    })
-  );
 
+  const sunsetThresholdMatches = SUNSET_THRESHOLD_MILESTONES.map((milestoneConfig) => ({
+    ...milestoneConfig,
+    match: astronomy.findFirstSunsetAfter(
+      previousWinterSolsticeParts,
+      milestoneConfig.minutes
+    ),
+  }));
+
+  // Next half-hour sunset milestone
   if (todaySunsetMinutes != null) {
     const targetMinutes = astronomy.getNextHalfHour(todaySunsetMinutes);
     if (targetMinutes > 0) {
-      const targetLabel = formatTimeFromMinutes(
-        targetMinutes,
-        todayParts,
-        timeZone
-      );
-      const milestoneMatch = astronomy.findNextSunsetThreshold(
-        todayParts,
-        targetMinutes
-      );
+      const targetLabel = formatTimeFromMinutes(targetMinutes, todayParts, timeZone);
+      const milestoneMatch = astronomy.findNextSunsetThreshold(todayParts, targetMinutes);
       if (milestoneMatch) {
         const isThresholdDuplicate = sunsetThresholdMatches.some(
           (threshold) =>
@@ -1329,11 +1368,7 @@ const updateDaylightForLocation = (location) => {
     buildMilestone({
       id: "spring-equinox",
       title: "Spring equinox",
-      dateParts: astronomy.getNextSeasonDateParts(
-        todayParts,
-        hemisphere,
-        "spring"
-      ),
+      dateParts: astronomy.getNextSeasonDateParts(todayParts, hemisphere, "spring"),
       todayHeadline: "It's the spring equinox today.",
       todayLede: null,
     })
@@ -1391,34 +1426,38 @@ const updateDaylightForLocation = (location) => {
   });
 
   const milestoneOffsets = milestoneCandidates
-    .map((milestoneItem) => withMilestoneOffset(milestoneItem, todayParts))
+    .map((item) => withMilestoneOffset(item, todayParts))
     .filter(Boolean);
-  const todayMilestone = milestoneOffsets.find(
-    (milestoneItem) => milestoneItem.offsetDays === 0
-  );
+
+  const todayMilestone = milestoneOffsets.find((item) => item.offsetDays === 0);
   if (todayMilestone) {
-    stopOptimisticRotation();
+    stopOptimisticRotation(headline, lede);
     const todayCopy = getMilestoneTodayCopy(todayMilestone);
     if (todayCopy) {
-      setOptimisticCopy(todayCopy, { animate: false });
+      setOptimisticCopy(headline, lede, todayCopy, { animate: false });
     }
-    celebrateMilestone(todayMilestone);
+    celebrateMilestone(confettiRoot, todayMilestone);
   } else {
-    celebrateMilestone(null);
+    celebrateMilestone(confettiRoot, null);
   }
 
   const upcoming = milestoneOffsets
-    .filter((milestoneItem) => milestoneItem.offsetDays > 0)
+    .filter((item) => item.offsetDays > 0)
     .sort((a, b) => {
       const dayDiff = a.offsetDays - b.offsetDays;
-      if (dayDiff !== 0) {
-        return dayDiff;
-      }
+      if (dayDiff !== 0) return dayDiff;
       return a.title.localeCompare(b.title);
     });
-  updateMilestoneCard(upcoming, timeZone);
 
-  shareState.snapshot = {
+  updateMilestoneCard(
+    { nextHeadline: dom.nextHeadline, nextDate: dom.nextDate, nextAway: dom.nextAway, milestone, milestoneToggle },
+    upcoming,
+    timeZone,
+    formatLongDateFromParts
+  );
+
+  // Update share snapshot
+  updateShareSnapshot({
     location,
     timeZone,
     dateParts: todayParts,
@@ -1429,963 +1468,61 @@ const updateDaylightForLocation = (location) => {
     sunsetEarliestDelta,
     hemisphere,
     fractionOfLossCompleted,
-  };
-};
-
-const updateClearButton = () => {
-  if (!cityInput || !clearButton) {
-    return;
-  }
-  const hasValue = cityInput.value.trim().length > 0;
-  clearButton.classList.toggle("is-visible", hasValue);
-};
-
-const updateGeolocateButton = () => {
-  if (!geolocateButton) {
-    return;
-  }
-  if (!CAN_USE_GEOLOCATION) {
-    geolocateButton.disabled = true;
-    geolocateButton.title = "Location unavailable";
-    return;
-  }
-  geolocateButton.disabled = searchState.locationBiasLoading;
-  geolocateButton.title = searchState.locationBiasLoading ? "Locating..." : "Use my location";
-};
-
-const loadRecentLocations = () => {
-  try {
-    const stored = localStorage.getItem(RECENT_STORAGE_KEY);
-    const parsed = stored ? JSON.parse(stored) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.warn("Unable to load recent locations:", error);
-    return [];
-  }
-};
-
-const loadStoredLocation = () => {
-  try {
-    const stored = localStorage.getItem(ACTIVE_LOCATION_STORAGE_KEY);
-    const parsed = stored ? JSON.parse(stored) : null;
-    if (!parsed || typeof parsed !== "object") {
-      return null;
-    }
-    if (typeof parsed.latitude !== "number" || typeof parsed.longitude !== "number") {
-      return null;
-    }
-    const { reverseGeocodeFailed, ...sanitized } = parsed;
-    return sanitized;
-  } catch (error) {
-    console.warn("Unable to load stored location:", error);
-    return null;
-  }
-};
-
-const loadSharePrivacyPreference = () => {
-  try {
-    return localStorage.getItem(SHARE_PRIVACY_STORAGE_KEY) === "true";
-  } catch (error) {
-    console.warn("Unable to load share privacy preference:", error);
-    return false;
-  }
-};
-
-const saveSharePrivacyPreference = (value) => {
-  try {
-    localStorage.setItem(SHARE_PRIVACY_STORAGE_KEY, value ? "true" : "false");
-  } catch (error) {
-    console.warn("Unable to save share privacy preference:", error);
-  }
-};
-
-const sanitizeStoredLocation = (location) => {
-  if (!location || typeof location !== "object") {
-    return location;
-  }
-  const { reverseGeocodeFailed, ...sanitized } = location;
-  return sanitized;
-};
-
-const saveStoredLocation = (location) => {
-  try {
-    localStorage.setItem(
-      ACTIVE_LOCATION_STORAGE_KEY,
-      JSON.stringify(sanitizeStoredLocation(location))
-    );
-  } catch (error) {
-    console.warn("Unable to save stored location:", error);
-  }
-};
-
-const isCurrentLocation = (location) =>
-  Boolean(location?.isCurrent) ||
-  (location?.name || "").toLowerCase() ===
-    CURRENT_LOCATION_LABEL.toLowerCase();
-
-const saveRecentLocations = (items) => {
-  try {
-    localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(items));
-  } catch (error) {
-    console.warn("Unable to save recent locations:", error);
-  }
-};
-
-const updateRecentLocations = (item) => {
-  const updated = [
-    item,
-    ...searchState.recentLocations.filter(
-      (entry) =>
-        entry.name !== item.name ||
-        entry.admin1 !== item.admin1 ||
-        entry.country_code !== item.country_code
-    ),
-  ].slice(0, MAX_RECENTS);
-  searchState.recentLocations = updated;
-  saveRecentLocations(updated);
-};
-
-const showRecentResults = () => {
-  if (!searchState.recentLocations.length) {
-    clearResults();
-    return;
-  }
-  const statusMessages = [
-    { text: "Recent locations.", type: "hint" },
-  ];
-  const groups = [
-    {
-      label: "Recent",
-      items: searchState.recentLocations,
-    },
-  ];
-  renderResults(groups, {
-    statusMessages,
-    actions: getActionItems(),
-    emptyMessage: "No recent locations yet.",
   });
 };
 
-const setStatusMessages = (messages) => {
-  if (!resultsMeta) {
-    return;
-  }
-  resultsMeta.innerHTML = "";
-  messages.forEach((message) => {
-    const status = document.createElement("div");
-    status.className = `location-status${
-      message.type ? ` is-${message.type}` : ""
-    }`;
-    status.textContent = message.text;
-    resultsMeta.appendChild(status);
-  });
-  if (resultsPanel?.classList.contains("is-open")) {
-    updateResultsMaxHeight();
-  }
-};
+// ============================================================================
+// Event Handlers Setup
+// ============================================================================
 
-const renderActions = (actions) => {
-  if (!resultsActions) {
-    return;
-  }
-  resultsActions.innerHTML = "";
-  actions.forEach((action) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `location-action${
-      action.variant ? ` ${action.variant}` : ""
-    }`;
-    button.dataset.action = action.action;
-    button.textContent = action.label;
-    if (action.disabled) {
-      button.disabled = true;
-    }
-    resultsActions.appendChild(button);
-  });
-  if (resultsPanel?.classList.contains("is-open")) {
-    updateResultsMaxHeight();
-  }
-};
+// Initialize recent locations from storage
+setRecentLocations(loadRecentLocations());
 
-const openResultsPanel = () => {
-  if (!resultsPanel || !cityInput) {
-    return;
-  }
-  resultsPanel.classList.add("is-open");
-  cityInput.setAttribute("aria-expanded", "true");
-  updateResultsMaxHeight();
-};
-
-const getActionItems = ({ toggleLabel, includeRetry } = {}) => {
-  const actions = [];
-  if (toggleLabel) {
-    actions.push({
-      action: "toggle-preference",
-      label: toggleLabel,
-    });
-  }
-  if (includeRetry) {
-    actions.push({
-      action: "retry",
-      label: "Retry search",
-      variant: "is-secondary",
-    });
-  }
-  return actions;
-};
-
-const groupResults = (results, nameQuery) => {
-  const exactMatches = [];
-  const nearbyMatches = [];
-  results.forEach((item) => {
-    if (isNameMatch(item, nameQuery)) {
-      exactMatches.push(item);
-    } else {
-      nearbyMatches.push(item);
-    }
-  });
-  const groups = [];
-  if (exactMatches.length) {
-    groups.push({
-      label: nearbyMatches.length ? "Matches" : null,
-      items: exactMatches,
-    });
-  }
-  if (nearbyMatches.length) {
-    groups.push({
-      label: exactMatches.length ? "Nearby" : null,
-      items: nearbyMatches,
-    });
-  }
-  return groups;
-};
-
-const renderGroup = (group) => {
-  if (!resultsList) {
-    return;
-  }
-  const wrapper = document.createElement("div");
-  wrapper.className = "location-group";
-  wrapper.role = group.label ? "group" : "presentation";
-  if (group.label) {
-    wrapper.setAttribute("aria-label", group.label);
-    const label = document.createElement("div");
-    label.className = "location-group-label";
-    label.textContent = group.label;
-    label.setAttribute("aria-hidden", "true");
-    wrapper.appendChild(label);
-  }
-  group.items.forEach((item) => {
-    const index = searchState.suggestionResults.length;
-    searchState.suggestionResults.push(item);
-    const option = document.createElement("div");
-    option.id = `location-option-${index}`;
-    option.className = "location-option";
-    option.role = "option";
-    option.tabIndex = -1;
-    option.dataset.index = String(index);
-    option.textContent = formatSuggestionLocation(item);
-    wrapper.appendChild(option);
-  });
-  resultsList.appendChild(wrapper);
-};
-
-const showLoadingState = () => {
-  searchState.suggestionResults = [];
-  searchState.activeIndex = -1;
-  if (!resultsList || !cityInput) {
-    return;
-  }
-  resultsList.innerHTML = "";
-  cityInput.removeAttribute("aria-activedescendant");
-  setStatusMessages([{ text: "Searching for cities...", type: "hint" }]);
-  renderActions(getActionItems());
-  openResultsPanel();
-};
-
-const showErrorState = () => {
-  searchState.suggestionResults = [];
-  searchState.activeIndex = -1;
-  if (!resultsList || !cityInput) {
-    return;
-  }
-  resultsList.innerHTML = "";
-  cityInput.removeAttribute("aria-activedescendant");
-  setStatusMessages([
-    {
-      text: "Could not fetch city suggestions. Check your connection and try again.",
-      type: "error",
-    },
-  ]);
-  renderActions(getActionItems({ includeRetry: true }));
-  openResultsPanel();
-};
-
-const buildCurrentLocation = (coords, { reverseGeocodeFailed = false } = {}) => ({
-  name: CURRENT_LOCATION_LABEL,
-  admin1: "",
-  admin2: "",
-  country: "",
-  country_code: "",
-  latitude: coords.lat,
-  longitude: coords.lon,
-  elevation: 0,
-  timezone: FALLBACK_TIMEZONE,
-  isCurrent: true,
-  reverseGeocodeFailed,
-});
-
-const selectLocationFromCoords = async (coords) => {
-  const currentLocation = buildCurrentLocation(coords);
-  const resolved = await fetchReverseGeocodeLocation(currentLocation);
-  if (resolved) {
-    selectResult(resolved);
-    return;
-  }
-  selectResult({ ...currentLocation, reverseGeocodeFailed: true });
-};
-
-const requestLocationBias = ({ onError } = {}) => {
-  if (searchState.locationBiasRequested || !("geolocation" in navigator)) {
-    return;
-  }
-  searchState.locationBiasRequested = true;
-  searchState.locationBiasLoading = true;
-  updateGeolocateButton();
-  renderActions(getActionItems());
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
-      searchState.userCoords = {
-        lat: position.coords.latitude,
-        lon: position.coords.longitude,
-      };
-      try {
-        await selectLocationFromCoords(searchState.userCoords);
-      } finally {
-        searchState.locationBiasLoading = false;
-        searchState.locationBiasRequested = false;
-        updateGeolocateButton();
-      }
-    },
-    (error) => {
-      searchState.locationBiasLoading = false;
-      searchState.locationBiasRequested = false;
-      updateGeolocateButton();
-      renderActions(getActionItems());
-      if (typeof onError === "function") {
-        onError(error);
-      }
-    },
-    { enableHighAccuracy: false, timeout: 5000 }
-  );
-};
-
-searchState.recentLocations = loadRecentLocations();
-
-const clearResults = () => {
-  searchState.suggestionResults = [];
-  searchState.rawResults = [];
-  searchState.activeIndex = -1;
-  if (!resultsList || !resultsMeta || !resultsActions || !resultsPanel || !cityInput) {
-    return;
-  }
-  resultsList.innerHTML = "";
-  resultsMeta.innerHTML = "";
-  resultsActions.innerHTML = "";
-  resultsPanel.classList.remove("is-open");
-  cityInput.setAttribute("aria-expanded", "false");
-  cityInput.removeAttribute("aria-activedescendant");
-  resultsList.style.maxHeight = "";
-};
-
-const updateResultsMaxHeight = () => {
-  if (!resultsPanel || !cityInput || !resultsList) {
-    return;
-  }
-  if (!resultsPanel.classList.contains("is-open")) {
-    return;
-  }
-  const locationRect = cityInput.getBoundingClientRect();
-  const milestoneRect = milestone?.getBoundingClientRect();
-  const spacing = 12;
-  const available =
-    milestoneRect && milestoneRect.top > locationRect.bottom + spacing
-      ? milestoneRect.top - locationRect.bottom - spacing
-      : window.innerHeight - locationRect.bottom - spacing;
-  const chromeHeight =
-    (resultsMeta?.offsetHeight || 0) + (resultsActions?.offsetHeight || 0) + 24;
-  const maxHeight = Math.max(0, Math.min(260, available - chromeHeight));
-  resultsList.style.maxHeight = `${maxHeight}px`;
-};
-
-const renderResults = (groups, options = {}) => {
-  if (!resultsList || !cityInput) {
-    return;
-  }
-  resultsList.innerHTML = "";
-  searchState.suggestionResults = [];
-  searchState.activeIndex = -1;
-
-  const statusMessages = [...(options.statusMessages || [])];
-  const hasItems = groups.some((group) => group.items.length);
-  if (!hasItems && options.emptyMessage) {
-    statusMessages.push({ text: options.emptyMessage, type: "hint" });
-  }
-  setStatusMessages(statusMessages);
-  renderActions(options.actions || []);
-
-  if (hasItems) {
-    groups.forEach(renderGroup);
-  }
-
-  openResultsPanel();
-
-  if (hasItems) {
-    updateActiveOption(0);
-  } else {
-    cityInput.removeAttribute("aria-activedescendant");
-  }
-};
-
-const buildResults = (
-  results,
-  filterTokens = searchState.lastFilterTokens,
-  rawTokens = searchState.lastFilterTokensRaw
-) => {
-  searchState.rawResults = results;
-  const filteredResults = applyFilterTokens(results, filterTokens);
-  const effectiveResults = filteredResults.length
-    ? filteredResults
-    : results;
-  const localResults = regionCode
-    ? effectiveResults.filter(
-        (item) => normalizeCountryCode(item) === regionCode
-      )
-    : [];
-  const otherResults = regionCode
-    ? effectiveResults.filter(
-        (item) => normalizeCountryCode(item) !== regionCode
-      )
-    : effectiveResults;
-  const sortedLocal = sortByDistance(localResults, searchState.userCoords);
-  const sortedAll = sortByDistance(effectiveResults, searchState.userCoords);
-  const filterHint =
-    rawTokens.length && !filteredResults.length
-      ? `No matches for "${formatFilterTokensForHint(
-          rawTokens
-        )}". Showing broader results.`
-      : null;
-  const localityLabel = searchState.userCoords ? "nearby" : "local";
-  let displayResults = sortedAll;
-  let toggleLabel = null;
-  const statusMessages = [];
-
-  if (searchState.preferLocalResults && sortedLocal.length) {
-    displayResults = sortedLocal;
-    toggleLabel = otherResults.length ? "Show worldwide results" : null;
-  } else if (searchState.preferLocalResults && !sortedLocal.length && regionCode) {
-    displayResults = sortedAll;
-    statusMessages.push({
-      text: `No ${localityLabel} matches. Showing worldwide results.`,
-      type: "hint",
-    });
-  } else {
-    displayResults = sortedAll;
-    if (sortedLocal.length && otherResults.length) {
-      toggleLabel = searchState.userCoords ? "Prefer nearby results" : "Prefer local results";
-      statusMessages.push({
-        text: "Showing worldwide results.",
-        type: "hint",
-      });
-    }
-  }
-
-  if (filterHint) {
-    statusMessages.unshift({ text: filterHint, type: "hint" });
-  }
-
-  const groups = groupResults(
-    displayResults.slice(0, MAX_RESULTS),
-    searchState.lastNameQuery
-  );
-  renderResults(groups, {
-    statusMessages,
-    actions: getActionItems({ toggleLabel }),
-    emptyMessage: "No matches yet.",
-  });
-};
-
-const selectResult = (item, { persist = true, updateRecents = true } = {}) => {
-  clearReverseGeocodeCache();
-  const label = formatSelectedLocation(item);
-  setInputValue(cityInput, label);
-  if (updateRecents) {
-    updateRecentLocations(item);
-  }
-  if (persist) {
-    saveStoredLocation(item);
-  }
-  updateClearButton();
-  clearResults();
-  searchState.activeLocation = item;
-  console.log(`Selected city: ${label}`, {
-    latitude: item.latitude,
-    longitude: item.longitude,
-  });
-  updateDaylightForLocation(item);
-  if (isCurrentLocation(item) && !item.reverseGeocodeFailed) {
-    void resolveCurrentLocationName(item);
-  }
-};
-
-const updateActiveOption = (nextIndex) => {
-  if (!resultsList || !cityInput) {
-    return;
-  }
-  const options = resultsList.querySelectorAll(".location-option");
-  if (!options.length) {
-    searchState.activeIndex = -1;
-    cityInput.removeAttribute("aria-activedescendant");
-    return;
-  }
-  searchState.activeIndex = Math.max(0, Math.min(nextIndex, options.length - 1));
-  options.forEach((option, index) => {
-    const isActive = index === searchState.activeIndex;
-    option.classList.toggle("is-active", isActive);
-    option.setAttribute("aria-selected", isActive ? "true" : "false");
-    option.tabIndex = isActive ? 0 : -1;
-    if (isActive) {
-      cityInput.setAttribute("aria-activedescendant", option.id);
-      option.scrollIntoView({ block: "nearest" });
-    }
-  });
-};
-
-const mapGeocodingResults = (data) =>
-  (data.results || []).map((item) => ({
-    name: item.name,
-    admin1: item.admin1,
-    admin2: item.admin2,
-    country: item.country,
-    country_code: item.country_code,
-    latitude: item.latitude,
-    longitude: item.longitude,
-    elevation: item.elevation,
-    timezone: item.timezone,
-  }));
-
-const mapReverseGeocodeResponse = (data, location) => {
-  if (!data || typeof data !== "object") {
-    return null;
-  }
-  const name =
-    [data.locality, data.city, data.principalSubdivision, data.countryName].find(
-      (value) => typeof value === "string" && value.trim()
-    ) || "";
-  if (!name) {
-    return null;
-  }
-  const latitude = Number.isFinite(data.latitude)
-    ? data.latitude
-    : location.latitude;
-  const longitude = Number.isFinite(data.longitude)
-    ? data.longitude
-    : location.longitude;
-  return {
-    name,
-    admin1: data.principalSubdivision || "",
-    admin2: "",
-    country: data.countryName || "",
-    country_code: data.countryCode || "",
-    latitude,
-    longitude,
-    elevation: 0,
-    timezone: FALLBACK_TIMEZONE,
-  };
-};
-
-const clearReverseGeocodeCache = () => {
-  reverseGeocodeState.cache = null;
-  reverseGeocodeState.cacheKey = "";
-  reverseGeocodeState.promise = null;
-};
-
-const fetchReverseGeocodeLocation = async (location) => {
-  if (
-    !location ||
-    !Number.isFinite(location.latitude) ||
-    !Number.isFinite(location.longitude)
-  ) {
-    return null;
-  }
-  const cacheKey = `${location.latitude},${location.longitude}`;
-  if (reverseGeocodeState.cache && reverseGeocodeState.cacheKey === cacheKey) {
-    return reverseGeocodeState.cache;
-  }
-  if (reverseGeocodeState.promise && reverseGeocodeState.cacheKey === cacheKey) {
-    return reverseGeocodeState.promise;
-  }
-  reverseGeocodeState.cacheKey = cacheKey;
-  reverseGeocodeState.promise = (async () => {
-    const url = `${REVERSE_GEOCODE_URL}?latitude=${location.latitude}&longitude=${location.longitude}&localityLanguage=${encodeURIComponent(
-      languageCode
-    )}`;
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("Failed to reverse geocode location.");
-      }
-      const data = await response.json();
-      return mapReverseGeocodeResponse(data, location);
-    } catch (error) {
-      console.warn("Reverse geocoding failed:", error);
-      return null;
-    }
-  })();
-  const resolved = await reverseGeocodeState.promise;
-  reverseGeocodeState.promise = null;
-  reverseGeocodeState.cache = resolved;
-  return resolved;
-};
-
-const resolveCurrentLocationName = async (location) => {
-  if (!isCurrentLocation(location) || location?.reverseGeocodeFailed) {
-    return;
-  }
-  const resolved = await fetchReverseGeocodeLocation(location);
-  if (resolved) {
-    selectResult(resolved, { persist: true, updateRecents: false });
-  }
-};
-
-const fetchSuggestions = async (nameQuery, filterTokens, rawTokens) => {
-  if (searchState.fetchController) {
-    searchState.fetchController.abort();
-  }
-  searchState.fetchController = new AbortController();
-  showLoadingState();
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-    nameQuery
-  )}&count=20&language=${encodeURIComponent(
-    languageCode
-  )}&format=json`;
-  try {
-    const response = await fetch(url, { signal: searchState.fetchController.signal });
-    if (!response.ok) {
-      throw new Error("Failed to fetch city suggestions.");
-    }
-    const data = await response.json();
-    const results = mapGeocodingResults(data);
-    buildResults(results, filterTokens, rawTokens);
-  } catch (error) {
-    if (error.name === "AbortError") {
-      return;
-    }
-    console.error("City lookup failed:", error);
-    showErrorState();
-  }
-};
-
-const fetchDefaultLocation = async () => {
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-    DEFAULT_LOCATION_QUERY
-  )}&count=10&language=${encodeURIComponent(
-    languageCode
-  )}&format=json`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error("Failed to fetch default location.");
-    }
-    const data = await response.json();
-    const results = mapGeocodingResults(data);
-    const match =
-      results.find(
-        (item) =>
-          (item.name || "").toLowerCase() === "boston" &&
-          normalizeCountryCode(item) === "US" &&
-          (item.admin1 || "").toLowerCase() === "massachusetts"
-      ) ||
-      results.find(
-        (item) =>
-          (item.name || "").toLowerCase() === "boston" &&
-          normalizeCountryCode(item) === "US"
-      ) ||
-      results[0];
-    if (match) {
-      selectResult(match, { persist: false, updateRecents: false });
-      return;
-    }
-    selectResult(DEFAULT_LOCATION, { persist: false, updateRecents: false });
-  } catch (error) {
-    console.warn("Default location lookup failed:", error);
-    selectResult(DEFAULT_LOCATION, { persist: false, updateRecents: false });
-  }
-};
-
-const initializeLocation = () => {
-  const storedLocation = loadStoredLocation();
-  if (storedLocation) {
-    if (isCurrentLocation(storedLocation)) {
-      searchState.userCoords = {
-        lat: storedLocation.latitude,
-        lon: storedLocation.longitude,
-      };
-    }
-    selectResult(storedLocation, { persist: false, updateRecents: false });
-  }
-
-  if (!CAN_USE_GEOLOCATION || !navigator.permissions?.query) {
-    if (!storedLocation) {
-      fetchDefaultLocation();
-    }
-    return;
-  }
-
-  navigator.permissions
-    .query({ name: "geolocation" })
-    .then((status) => {
-      if (status.state === "granted") {
-        if (!storedLocation) {
-          requestLocationBias({ onError: fetchDefaultLocation });
-        }
-      } else if (!storedLocation) {
-        fetchDefaultLocation();
-      }
-    })
-    .catch((error) => {
-      console.warn("Unable to check geolocation permission:", error);
-      if (!storedLocation) {
-        fetchDefaultLocation();
-      }
-    });
-};
-
-const handleInput = () => {
-  if (!cityInput) {
-    return;
-  }
-  const query = cityInput.value.trim();
-  const { nameQuery, filterTokens, rawFilterTokens } = parseQuery(query);
-  searchState.lastNameQuery = nameQuery;
-  searchState.lastFilterTokens = filterTokens;
-  searchState.lastFilterTokensRaw = rawFilterTokens;
-  updateClearButton();
-  if (nameQuery.length < 2) {
-    if (searchState.debounceId) {
-      clearTimeout(searchState.debounceId);
-      searchState.debounceId = null;
-    }
-    if (searchState.fetchController) {
-      searchState.fetchController.abort();
-      searchState.fetchController = null;
-    }
-    if (searchState.recentLocations.length) {
-      showRecentResults();
-    } else {
-      clearResults();
-    }
-    return;
-  }
-  if (searchState.debounceId) {
-    clearTimeout(searchState.debounceId);
-  }
-  searchState.debounceId = window.setTimeout(() => {
-    fetchSuggestions(nameQuery, filterTokens, rawFilterTokens);
-  }, 250);
-};
-
-const getSharePrivacySetting = () =>
-  sharePrivacyToggle ? sharePrivacyToggle.checked : shareState.privacyEnabled;
-
-const captureShareSnapshot = () => {
-  const baseSnapshot = shareState.snapshot ? { ...shareState.snapshot } : {};
-  shareState.modalSnapshot = {
-    ...baseSnapshot,
-    headline: getText(headline),
-    lede: getText(lede),
-  };
-};
-
-const resolveShareLocationLabel = async (location) => {
-  if (getSharePrivacySetting()) {
-    return "My Location";
-  }
-  if (!location) {
-    return "Your location";
-  }
-  if (!isCurrentLocation(location)) {
-    return formatSelectedLocation(location);
-  }
-  if (location.reverseGeocodeFailed) {
-    return CURRENT_LOCATION_LABEL;
-  }
-  const resolved = await fetchReverseGeocodeLocation(location);
-  return resolved ? formatSelectedLocation(resolved) : CURRENT_LOCATION_LABEL;
-};
-
-const buildShareMilestoneLine = () => {
-  if (!milestoneState.upcoming.length) {
-    return "📈 Upcoming milestone to be announced";
-  }
-  const active = milestoneState.upcoming[milestoneState.index] || milestoneState.upcoming[0];
-  if (!active) {
-    return "📈 Upcoming milestone to be announced";
-  }
-  const title = lowerCaseFirstLetter(active.title || "");
-  const dayCount = formatShareDayCount(active.offsetDays);
-  if (!dayCount) {
-    return `📈 ${title || active.title}`;
-  }
-  return `📈 ${dayCount} until ${title || active.title}`;
-};
-
-const buildShareMessage = async () => {
-  const snapshot = shareState.modalSnapshot || shareState.snapshot;
-  const timeZone = snapshot?.timeZone || FALLBACK_TIMEZONE;
-  const dateParts = snapshot?.dateParts || getActiveDateParts(timeZone);
-  const dateLabel = formatShareDateFromParts(dateParts) || "—";
-  const headlineText =
-    snapshot?.headline || getText(headline) || "Sunshine Optimist";
-  const locationLabel = await resolveShareLocationLabel(
-    snapshot?.location || searchState.activeLocation
-  );
-  const progressLine = buildShareProgressLine(snapshot);
-  const daylightText = Number.isFinite(snapshot?.todayDaylight)
-    ? formatDuration(snapshot.todayDaylight)
-    : "—";
-  const sunsetDeltaText = formatShareMinutes(snapshot?.sunsetEarliestDelta);
-  const milestoneLine = buildShareMilestoneLine();
-  const lines = [`☀️ ${locationLabel} — ${dateLabel}`, "", headlineText, ""];
-  if (progressLine) {
-    lines.push(progressLine, "");
-  }
-  lines.push(`☀️ ${daylightText} of daylight today`);
-  lines.push(`🌅 Sunset ${sunsetDeltaText} later than the earliest sunset`);
-  if (milestoneLine) {
-    lines.push(milestoneLine);
-  }
-  lines.push("", "SunshineOptimist.com");
-  return lines.join("\n");
-};
-
-const setSharePreviewText = (text) => {
-  shareState.text = text || "";
-  setText(sharePreview, shareState.text);
-};
-
-const refreshSharePreview = async () => {
-  if (!sharePreview) {
-    return;
-  }
-  shareState.text = "";
-  setText(sharePreview, "Preparing your share...");
-  try {
-    const message = await buildShareMessage();
-    setSharePreviewText(message);
-  } catch (error) {
-    console.warn("Share preview failed:", error);
-    setText(sharePreview, "Unable to prepare share text.");
-  }
-};
-
-const openShareModal = () => {
-  if (!shareModal) {
-    return;
-  }
-  captureShareSnapshot();
-  if (typeof shareModal.showModal === "function") {
-    if (!shareModal.open) {
-      shareModal.showModal();
-    }
-  } else {
-    shareModal.setAttribute("open", "true");
-  }
-  refreshSharePreview();
-};
-
-const closeShareModal = () => {
-  if (!shareModal) {
-    return;
-  }
-  shareState.modalSnapshot = null;
-  if (typeof shareModal.close === "function") {
-    shareModal.close();
-  } else {
-    shareModal.removeAttribute("open");
-  }
-};
-
-const ensureShareText = async () => {
-  if (shareState.text) {
-    return shareState.text;
-  }
-  const message = await buildShareMessage();
-  setSharePreviewText(message);
-  return message;
-};
-
-const copyShareText = async () => {
-  const text = await ensureShareText();
-  if (!navigator.clipboard?.writeText) {
-    return false;
-  }
-  await navigator.clipboard.writeText(text);
-  return true;
-};
-
-const openShareLink = (url) => {
-  if (!url) {
-    return;
-  }
-  window.open(url, "_blank", "noopener,noreferrer");
-};
-
+// City input handlers
 if (cityInput) {
   cityInput.addEventListener("input", handleInput);
-  cityInput.addEventListener("focus", () => {
-    handleInput();
-  });
+  cityInput.addEventListener("focus", handleInput);
   cityInput.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       clearResults();
       return;
     }
-    if (!searchState.suggestionResults.length) {
-      return;
-    }
+    if (!getSuggestionResults().length) return;
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      updateActiveOption(searchState.activeIndex + 1);
+      updateActiveOption(getActiveIndex() + 1);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      updateActiveOption(searchState.activeIndex - 1);
+      updateActiveOption(getActiveIndex() - 1);
     } else if (event.key === "Home") {
       event.preventDefault();
       updateActiveOption(0);
     } else if (event.key === "End") {
       event.preventDefault();
-      updateActiveOption(searchState.suggestionResults.length - 1);
+      updateActiveOption(getSuggestionResults().length - 1);
     } else if (event.key === "Enter") {
-      if (searchState.activeIndex >= 0) {
+      const activeIndex = getActiveIndex();
+      const suggestionResults = getSuggestionResults();
+      if (activeIndex >= 0) {
         event.preventDefault();
-        selectResult(searchState.suggestionResults[searchState.activeIndex]);
-      } else if (searchState.suggestionResults.length) {
+        selectResult(suggestionResults[activeIndex]);
+      } else if (suggestionResults.length) {
         event.preventDefault();
-        selectResult(searchState.suggestionResults[0]);
+        selectResult(suggestionResults[0]);
       }
     }
   });
 }
 
+// Clear button handler
 if (clearButton && cityInput) {
   clearButton.addEventListener("click", () => {
     setInputValue(cityInput, "");
-    searchState.lastNameQuery = "";
-    searchState.lastFilterTokens = [];
-    searchState.lastFilterTokensRaw = [];
+    setLastNameQuery("");
+    setLastFilterTokens([]);
+    setLastFilterTokensRaw([]);
     updateClearButton();
-    if (searchState.recentLocations.length) {
+    if (getRecentLocations().length) {
       showRecentResults();
     } else {
       clearResults();
@@ -2394,6 +1531,7 @@ if (clearButton && cityInput) {
   });
 }
 
+// Geolocation button handler
 if (geolocateButton && cityInput) {
   geolocateButton.addEventListener("click", () => {
     requestLocationBias();
@@ -2401,11 +1539,10 @@ if (geolocateButton && cityInput) {
   });
 }
 
+// Date input handlers
 if (dateInput) {
   const handleDateCommitInput = () => {
-    if (isRecentDateKeyboardInput()) {
-      return;
-    }
+    if (isRecentDateKeyboardInput()) return;
     scheduleDateCommit();
   };
 
@@ -2425,11 +1562,11 @@ if (dateInput) {
     ) {
       return;
     }
-    dateState.lastKeydownAt = Date.now();
+    setLastKeydownAt(Date.now());
     clearDateCommitTimeout();
   });
   dateInput.addEventListener("pointerdown", () => {
-    dateState.lastKeydownAt = 0;
+    setLastKeydownAt(0);
     clearDateCommitTimeout();
   });
   dateInput.addEventListener("blur", () => {
@@ -2438,74 +1575,68 @@ if (dateInput) {
   });
 }
 
+// Date reset button handler
 if (dateReset) {
   dateReset.addEventListener("click", () => {
     clearDateCommitTimeout();
-    dateState.lastKeydownAt = 0;
+    setLastKeydownAt(0);
     const didChange = applyDateSelection(null);
-    const timeZone = searchState.activeLocation?.timezone || FALLBACK_TIMEZONE;
+    const timeZone = getActiveLocation()?.timezone || FALLBACK_TIMEZONE;
     syncDatePicker(timeZone);
-    if (searchState.activeLocation && didChange) {
-      updateDaylightForLocation(searchState.activeLocation);
+    if (getActiveLocation() && didChange) {
+      updateDaylightForLocation(getActiveLocation());
     }
   });
 }
 
+// Milestone toggle handler
 if (milestoneToggle) {
   milestoneToggle.addEventListener("click", () => {
-    if (!milestoneState.upcoming.length) {
-      return;
-    }
-    milestoneState.index = (milestoneState.index + 1) % milestoneState.upcoming.length;
+    const upcoming = getUpcomingMilestones();
+    if (!upcoming.length) return;
+    const currentIndex = getMilestoneIndex();
+    const nextIndex = (currentIndex + 1) % upcoming.length;
+    setMilestoneIndex(nextIndex);
     updateMilestoneCard(
-      milestoneState.upcoming,
-      milestoneState.timeZone || FALLBACK_TIMEZONE,
+      { nextHeadline: dom.nextHeadline, nextDate: dom.nextDate, nextAway: dom.nextAway, milestone, milestoneToggle },
+      upcoming,
+      getMilestoneTimeZone() || FALLBACK_TIMEZONE,
+      formatLongDateFromParts,
       { resetIndex: false }
     );
   });
 }
 
+// Results list handlers
 if (resultsList) {
   resultsList.addEventListener("click", (event) => {
-    if (!(event.target instanceof Element)) {
-      return;
-    }
+    if (!(event.target instanceof Element)) return;
     const target = event.target.closest(".location-option");
-    if (!target) {
-      return;
-    }
+    if (!target) return;
     const index = Number(target.dataset.index);
-    const item = searchState.suggestionResults[index];
-    if (item) {
-      selectResult(item);
-    }
+    const item = getSuggestionResults()[index];
+    if (item) selectResult(item);
   });
 
   resultsList.addEventListener("keydown", (event) => {
-    if (!(event.target instanceof Element)) {
-      return;
-    }
+    if (!(event.target instanceof Element)) return;
     const target = event.target.closest(".location-option");
-    if (!target) {
-      return;
-    }
+    if (!target) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       const index = Number(target.dataset.index);
-      const item = searchState.suggestionResults[index];
-      if (item) {
-        selectResult(item);
-      }
+      const item = getSuggestionResults()[index];
+      if (item) selectResult(item);
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
-      updateActiveOption(searchState.activeIndex + 1);
+      updateActiveOption(getActiveIndex() + 1);
       const options = resultsList.querySelectorAll(".location-option");
-      options[searchState.activeIndex]?.focus();
+      options[getActiveIndex()]?.focus();
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      updateActiveOption(searchState.activeIndex - 1);
+      updateActiveOption(getActiveIndex() - 1);
       const options = resultsList.querySelectorAll(".location-option");
-      options[searchState.activeIndex]?.focus();
+      options[getActiveIndex()]?.focus();
     } else if (event.key === "Escape") {
       clearResults();
       cityInput?.focus();
@@ -2513,24 +1644,23 @@ if (resultsList) {
   });
 }
 
+// Results actions handlers
 if (resultsActions) {
   resultsActions.addEventListener("click", (event) => {
-    if (!(event.target instanceof Element)) {
-      return;
-    }
+    if (!(event.target instanceof Element)) return;
     const action = event.target.closest("[data-action]");
-    if (!action) {
-      return;
-    }
+    if (!action) return;
     const actionType = action.dataset.action;
     if (actionType === "toggle-preference") {
-      searchState.preferLocalResults = !searchState.preferLocalResults;
-      if (searchState.rawResults.length) {
-        buildResults(searchState.rawResults, searchState.lastFilterTokens, searchState.lastFilterTokensRaw);
+      togglePreferLocalResults();
+      const rawResults = getRawResults();
+      if (rawResults.length) {
+        buildResults(rawResults, getLastFilterTokens(), getLastFilterTokensRaw());
       }
     } else if (actionType === "retry") {
-      if (searchState.lastNameQuery.length >= 2) {
-        fetchSuggestions(searchState.lastNameQuery, searchState.lastFilterTokens, searchState.lastFilterTokensRaw);
+      const nameQuery = getLastNameQuery();
+      if (nameQuery.length >= 2) {
+        fetchSuggestions(nameQuery, getLastFilterTokens(), getLastFilterTokensRaw());
       } else {
         clearResults();
       }
@@ -2538,6 +1668,7 @@ if (resultsActions) {
   });
 }
 
+// Close results when clicking/focusing outside
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : null;
   if (!target || !target.closest(".location")) {
@@ -2554,122 +1685,82 @@ document.addEventListener("focusin", (event) => {
 
 window.addEventListener("resize", updateResultsMaxHeight);
 
-const getOptimisticDebugSnapshot = () => ({
-  validOptions: optimisticDebugState.validOptions,
-  displayedOptions: optimisticDebugState.displayedOptions,
-  data: optimisticDebugState.data,
-  month: optimisticDebugState.month,
-  hemisphere: optimisticDebugState.hemisphere,
-  reason: optimisticDebugState.reason,
-  lastUpdatedAt: optimisticDebugState.lastUpdatedAt,
+// Initialize tooltips
+const deltaTooltipTargets = [
+  dom.sunsetEarliestReference,
+  dom.sunsetComparisonReference,
+  dom.daylightShortestReference,
+  dom.daylightComparisonReference,
+].filter(Boolean);
+
+deltaTooltipTargets.forEach((target) => {
+  initializeTooltipTarget(target, deltaTooltipTargets);
 });
 
-window.SunshineOptimistDebug = {
-  getOptimisticMessages: getOptimisticDebugSnapshot,
-  printOptimisticMessages: () => {
-    const snapshot = getOptimisticDebugSnapshot();
-    const list = snapshot.validOptions.length
-      ? snapshot.validOptions
-      : snapshot.displayedOptions;
-    if (typeof console.table === "function") {
-      console.table(
-        list.map((item, index) => ({
-          index,
-          headline: item?.headline || "",
-          lede: item?.lede || "",
-        }))
-      );
-    } else {
-      console.log(list);
-    }
-    return snapshot;
-  },
-};
+initializeGlobalTooltipHandlers(deltaTooltipTargets);
 
-syncDatePicker(FALLBACK_TIMEZONE);
-updateGeolocateButton();
-initializeLocation();
-shareState.privacyEnabled = loadSharePrivacyPreference();
+// ============================================================================
+// Share Modal Setup
+// ============================================================================
+
+// Initialize share privacy preference
+setSharePrivacyEnabled(loadSharePrivacyPreference());
 
 if (sharePrivacyToggle) {
-  sharePrivacyToggle.checked = shareState.privacyEnabled;
+  sharePrivacyToggle.checked = isSharePrivacyEnabled();
   sharePrivacyToggle.addEventListener("change", () => {
-    shareState.privacyEnabled = sharePrivacyToggle.checked;
-    saveSharePrivacyPreference(shareState.privacyEnabled);
+    setSharePrivacyEnabled(sharePrivacyToggle.checked);
+    saveSharePrivacyPreference(sharePrivacyToggle.checked);
     if (shareModal?.open || shareModal?.hasAttribute("open")) {
-      refreshSharePreview();
+      refreshSharePreview(
+        sharePreview,
+        headline,
+        lede,
+        getActiveDateParts,
+        languageCode,
+        FALLBACK_TIMEZONE
+      );
     }
   });
 }
 
 if (shareModalClose) {
   shareModalClose.addEventListener("click", () => {
-    closeShareModal();
+    closeShareModal(shareModal);
   });
 }
 
 if (shareModal) {
   shareModal.addEventListener("click", (event) => {
     if (event.target === shareModal) {
-      closeShareModal();
+      closeShareModal(shareModal);
     }
   });
   shareModal.addEventListener("cancel", (event) => {
     event.preventDefault();
-    closeShareModal();
+    closeShareModal(shareModal);
   });
 }
-
-const flashActionLabel = (button, message) => {
-  if (!button) {
-    return;
-  }
-  if (button.classList.contains("share-copy-button")) {
-    const previousText = button.textContent;
-    setText(button, message);
-    button.classList.add("is-flash");
-    setTimeout(() => {
-      setText(button, previousText);
-      button.classList.remove("is-flash");
-    }, 1200);
-    return;
-  }
-  const previousLabel = button.getAttribute("aria-label") || "";
-  const previousTitle = button.getAttribute("title") || "";
-  button.setAttribute("aria-label", message);
-  button.setAttribute("title", message);
-  button.classList.add("is-flash");
-  setTimeout(() => {
-    button.setAttribute("aria-label", previousLabel);
-    button.setAttribute("title", previousTitle);
-    button.classList.remove("is-flash");
-  }, 1200);
-};
 
 if (shareActionButtons.length) {
   shareActionButtons.forEach((button) => {
     button.addEventListener("click", async () => {
       const action = button.dataset.share;
-      if (!action) {
-        return;
-      }
+      if (!action) return;
       try {
         if (action === "copy") {
-          const success = await copyShareText();
-          if (success) {
-            flashActionLabel(button, "Copied!");
-          }
+          const success = await copyShareText(headline, lede, getActiveDateParts, languageCode, FALLBACK_TIMEZONE);
+          if (success) flashActionLabel(button, "Copied!");
           return;
         }
         if (action === "instagram") {
-          const success = await copyShareText();
-          if (success) {
-            flashActionLabel(button, "Copied!");
-          }
+          const success = await copyShareText(headline, lede, getActiveDateParts, languageCode, FALLBACK_TIMEZONE);
+          if (success) flashActionLabel(button, "Copied!");
           openShareLink("https://www.instagram.com/");
           return;
         }
-        const text = await ensureShareText();
+        const { ensureShareText } = await import("./ui/share-modal-ui.js");
+        const text = await ensureShareText(headline, lede, getActiveDateParts, languageCode, FALLBACK_TIMEZONE);
         const encodedText = encodeURIComponent(text);
         if (action === "facebook") {
           const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
@@ -2696,6 +1787,61 @@ if (shareActionButtons.length) {
 
 if (shareButton) {
   shareButton.addEventListener("click", () => {
-    openShareModal();
+    openShareModal(
+      shareModal,
+      sharePreview,
+      headline,
+      lede,
+      getActiveDateParts,
+      languageCode,
+      FALLBACK_TIMEZONE
+    );
   });
 }
+
+// ============================================================================
+// Debug API
+// ============================================================================
+
+const getOptimisticDebugSnapshot = () => {
+  const debugState = getOptimisticDebugState();
+  return {
+    validOptions: debugState.validOptions,
+    displayedOptions: debugState.displayedOptions,
+    data: debugState.data,
+    month: debugState.month,
+    hemisphere: debugState.hemisphere,
+    reason: debugState.reason,
+    lastUpdatedAt: debugState.lastUpdatedAt,
+  };
+};
+
+window.SunshineOptimistDebug = {
+  getOptimisticMessages: getOptimisticDebugSnapshot,
+  printOptimisticMessages: () => {
+    const snapshot = getOptimisticDebugSnapshot();
+    const list = snapshot.validOptions.length
+      ? snapshot.validOptions
+      : snapshot.displayedOptions;
+    if (typeof console.table === "function") {
+      console.table(
+        list.map((item, index) => ({
+          index,
+          headline: item?.headline || "",
+          lede: item?.lede || "",
+        }))
+      );
+    } else {
+      console.log(list);
+    }
+    return snapshot;
+  },
+};
+
+// ============================================================================
+// Initialize Application
+// ============================================================================
+
+syncDatePicker(FALLBACK_TIMEZONE);
+updateGeolocateButton();
+initializeLocation();
