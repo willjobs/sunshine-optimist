@@ -12,7 +12,12 @@ The application follows a modular architecture with clear separation of concerns
 ### Directory Structure
 ```
 scripts/
-├── app.js                    # Main entry point, orchestration, event handlers
+├── app.js                    # Thin orchestrator, event wiring, controller coordination
+├── controllers/
+│   ├── date-controller.js    # Date picker state management
+│   ├── location-controller.js # City search, geolocation, results
+│   ├── daylight-controller.js # Sun calculations, milestones, stats
+│   └── optimistic-controller.js # Message selection and rotation
 ├── state/
 │   └── app-state.js          # Centralized state management
 ├── ui/
@@ -41,8 +46,19 @@ scripts/
 - **`index.html`** defines the UI: location search, date picker, headline/lede, stats,
   milestone card, and share modal.
 - **`styles.css`** contains all styling and responsive layout rules.
-- **`scripts/app.js`** orchestrates initialization, event handlers, and coordinates
-  between modules.
+- **`scripts/app.js`** is a thin orchestrator that wires up event handlers
+  and coordinates between controllers.
+
+### Controllers
+Domain-specific logic is organized into controllers in **`scripts/controllers/`**:
+- **`date-controller.js`**: Date picker state (custom vs live date), syncing, debounced commits
+- **`location-controller.js`**: City search, results rendering, geolocation, location selection
+- **`daylight-controller.js`**: Sun metrics calculation, delta comparisons, milestone building, stats UI
+- **`optimistic-controller.js`**: Optimistic message selection and rotation logic
+
+Controllers communicate via callback registration (e.g., `setLocationChangeCallback`, `setDateChangeCallback`)
+to avoid circular dependencies. When a location or date changes, the registered callback triggers
+daylight recalculation.
 
 ### State Management
 All application state is centralized in **`scripts/state/app-state.js`**:
@@ -93,7 +109,7 @@ All formatting logic is consolidated in **`formatters/formatters.js`**:
 - Helpers in `date-utils.js` convert between UTC and local date parts.
 
 ### Daylight calculations
-- `app.js` uses Astronomy Engine to compute sunrise and sunset plus derived
+- `daylight-controller.js` uses Astronomy Engine to compute sunrise and sunset plus derived
   values like day length.
 - It scans the year to find extremes (earliest sunset, shortest/longest day) and
   seasonal dates (equinoxes and solstices), cached in `astronomy-utils.js`.
@@ -109,7 +125,7 @@ All formatting logic is consolidated in **`formatters/formatters.js`**:
 
 ### Milestones
 - `milestones.js` contains threshold and daylight-gain milestones.
-- `app.js` adds computed milestones such as earliest/shortest/longest day,
+- `daylight-controller.js` adds computed milestones such as earliest/shortest/longest day,
   equinoxes, DST start, and the next half-hour sunset.
 - The milestone card cycles through upcoming entries; a confetti effect fires on
   milestone days.
@@ -128,9 +144,9 @@ All formatting logic is consolidated in **`formatters/formatters.js`**:
   recalculates. `window.SunshineOptimistDebug` exposes
   `getOptimisticMessages()` and `printOptimisticMessages()` for ad-hoc checks.
 - When adding messages in `messages.js`, ensure required `data_needs`
-  keys exist in the `messageData` object in `app.js`.
+  keys exist in the `messageData` object in `daylight-controller.js`.
 - When adding new milestones, update `milestones.js` or the milestone
-  builder in `app.js` and verify ordering and labels in the UI.
+  builder in `daylight-controller.js` and verify ordering and labels in the UI.
 - If you change `index.html` ids/classes, update the DOM selectors in
   `app.js` and keep the ARIA attributes for the location combobox intact.
 - Manual checks usually cover the main flows: search, local/worldwide toggle,
@@ -140,7 +156,11 @@ All formatting logic is consolidated in **`formatters/formatters.js`**:
 
 | Module | Responsibility |
 |--------|----------------|
-| `app.js` | Entry point, event wiring, orchestration |
+| `app.js` | Thin orchestrator, event wiring, controller coordination |
+| `controllers/date-controller.js` | Date picker state and commit handling |
+| `controllers/location-controller.js` | City search, geolocation, results |
+| `controllers/daylight-controller.js` | Sun calculations, milestones, stats |
+| `controllers/optimistic-controller.js` | Message selection and rotation |
 | `state/app-state.js` | All application state |
 | `services/*` | External API calls |
 | `ui/*` | UI component logic |

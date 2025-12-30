@@ -25,8 +25,8 @@ The purpose is to provide a website where people can go to get optimistic takes 
 
 ## How the optimistic message is chosen
 
-The headline + lede are computed in `scripts/app.js` from a structured catalog in
-`scripts/messages.js`. The selection flow is:
+The headline + lede are computed from a structured catalog in `scripts/messages.js`
+via the controllers in `scripts/controllers/`. The selection flow is:
 
 1. Compute `messageData` for the active location/date (sunset time, daylight
    duration, seasonal markers, and relative deltas such as “days until sunset
@@ -64,7 +64,12 @@ The headline + lede are computed in `scripts/app.js` from a structured catalog i
 
 - `index.html` — markup and structural layout.
 - `styles.css` — global styles.
-- `scripts/app.js` — UI wiring, state, and orchestration.
+- `scripts/app.js` — thin orchestrator that wires up event handlers and coordinates controllers.
+- `scripts/controllers/` — domain-specific controllers:
+  - `date-controller.js` — date picker state management and commit handling.
+  - `location-controller.js` — city search, geolocation, results rendering.
+  - `daylight-controller.js` — sun metrics, deltas, milestones, stats UI updates.
+  - `optimistic-controller.js` — optimistic message selection and rotation.
 - `scripts/messages.js` — optimistic message templates and selection logic.
 - `scripts/milestones.js` — milestone definitions and copy.
 - `scripts/utils.js` — shared helpers.
