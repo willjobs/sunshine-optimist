@@ -10,6 +10,14 @@ entirely in the browser with no backend services.
   milestone card, and share modal.
 - `styles.css` contains all styling and responsive layout rules.
 - `scripts/app.js` owns state, event wiring, and DOM updates.
+- `scripts/date-utils.js` handles date parts math, time-zone conversion, and
+  date/time formatting helpers.
+- `scripts/astronomy-utils.js` wraps Astronomy Engine calculations with caching
+  for sun events, yearly extremes, and seasonal dates.
+- `scripts/location-utils.js` formats locations, parses query tokens, and
+  filters/sorts suggestion results.
+- `scripts/share-utils.js` builds share formatting helpers and progress lines.
+- `scripts/dom-utils.js` contains small DOM helpers.
 - `scripts/messages.js` is the message catalog and filtering helpers.
 - `scripts/milestones.js` defines threshold and daylight-gain milestone templates.
 - `astronomy-engine/astronomy.browser.min.js` provides solar and seasonal math.
@@ -35,7 +43,7 @@ entirely in the browser with no backend services.
 - `app.js` uses Astronomy Engine to compute sunrise and sunset plus derived
   values like day length.
 - It scans the year to find extremes (earliest sunset, shortest/longest day) and
-  seasonal dates (equinoxes and solstices).
+  seasonal dates (equinoxes and solstices), now cached in `scripts/astronomy-utils.js`.
 - These values feed the stats panel and the message/milestone logic.
 
 ### Optimistic messaging

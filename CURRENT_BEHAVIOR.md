@@ -80,7 +80,8 @@ that should be preserved or fixed during refactoring.
 - On success:
   - The app selects the current coordinates as the location.
   - It attempts to reverse-geocode to a readable place name.
-  - If reverse geocoding fails, the label remains "Current Location".
+  - If reverse geocoding fails, the label remains "Current Location" and the
+    app retries when the current location is restored or reselected later.
 - On failure or timeout:
   - The button re-enables.
   - No explicit error message is shown.
@@ -144,10 +145,11 @@ that should be preserved or fixed during refactoring.
 - Milestone types include:
   - Earliest sunset, shortest day, longest day.
   - Spring equinox and daylight savings time start.
-  - First day with 12 hours of daylight.
+  - First day with at least 12 hours of daylight.
   - Sunset thresholds (4:30pm, 5pm, 5:30pm, 6pm, 7pm, 8pm).
   - Daylight gain milestones since winter solstice (30, 60, 90, 120 minutes).
-  - The next half-hour sunset threshold (e.g., "Next 5:30 PM Sunset").
+  - The next half-hour sunset threshold (e.g., "Next 5:30 PM Sunset"), unless
+    the next half-hour would wrap past midnight.
 - On a milestone date, confetti is shown once and the milestone copy replaces
   the normal optimistic message.
 
@@ -183,15 +185,4 @@ that should be preserved or fixed during refactoring.
 - The share modal uses accessible labels and close controls.
 
 ## Known issues / bugs
-1. The milestone titled "First day with exactly 12 hours of daylight" is based
-   on the first day with at least 12 hours of daylight, not exactly 12.
-   Expected: either select the first date where daylight is closest to 12:00 or
-   rename the milestone to "at least 12 hours".
-2. If reverse geocoding fails once for "Current Location" (for example due to
-   a network error), the failure is stored and the app never retries on later
-   sessions. Expected: retry reverse geocoding on subsequent loads or when
-   network access is restored.
-3. The "Next half-hour sunset" milestone wraps to 12:00 AM when the sunset is
-   after 11:30 PM, which can produce a misleading "Next 12:00 AM Sunset" label
-   for the next day. Expected: skip or handle the midnight wrap in a more
-   accurate way.
+- None noted in this review.
