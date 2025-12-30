@@ -537,10 +537,10 @@ const renderGroup = (group) => {
     label.setAttribute("aria-hidden", "true");
     wrapper.appendChild(label);
   }
-  const suggestionResults = getSuggestionResults();
   group.items.forEach((item) => {
-    const index = suggestionResults.length;
-    setSuggestionResults([...suggestionResults, item]);
+    const currentResults = getSuggestionResults();
+    const index = currentResults.length;
+    setSuggestionResults([...currentResults, item]);
     const option = document.createElement("div");
     option.id = `location-option-${index}`;
     option.className = "location-option";
@@ -581,6 +581,16 @@ const showErrorState = () => {
 };
 
 const clearResults = () => {
+  const debounceId = getDebounceId();
+  if (debounceId) {
+    clearTimeout(debounceId);
+    setDebounceId(null);
+  }
+  const fetchController = getFetchController();
+  if (fetchController) {
+    fetchController.abort();
+    setFetchController(null);
+  }
   setSuggestionResults([]);
   setRawResults([]);
   setActiveIndex(-1);
@@ -1650,6 +1660,7 @@ if (resultsActions) {
     if (!(event.target instanceof Element)) return;
     const action = event.target.closest("[data-action]");
     if (!action) return;
+    event.stopPropagation();
     const actionType = action.dataset.action;
     if (actionType === "toggle-preference") {
       togglePreferLocalResults();

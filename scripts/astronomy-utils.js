@@ -10,21 +10,42 @@ import {
   zonedTimeToUtc,
 } from "./date-utils.js";
 
+const CHUNK_SIZE = 30;
+
+const yieldToMain = () =>
+  new Promise((resolve) => {
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(() => resolve(), { timeout: 50 });
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+
+const MAX_CACHED_LOCATIONS = 10;
 const locationCaches = new Map();
 
 const getLocationKey = (location, timeZone) =>
   `${location.latitude},${location.longitude},${location.elevation || 0}:${timeZone}`;
 
 const getLocationCache = (locationKey) => {
-  if (!locationCaches.has(locationKey)) {
-    locationCaches.set(locationKey, {
-      sunEvents: new Map(),
-      yearSummary: new Map(),
-      seasonParts: new Map(),
-      averageWinter: new Map(),
-    });
+  if (locationCaches.has(locationKey)) {
+    const cache = locationCaches.get(locationKey);
+    locationCaches.delete(locationKey);
+    locationCaches.set(locationKey, cache);
+    return cache;
   }
-  return locationCaches.get(locationKey);
+  if (locationCaches.size >= MAX_CACHED_LOCATIONS) {
+    const oldestKey = locationCaches.keys().next().value;
+    locationCaches.delete(oldestKey);
+  }
+  const cache = {
+    sunEvents: new Map(),
+    yearSummary: new Map(),
+    seasonParts: new Map(),
+    averageWinter: new Map(),
+  };
+  locationCaches.set(locationKey, cache);
+  return cache;
 };
 
 const getDaylightMinutes = (events) => {
@@ -35,6 +56,41 @@ const getDaylightMinutes = (events) => {
 };
 
 export const createAstronomyContext = (location, timeZone) => {
+  if (!globalThis.Astronomy) {
+    const nullExtremes = {
+      earliestSunsetMinutes: null,
+      earliestSunsetDateParts: null,
+      shortestDayMinutes: null,
+      shortestDayDateParts: null,
+      longestDayMinutes: null,
+      longestDayDateParts: null,
+      maxDailyGainMinutes: null,
+      maxDailyGainDateParts: null,
+      daysWithLessDaylight: null,
+    };
+    return {
+      getSunEvents: () => ({ sunrise: null, sunset: null }),
+      getSunsetMinutesForDateParts: () => null,
+      getDaylightMinutesForDateParts: () => null,
+      getYearlySunExtremes: () => nullExtremes,
+      getYearlySunExtremesAsync: async () => nullExtremes,
+      getSeasonDatePartsForYear: () => ({ spring: null, summer: null, autumn: null, winter: null }),
+      getNextSeasonDateParts: () => null,
+      getPreviousSeasonDateParts: () => null,
+      getAverageWinterDaylight: () => null,
+      getAverageWinterDaylightAsync: async () => null,
+      getDaysUntilSunsetAfter: () => null,
+      getWeeksWithSunsetAfter: () => null,
+      getDaylightDailyGainThisWeekMin: () => null,
+      getNextHalfHour: () => null,
+      findNextSunsetThreshold: () => null,
+      findNextDaylightSavingsStart: () => null,
+      findFirstSunsetAfter: () => null,
+      findFirstDaylightAtLeast: () => null,
+      findFirstDaylightGain: () => null,
+    };
+  }
+
   const locationKey = getLocationKey(location, timeZone);
   const cache = getLocationCache(locationKey);
   const observer = new Astronomy.Observer(
@@ -50,9 +106,6 @@ export const createAstronomyContext = (location, timeZone) => {
     }
     if (cache.sunEvents.has(key)) {
       return cache.sunEvents.get(key);
-    }
-    if (!globalThis.Astronomy) {
-      return { sunrise: null, sunset: null };
     }
     const startUtc = zonedTimeToUtc(
       dateParts.year,
@@ -147,8 +200,94 @@ export const createAstronomyContext = (location, timeZone) => {
     return summary;
   };
 
+  const buildYearSummaryAsync = async (year) => {
+    if (cache.yearSummary.has(year)) {
+      return cache.yearSummary.get(year);
+    }
+    const yearStart = { year, month: 1, day: 1 };
+    const daysInYear = getDaysInYear(year);
+    let earliestSunsetMinutes = null;
+    let earliestSunsetDateParts = null;
+    let shortestDayMinutes = null;
+    let shortestDayDateParts = null;
+    let longestDayMinutes = null;
+    let longestDayDateParts = null;
+    let maxDailyGainMinutes = null;
+    let maxDailyGainDateParts = null;
+    let previousDaylightMinutes = null;
+    const daylightByDay = [];
+
+    for (let offset = 0; offset < daysInYear; offset += 1) {
+      if (offset > 0 && offset % CHUNK_SIZE === 0) {
+        await yieldToMain();
+      }
+      const dateParts = addDaysToDateParts(yearStart, offset);
+      const events = getSunEvents(dateParts);
+
+      if (events.sunset) {
+        const sunsetMinutes = getMinutesSinceMidnight(events.sunset.date, timeZone);
+        if (earliestSunsetMinutes == null || sunsetMinutes < earliestSunsetMinutes) {
+          earliestSunsetMinutes = sunsetMinutes;
+          earliestSunsetDateParts = dateParts;
+        }
+      }
+
+      const daylightMinutes = getDaylightMinutes(events);
+      daylightByDay.push(daylightMinutes);
+      if (daylightMinutes != null) {
+        if (shortestDayMinutes == null || daylightMinutes < shortestDayMinutes) {
+          shortestDayMinutes = daylightMinutes;
+          shortestDayDateParts = dateParts;
+        }
+        if (longestDayMinutes == null || daylightMinutes > longestDayMinutes) {
+          longestDayMinutes = daylightMinutes;
+          longestDayDateParts = dateParts;
+        }
+        if (previousDaylightMinutes != null) {
+          const gain = daylightMinutes - previousDaylightMinutes;
+          if (maxDailyGainMinutes == null || gain > maxDailyGainMinutes) {
+            maxDailyGainMinutes = gain;
+            maxDailyGainDateParts = dateParts;
+          }
+        }
+        previousDaylightMinutes = daylightMinutes;
+      } else {
+        previousDaylightMinutes = null;
+      }
+    }
+
+    const summary = {
+      earliestSunsetMinutes,
+      earliestSunsetDateParts,
+      shortestDayMinutes,
+      shortestDayDateParts,
+      longestDayMinutes,
+      longestDayDateParts,
+      maxDailyGainMinutes,
+      maxDailyGainDateParts,
+      daylightByDay,
+    };
+    cache.yearSummary.set(year, summary);
+    return summary;
+  };
+
   const getYearlySunExtremes = (year, todayDaylight) => {
     const summary = buildYearSummary(year);
+    const { daylightByDay, ...extremes } = summary;
+    let daysWithLessDaylight = null;
+    if (todayDaylight != null && Number.isFinite(todayDaylight)) {
+      daysWithLessDaylight = daylightByDay.reduce((count, value) => {
+        if (value == null || Number.isNaN(value)) {
+          return count;
+        }
+        return value < todayDaylight ? count + 1 : count;
+      }, 0);
+    }
+    return { ...extremes, daysWithLessDaylight };
+  };
+
+  const getYearlySunExtremesAsync = async (year, todayDaylight) => {
+    const summary = await buildYearSummaryAsync(year);
     const { daylightByDay, ...extremes } = summary;
     let daysWithLessDaylight = null;
     if (todayDaylight != null && Number.isFinite(todayDaylight)) {
@@ -242,6 +381,56 @@ export const createAstronomyContext = (location, timeZone) => {
       }
     });
     return count ? total / count : null;
+  };
+
+  const getAverageDaylightForMonthsAsync = async (months) => {
+    let total = 0;
+    let count = 0;
+    let processed = 0;
+    for (const { year, month } of months) {
+      const daysInMonth = getDaysInMonth(year, month);
+      for (let day = 1; day <= daysInMonth; day += 1) {
+        processed += 1;
+        if (processed % CHUNK_SIZE === 0) {
+          await yieldToMain();
+        }
+        const daylight = getDaylightMinutesForDateParts({
+          year,
+          month,
+          day,
+        });
+        if (daylight != null) {
+          total += daylight;
+          count += 1;
+        }
+      }
+    }
+    return count ? total / count : null;
+  };
+
+  const getAverageWinterDaylightAsync = async (winterSolsticeParts, hemisphere) => {
+    if (!winterSolsticeParts) {
+      return null;
+    }
+    const cacheKey = `${winterSolsticeParts.year}-${hemisphere}`;
+    if (cache.averageWinter.has(cacheKey)) {
+      return cache.averageWinter.get(cacheKey);
+    }
+    const months =
+      hemisphere === "south"
+        ? [
+            { year: winterSolsticeParts.year, month: 6 },
+            { year: winterSolsticeParts.year, month: 7 },
+            { year: winterSolsticeParts.year, month: 8 },
+          ]
+        : [
+            { year: winterSolsticeParts.year, month: 12 },
+            { year: winterSolsticeParts.year + 1, month: 1 },
+            { year: winterSolsticeParts.year + 1, month: 2 },
+          ];
+    const average = await getAverageDaylightForMonthsAsync(months);
+    cache.averageWinter.set(cacheKey, average);
+    return average;
   };
 
   const getAverageWinterDaylight = (winterSolsticeParts, hemisphere) => {
@@ -463,10 +652,12 @@ export const createAstronomyContext = (location, timeZone) => {
     getSunsetMinutesForDateParts,
     getDaylightMinutesForDateParts,
     getYearlySunExtremes,
+    getYearlySunExtremesAsync,
     getSeasonDatePartsForYear,
     getNextSeasonDateParts,
     getPreviousSeasonDateParts,
     getAverageWinterDaylight,
+    getAverageWinterDaylightAsync,
     getDaysUntilSunsetAfter,
     getWeeksWithSunsetAfter,
     getDaylightDailyGainThisWeekMin,

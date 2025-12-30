@@ -143,6 +143,17 @@ export const setLocationBiasLoading = (loading) => {
 
 export const getUserCoords = () => locationState.userCoords;
 export const setUserCoords = (coords) => {
+  const current = locationState.userCoords;
+  const coordsChanged =
+    !current ||
+    !coords ||
+    current.lat !== coords.lat ||
+    current.lon !== coords.lon;
+  if (coordsChanged) {
+    reverseGeocodeState.cache = null;
+    reverseGeocodeState.cacheKey = "";
+    reverseGeocodeState.promise = null;
+  }
   locationState.userCoords = coords;
 };
 
@@ -369,3 +380,34 @@ export const resetLocationSearchState = () => {
     locationState.fetchController = null;
   }
 };
+
+// ============================================================================
+// State Batching
+// ============================================================================
+
+let batchDepth = 0;
+let batchedCallbacks = [];
+
+export const batchStateUpdates = (callback) => {
+  batchDepth += 1;
+  try {
+    return callback();
+  } finally {
+    batchDepth -= 1;
+    if (batchDepth === 0 && batchedCallbacks.length) {
+      const callbacks = batchedCallbacks;
+      batchedCallbacks = [];
+      callbacks.forEach((cb) => cb());
+    }
+  }
+};
+
+export const scheduleAfterBatch = (callback) => {
+  if (batchDepth === 0) {
+    callback();
+  } else {
+    batchedCallbacks.push(callback);
+  }
+};
+
+export const isBatching = () => batchDepth > 0;
