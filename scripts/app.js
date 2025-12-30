@@ -3,93 +3,186 @@ import {
   DAYLIGHT_GAIN_MILESTONES,
   SUNSET_THRESHOLD_MILESTONES,
 } from "./milestones.js";
+import { createAstronomyContext } from "./astronomy-utils.js";
+import {
+  addDaysToDateParts,
+  addMonthsToDateParts,
+  compareDateParts,
+  createDateFormatter,
+  formatDateInputValue,
+  getDaysBetweenDateParts,
+  getDaysInMonth,
+  getDaysInYear,
+  getLocalDateParts,
+  getLocalNoonDateFromParts,
+  getMinutesSinceMidnight,
+  parseDateInputValue,
+} from "./date-utils.js";
+import { getText, setInputValue, setText } from "./dom-utils.js";
+import {
+  applyFilterTokens,
+  formatFilterTokensForHint,
+  formatSelectedLocation,
+  formatSuggestionLocation,
+  isNameMatch,
+  normalizeCountryCode,
+  parseQuery,
+  sortByDistance,
+} from "./location-utils.js";
+import {
+  buildShareProgressLine,
+  formatShareDateFromParts,
+  formatShareDayCount,
+  formatShareMinutes,
+  lowerCaseFirstLetter,
+} from "./share-utils.js";
 import { clampValue } from "./utils.js";
 
-const shareButton = document.getElementById("share");
-const shareModal = document.getElementById("share-modal");
-const shareModalClose = document.getElementById("share-modal-close");
-const sharePreview = document.getElementById("share-preview");
-const sharePrivacyToggle = document.getElementById("share-privacy-toggle");
-const shareActionButtons = document.querySelectorAll(
-  ".share-icon-button[data-share], .share-copy-button[data-share]"
-);
-const headline = document.getElementById("headline");
-const lede = document.getElementById("lede");
-const cityInput = document.getElementById("city-input");
-const geolocateButton = document.getElementById("location-geolocate");
-const resultsPanel = document.getElementById("location-results");
-const resultsMeta = document.getElementById("location-results-meta");
-const resultsActions = document.getElementById("location-results-actions");
-const resultsList = document.getElementById("location-results-list");
-const clearButton = document.getElementById("location-clear");
-const milestone = document.querySelector(".milestone");
-const milestoneToggle = document.getElementById("milestone-toggle");
-const confettiRoot = document.getElementById("confetti");
-const sunsetTimeValue = document.getElementById("sunset-time");
-const sunsetEarliestDeltaValue = document.getElementById("sunset-earliest-delta");
-const sunsetComparisonDeltaValue = document.getElementById("sunset-month-delta");
-const daylightDurationValue = document.getElementById("daylight-duration");
-const daylightShortestDeltaValue = document.getElementById("daylight-shortest-delta");
-const daylightComparisonDeltaValue = document.getElementById("daylight-month-delta");
-const sunsetEarliestRow = document.getElementById("sunset-earliest-row");
-const sunsetComparisonRow = document.getElementById("sunset-month-row");
-const daylightShortestRow = document.getElementById("daylight-shortest-row");
-const daylightComparisonRow = document.getElementById("daylight-month-row");
-const sunsetEarliestReference = document.getElementById("sunset-earliest-reference");
-const sunsetComparisonReference = document.getElementById(
-  "sunset-comparison-reference"
-);
-const daylightShortestReference = document.getElementById(
-  "daylight-shortest-reference"
-);
-const daylightComparisonReference = document.getElementById(
-  "daylight-comparison-reference"
-);
-const nextHeadline = document.getElementById("next-headline");
-const nextDate = document.getElementById("next-date");
-const nextAway = document.getElementById("next-away");
-const dateInput = document.getElementById("date-input");
-const dateReset = document.getElementById("date-reset");
-const datePicker = document.querySelector(".date-picker");
-let suggestionResults = [];
-let rawResults = [];
-let activeIndex = -1;
-let debounceId = null;
-let fetchController = null;
-let preferLocalResults = true;
-let lastQuery = "";
-let lastNameQuery = "";
-let locationBiasRequested = false;
-let locationBiasLoading = false;
-let userCoords = null;
-let lastFilterTokens = [];
-let lastFilterTokensRaw = [];
-let recentLocations = [];
-let activeLocation = null;
-let useLiveDate = true;
-let customDateParts = null;
-let dateCommitTimeoutId = null;
-let lastDateKeydownAt = 0;
-let upcomingMilestones = [];
-let milestoneIndex = 0;
-let milestoneTimeZone = null;
-let lastCelebratedKey = null;
-let confettiTimeoutId = null;
-let optimisticMessageOptions = [];
-let optimisticMessageIndex = 0;
-let optimisticRotationId = null;
-let optimisticSwapId = 0;
-let optimisticSwapTimeoutId = null;
-let shareSnapshot = null;
-let shareModalSnapshot = null;
-let sharePrivacyEnabled = false;
-let shareText = "";
-let reverseGeocodeCache = null;
-let reverseGeocodeCacheKey = "";
-let reverseGeocodePromise = null;
+const dom = {
+  shareButton: document.getElementById("share"),
+  shareModal: document.getElementById("share-modal"),
+  shareModalClose: document.getElementById("share-modal-close"),
+  sharePreview: document.getElementById("share-preview"),
+  sharePrivacyToggle: document.getElementById("share-privacy-toggle"),
+  shareActionButtons: document.querySelectorAll(
+    ".share-icon-button[data-share], .share-copy-button[data-share]"
+  ),
+  headline: document.getElementById("headline"),
+  lede: document.getElementById("lede"),
+  cityInput: document.getElementById("city-input"),
+  geolocateButton: document.getElementById("location-geolocate"),
+  resultsPanel: document.getElementById("location-results"),
+  resultsMeta: document.getElementById("location-results-meta"),
+  resultsActions: document.getElementById("location-results-actions"),
+  resultsList: document.getElementById("location-results-list"),
+  clearButton: document.getElementById("location-clear"),
+  milestone: document.querySelector(".milestone"),
+  milestoneToggle: document.getElementById("milestone-toggle"),
+  confettiRoot: document.getElementById("confetti"),
+  sunsetTimeValue: document.getElementById("sunset-time"),
+  sunsetEarliestDeltaValue: document.getElementById("sunset-earliest-delta"),
+  sunsetComparisonDeltaValue: document.getElementById("sunset-month-delta"),
+  daylightDurationValue: document.getElementById("daylight-duration"),
+  daylightShortestDeltaValue: document.getElementById("daylight-shortest-delta"),
+  daylightComparisonDeltaValue: document.getElementById("daylight-month-delta"),
+  sunsetEarliestRow: document.getElementById("sunset-earliest-row"),
+  sunsetComparisonRow: document.getElementById("sunset-month-row"),
+  daylightShortestRow: document.getElementById("daylight-shortest-row"),
+  daylightComparisonRow: document.getElementById("daylight-month-row"),
+  sunsetEarliestReference: document.getElementById("sunset-earliest-reference"),
+  sunsetComparisonReference: document.getElementById(
+    "sunset-comparison-reference"
+  ),
+  daylightShortestReference: document.getElementById(
+    "daylight-shortest-reference"
+  ),
+  daylightComparisonReference: document.getElementById(
+    "daylight-comparison-reference"
+  ),
+  nextHeadline: document.getElementById("next-headline"),
+  nextDate: document.getElementById("next-date"),
+  nextAway: document.getElementById("next-away"),
+  dateInput: document.getElementById("date-input"),
+  dateReset: document.getElementById("date-reset"),
+  datePicker: document.querySelector(".date-picker"),
+};
+
+const {
+  shareButton,
+  shareModal,
+  shareModalClose,
+  sharePreview,
+  sharePrivacyToggle,
+  shareActionButtons,
+  headline,
+  lede,
+  cityInput,
+  geolocateButton,
+  resultsPanel,
+  resultsMeta,
+  resultsActions,
+  resultsList,
+  clearButton,
+  milestone,
+  milestoneToggle,
+  confettiRoot,
+  sunsetTimeValue,
+  sunsetEarliestDeltaValue,
+  sunsetComparisonDeltaValue,
+  daylightDurationValue,
+  daylightShortestDeltaValue,
+  daylightComparisonDeltaValue,
+  sunsetEarliestRow,
+  sunsetComparisonRow,
+  daylightShortestRow,
+  daylightComparisonRow,
+  sunsetEarliestReference,
+  sunsetComparisonReference,
+  daylightShortestReference,
+  daylightComparisonReference,
+  nextHeadline,
+  nextDate,
+  nextAway,
+  dateInput,
+  dateReset,
+  datePicker,
+} = dom;
+const searchState = {
+  suggestionResults: [],
+  rawResults: [],
+  activeIndex: -1,
+  debounceId: null,
+  fetchController: null,
+  preferLocalResults: true,
+  lastNameQuery: "",
+  locationBiasRequested: false,
+  locationBiasLoading: false,
+  userCoords: null,
+  lastFilterTokens: [],
+  lastFilterTokensRaw: [],
+  recentLocations: [],
+  activeLocation: null,
+};
+const dateState = {
+  useLiveDate: true,
+  customDateParts: null,
+  commitTimeoutId: null,
+  lastKeydownAt: 0,
+};
+const milestoneState = {
+  upcoming: [],
+  index: 0,
+  timeZone: null,
+  lastCelebratedKey: null,
+  confettiTimeoutId: null,
+};
+const optimisticState = {
+  options: [],
+  index: 0,
+  rotationId: null,
+  swapId: 0,
+  swapTimeoutId: null,
+};
+const shareState = {
+  snapshot: null,
+  modalSnapshot: null,
+  privacyEnabled: false,
+  text: "",
+};
+const reverseGeocodeState = {
+  cache: null,
+  cacheKey: "",
+  promise: null,
+};
 const localeSource = navigator.languages?.[0] || navigator.language || "en";
 const languageCode = localeSource.split("-")[0] || "en";
 const regionCode = (localeSource.split("-")[1] || "").toUpperCase();
+const {
+  formatLongDateFromParts,
+  formatShortDateFromParts,
+  formatTime,
+  formatTimeFromMinutes,
+} = createDateFormatter(localeSource);
 const MAX_RESULTS = 8;
 const MAX_RECENTS = 5;
 const RECENT_STORAGE_KEY = "sunshine-optimist:recent-locations";
@@ -114,101 +207,10 @@ const FALLBACK_TIMEZONE =
   Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 const DATE_COMMIT_DELAY_MS = 300;
 const DATE_KEYBOARD_GRACE_MS = 800;
-const SHARE_BAR_LENGTH = 20;
-const SHARE_MONTHS = [
-  "Jan.",
-  "Feb.",
-  "Mar.",
-  "Apr.",
-  "May",
-  "Jun.",
-  "Jul.",
-  "Aug.",
-  "Sep.",
-  "Oct.",
-  "Nov.",
-  "Dec.",
-];
-const getZonedParts = (date, timeZone) => {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  const parts = formatter.formatToParts(date);
-  const values = {};
-  parts.forEach((part) => {
-    if (part.type !== "literal") {
-      values[part.type] = part.value;
-    }
-  });
-  return {
-    year: Number(values.year),
-    month: Number(values.month),
-    day: Number(values.day),
-    hour: Number(values.hour),
-    minute: Number(values.minute),
-    second: Number(values.second),
-  };
-};
-
-const getTimeZoneOffsetMinutes = (date, timeZone) => {
-  const parts = getZonedParts(date, timeZone);
-  const utcTime = Date.UTC(
-    parts.year,
-    parts.month - 1,
-    parts.day,
-    parts.hour,
-    parts.minute,
-    parts.second
-  );
-  return (utcTime - date.getTime()) / 60000;
-};
-
-const zonedTimeToUtc = (year, month, day, hour, minute, second, timeZone) => {
-  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
-  const offset = getTimeZoneOffsetMinutes(utcGuess, timeZone);
-  let utcTime = new Date(utcGuess.getTime() - offset * 60000);
-  const revisedOffset = getTimeZoneOffsetMinutes(utcTime, timeZone);
-  if (revisedOffset !== offset) {
-    utcTime = new Date(utcGuess.getTime() - revisedOffset * 60000);
-  }
-  return utcTime;
-};
-
-const getLocalDateParts = (date, timeZone) => {
-  const { year, month, day } = getZonedParts(date, timeZone);
-  return { year, month, day };
-};
-
-const padDatePart = (value) => String(value).padStart(2, "0");
-
-const formatDateInputValue = (parts) => {
-  if (!parts) {
-    return "";
-  }
-  return `${parts.year}-${padDatePart(parts.month)}-${padDatePart(parts.day)}`;
-};
-
-const parseDateInputValue = (value) => {
-  if (!value) {
-    return null;
-  }
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) {
-    return null;
-  }
-  return { year, month, day };
-};
 
 const getActiveDateParts = (timeZone) => {
-  if (!useLiveDate && customDateParts) {
-    return customDateParts;
+  if (!dateState.useLiveDate && dateState.customDateParts) {
+    return dateState.customDateParts;
   }
   return getLocalDateParts(new Date(), timeZone);
 };
@@ -225,40 +227,40 @@ const syncDatePicker = (timeZone) => {
     }
   }
   if (dateReset) {
-    dateReset.disabled = useLiveDate;
+    dateReset.disabled = dateState.useLiveDate;
   }
   if (datePicker) {
-    datePicker.classList.toggle("is-custom", !useLiveDate);
+    datePicker.classList.toggle("is-custom", !dateState.useLiveDate);
   }
 };
 
 const clearDateCommitTimeout = () => {
-  if (dateCommitTimeoutId) {
-    clearTimeout(dateCommitTimeoutId);
-    dateCommitTimeoutId = null;
+  if (dateState.commitTimeoutId) {
+    clearTimeout(dateState.commitTimeoutId);
+    dateState.commitTimeoutId = null;
   }
 };
 
 const applyDateSelection = (nextParts) => {
   if (nextParts) {
     if (
-      !useLiveDate &&
-      customDateParts &&
-      customDateParts.year === nextParts.year &&
-      customDateParts.month === nextParts.month &&
-      customDateParts.day === nextParts.day
+      !dateState.useLiveDate &&
+      dateState.customDateParts &&
+      dateState.customDateParts.year === nextParts.year &&
+      dateState.customDateParts.month === nextParts.month &&
+      dateState.customDateParts.day === nextParts.day
     ) {
       return false;
     }
-    customDateParts = nextParts;
-    useLiveDate = false;
+    dateState.customDateParts = nextParts;
+    dateState.useLiveDate = false;
     return true;
   }
-  if (useLiveDate) {
+  if (dateState.useLiveDate) {
     return false;
   }
-  customDateParts = null;
-  useLiveDate = true;
+  dateState.customDateParts = null;
+  dateState.useLiveDate = true;
   return true;
 };
 
@@ -269,133 +271,23 @@ const commitDateSelection = () => {
   clearDateCommitTimeout();
   const nextParts = parseDateInputValue(dateInput.value);
   const didChange = applyDateSelection(nextParts);
-  const timeZone = activeLocation?.timezone || FALLBACK_TIMEZONE;
+  const timeZone = searchState.activeLocation?.timezone || FALLBACK_TIMEZONE;
   syncDatePicker(timeZone);
-  if (activeLocation && didChange) {
-    updateDaylightForLocation(activeLocation);
+  if (searchState.activeLocation && didChange) {
+    updateDaylightForLocation(searchState.activeLocation);
   }
 };
 
 const scheduleDateCommit = () => {
   clearDateCommitTimeout();
-  dateCommitTimeoutId = window.setTimeout(() => {
-    dateCommitTimeoutId = null;
+  dateState.commitTimeoutId = window.setTimeout(() => {
+    dateState.commitTimeoutId = null;
     commitDateSelection();
   }, DATE_COMMIT_DELAY_MS);
 };
 
 const isRecentDateKeyboardInput = () =>
-  Date.now() - lastDateKeydownAt < DATE_KEYBOARD_GRACE_MS;
-
-const addDaysToDateParts = (parts, deltaDays) => {
-  const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
-  date.setUTCDate(date.getUTCDate() + deltaDays);
-  return {
-    year: date.getUTCFullYear(),
-    month: date.getUTCMonth() + 1,
-    day: date.getUTCDate(),
-  };
-};
-
-const addMonthsToDateParts = (parts, deltaMonths) => {
-  const date = new Date(Date.UTC(parts.year, parts.month - 1, 1));
-  date.setUTCMonth(date.getUTCMonth() + deltaMonths);
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth() + 1;
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return {
-    year,
-    month,
-    day: Math.min(parts.day, daysInMonth),
-  };
-};
-
-const getDaysInMonth = (year, month) =>
-  new Date(Date.UTC(year, month, 0)).getUTCDate();
-
-const compareDateParts = (left, right) => {
-  if (!left || !right) {
-    return 0;
-  }
-  if (left.year !== right.year) {
-    return left.year < right.year ? -1 : 1;
-  }
-  if (left.month !== right.month) {
-    return left.month < right.month ? -1 : 1;
-  }
-  if (left.day !== right.day) {
-    return left.day < right.day ? -1 : 1;
-  }
-  return 0;
-};
-
-const getDaysBetweenDateParts = (startParts, endParts) => {
-  if (!startParts || !endParts) {
-    return null;
-  }
-  const startUtc = Date.UTC(
-    startParts.year,
-    startParts.month - 1,
-    startParts.day
-  );
-  const endUtc = Date.UTC(
-    endParts.year,
-    endParts.month - 1,
-    endParts.day
-  );
-  return Math.round((endUtc - startUtc) / 86400000);
-};
-
-const getDaysInYear = (year) => {
-  const start = Date.UTC(year, 0, 1);
-  const end = Date.UTC(year + 1, 0, 1);
-  return Math.round((end - start) / 86400000);
-};
-
-const getMinutesSinceMidnight = (date, timeZone) => {
-  const { hour, minute, second } = getZonedParts(date, timeZone);
-  return hour * 60 + minute + second / 60;
-};
-
-const formatTime = (date, timeZone) =>
-  new Intl.DateTimeFormat(localeSource, {
-    timeZone,
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-
-const formatLongDateFromParts = (parts, timeZone) => {
-  const date = zonedTimeToUtc(parts.year, parts.month, parts.day, 12, 0, 0, timeZone);
-  return new Intl.DateTimeFormat(localeSource, {
-    timeZone,
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }).format(date);
-};
-
-const formatShortDateFromParts = (parts, timeZone, referenceYear = null) => {
-  if (!parts) {
-    return "";
-  }
-  const date = zonedTimeToUtc(parts.year, parts.month, parts.day, 12, 0, 0, timeZone);
-  const options = {
-    timeZone,
-    month: "short",
-    day: "numeric",
-  };
-  if (referenceYear != null && parts.year !== referenceYear) {
-    options.year = "numeric";
-  }
-  return new Intl.DateTimeFormat(localeSource, options).format(date);
-};
-
-const getLocalNoonDateFromParts = (parts, timeZone) => {
-  if (!parts) {
-    return null;
-  }
-  return zonedTimeToUtc(parts.year, parts.month, parts.day, 12, 0, 0, timeZone);
-};
+  Date.now() - dateState.lastKeydownAt < DATE_KEYBOARD_GRACE_MS;
 
 const formatDuration = (minutes) => {
   const totalMinutes = Math.round(Math.abs(minutes));
@@ -405,158 +297,6 @@ const formatDuration = (minutes) => {
     return `${hours}h ${mins}m`;
   }
   return `${mins}m`;
-};
-
-const formatShareDateFromParts = (parts) => {
-  if (!parts) {
-    return "";
-  }
-  const monthLabel = SHARE_MONTHS[parts.month - 1];
-  if (!monthLabel) {
-    return "";
-  }
-  return `${monthLabel} ${parts.day}`;
-};
-
-const formatShareMinutes = (minutes) => {
-  if (!Number.isFinite(minutes)) {
-    return "—";
-  }
-  const rounded = Math.round(Math.abs(minutes));
-  const label = rounded === 1 ? "min" : "mins";
-  return `${rounded} ${label}`;
-};
-
-const formatShareDayCount = (days) => {
-  if (!Number.isFinite(days)) {
-    return "";
-  }
-  const rounded = Math.round(days);
-  if (rounded <= 0) {
-    return "";
-  }
-  const label = rounded === 1 ? "day" : "days";
-  return `${rounded} ${label}`;
-};
-
-const lowerCaseFirstLetter = (value) => {
-  if (!value) {
-    return "";
-  }
-  const first = value[0];
-  if (first.toLowerCase() === first) {
-    return value;
-  }
-  return `${first.toLowerCase()}${value.slice(1)}`;
-};
-
-const formatSharePercent = (fraction) => {
-  if (!Number.isFinite(fraction)) {
-    return "";
-  }
-  return `${Math.round(clampValue(fraction, 0, 1) * 100)}%`;
-};
-
-const buildShareBar = (fraction) => {
-  if (!Number.isFinite(fraction)) {
-    return "";
-  }
-  const clamped = clampValue(fraction, 0, 1);
-  const filledCount = Math.round(clamped * SHARE_BAR_LENGTH);
-  const emptyCount = SHARE_BAR_LENGTH - filledCount;
-  return `${"█".repeat(filledCount)}${"░".repeat(emptyCount)}`;
-};
-
-const shiftMonth = (month, offset) => ((month - 1 + offset) % 12) + 1;
-
-const getAdjustedMonth = (month, hemisphere) =>
-  hemisphere === "south" ? shiftMonth(month, 6) : month;
-
-const getShareProgressMode = (month, hemisphere) => {
-  if (!Number.isFinite(month)) {
-    return "max";
-  }
-  const adjustedMonth = getAdjustedMonth(month, hemisphere);
-  if (adjustedMonth >= 6 && adjustedMonth <= 8) {
-    return "none";
-  }
-  if (adjustedMonth >= 9 && adjustedMonth <= 12) {
-    return "shortest";
-  }
-  return "max";
-};
-
-const getLossFraction = (snapshot) => {
-  if (
-    !Number.isFinite(snapshot?.todayDaylight) ||
-    !Number.isFinite(snapshot?.longestDayMinutes) ||
-    !Number.isFinite(snapshot?.shortestDayMinutes)
-  ) {
-    return null;
-  }
-  const totalLoss = snapshot.longestDayMinutes - snapshot.shortestDayMinutes;
-  if (totalLoss <= 0) {
-    return null;
-  }
-  return clampValue(
-    (snapshot.longestDayMinutes - snapshot.todayDaylight) / totalLoss,
-    0,
-    1
-  );
-};
-
-const buildShareProgressLine = (snapshot) => {
-  if (!snapshot) {
-    return "";
-  }
-  const isShortening = Number.isFinite(snapshot.daylightGainToday)
-    ? snapshot.daylightGainToday < 0
-    : false;
-  const mode = isShortening
-    ? getShareProgressMode(snapshot.dateParts?.month, snapshot.hemisphere)
-    : "max";
-  if (mode === "none") {
-    return "";
-  }
-  if (mode === "shortest") {
-    const fraction =
-      snapshot.fractionOfLossCompleted != null
-        ? snapshot.fractionOfLossCompleted
-        : getLossFraction(snapshot);
-    if (!Number.isFinite(fraction)) {
-      return "";
-    }
-    const percentText = formatSharePercent(fraction);
-    return `${buildShareBar(fraction)} Progress towards shortest day${
-      percentText ? ` (${percentText})` : ""
-    }`.trim();
-  }
-  if (!Number.isFinite(snapshot.longestDayMinutes)) {
-    return "";
-  }
-  const fraction =
-    Number.isFinite(snapshot.todayDaylight) && snapshot.longestDayMinutes > 0
-      ? snapshot.todayDaylight / snapshot.longestDayMinutes
-      : null;
-  if (!Number.isFinite(fraction)) {
-    return "";
-  }
-  const percentText = formatSharePercent(fraction);
-  return `${buildShareBar(fraction)} ${percentText} of maximum daylight`.trim();
-};
-
-const formatDeltaMinutes = (minutes) => {
-  if (minutes == null || Number.isNaN(minutes)) {
-    return "—";
-  }
-  const rounded = Math.round(minutes);
-  if (rounded === 0) {
-    return "0 min";
-  }
-  const sign = rounded > 0 ? "+" : "-";
-  const abs = Math.abs(rounded);
-  const body = abs >= 60 ? formatDuration(abs) : `${abs} min`;
-  return `${sign}${body}`;
 };
 
 const formatDeltaStatement = (minutes, positiveLabel, negativeLabel) => {
@@ -582,41 +322,6 @@ const formatComparisonTooltip = (value, parts, timeZone, referenceYear) => {
   return `${value} on ${dateLabel}`;
 };
 
-const formatOptimisticDelta = (minutes) => {
-  if (minutes == null || Number.isNaN(minutes)) {
-    return "—";
-  }
-  const absMinutes = Math.abs(minutes);
-  if (absMinutes < 1) {
-    const seconds = Math.floor(absMinutes * 60);
-    return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
-  }
-  if (absMinutes > 1 && absMinutes < 3) {
-    const totalSeconds = Math.floor(absMinutes * 60);
-    const wholeMinutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${wholeMinutes}m ${seconds}s`;
-  }
-  const roundedMinutes = Math.round(absMinutes);
-  return `${roundedMinutes} ${roundedMinutes === 1 ? "minute" : "minutes"}`;
-};
-
-const setText = (node, value) => {
-  if (!node) {
-    return;
-  }
-  node.textContent = value == null ? "" : String(value);
-};
-
-const setInputValue = (node, value) => {
-  if (!node) {
-    return;
-  }
-  node.value = value == null ? "" : String(value);
-};
-
-const getText = (node) => (node?.textContent || "").trim();
-
 const OPTIMISTIC_ROTATION_MS = 15000;
 const OPTIMISTIC_OUT_CLASS = "is-optimistic-out";
 const OPTIMISTIC_IN_CLASS = "is-optimistic-in";
@@ -631,22 +336,22 @@ const OPTIMISTIC_FALLBACK_COPY = {
 };
 
 const clearOptimisticSwapTimeout = () => {
-  if (optimisticSwapTimeoutId) {
-    window.clearTimeout(optimisticSwapTimeoutId);
-    optimisticSwapTimeoutId = null;
+  if (optimisticState.swapTimeoutId) {
+    window.clearTimeout(optimisticState.swapTimeoutId);
+    optimisticState.swapTimeoutId = null;
   }
 };
 
 const clearOptimisticRotation = () => {
-  if (optimisticRotationId) {
-    window.clearInterval(optimisticRotationId);
-    optimisticRotationId = null;
+  if (optimisticState.rotationId) {
+    window.clearInterval(optimisticState.rotationId);
+    optimisticState.rotationId = null;
   }
 };
 
 const resetOptimisticAnimation = () => {
   clearOptimisticSwapTimeout();
-  optimisticSwapId += 1;
+  optimisticState.swapId += 1;
   [headline, lede].forEach((node) => {
     if (!node) {
       return;
@@ -658,8 +363,8 @@ const resetOptimisticAnimation = () => {
 const stopOptimisticRotation = () => {
   clearOptimisticRotation();
   resetOptimisticAnimation();
-  optimisticMessageOptions = [];
-  optimisticMessageIndex = 0;
+  optimisticState.options = [];
+  optimisticState.index = 0;
 };
 
 const prefersReducedMotion = () => {
@@ -687,7 +392,7 @@ const animateOptimisticSwap = (copy) => {
     return;
   }
   resetOptimisticAnimation();
-  const swapId = optimisticSwapId;
+  const swapId = optimisticState.swapId;
   [headline, lede].forEach((node) => {
     if (!node) {
       return;
@@ -696,8 +401,8 @@ const animateOptimisticSwap = (copy) => {
     void node.offsetWidth;
     node.classList.add(OPTIMISTIC_OUT_CLASS);
   });
-  optimisticSwapTimeoutId = window.setTimeout(() => {
-    if (swapId !== optimisticSwapId) {
+  optimisticState.swapTimeoutId = window.setTimeout(() => {
+    if (swapId !== optimisticState.swapId) {
       return;
     }
     setText(headline, copy.headline);
@@ -726,19 +431,19 @@ const setOptimisticCopy = (copy, { animate = false } = {}) => {
 
 const startOptimisticRotation = (messages) => {
   stopOptimisticRotation();
-  optimisticMessageOptions = Array.isArray(messages) ? messages : [];
-  if (!optimisticMessageOptions.length) {
+  optimisticState.options = Array.isArray(messages) ? messages : [];
+  if (!optimisticState.options.length) {
     return;
   }
-  optimisticMessageIndex = 0;
-  setOptimisticCopy(optimisticMessageOptions[0], { animate: false });
-  if (optimisticMessageOptions.length < 2) {
+  optimisticState.index = 0;
+  setOptimisticCopy(optimisticState.options[0], { animate: false });
+  if (optimisticState.options.length < 2) {
     return;
   }
-  optimisticRotationId = window.setInterval(() => {
-    optimisticMessageIndex =
-      (optimisticMessageIndex + 1) % optimisticMessageOptions.length;
-    setOptimisticCopy(optimisticMessageOptions[optimisticMessageIndex], {
+  optimisticState.rotationId = window.setInterval(() => {
+    optimisticState.index =
+      (optimisticState.index + 1) % optimisticState.options.length;
+    setOptimisticCopy(optimisticState.options[optimisticState.index], {
       animate: true,
     });
   }, OPTIMISTIC_ROTATION_MS);
@@ -759,9 +464,9 @@ const launchConfetti = () => {
     return;
   }
   confettiRoot.innerHTML = "";
-  if (confettiTimeoutId) {
-    window.clearTimeout(confettiTimeoutId);
-    confettiTimeoutId = null;
+  if (milestoneState.confettiTimeoutId) {
+    window.clearTimeout(milestoneState.confettiTimeoutId);
+    milestoneState.confettiTimeoutId = null;
   }
   const fragment = document.createDocumentFragment();
   let maxDuration = 0;
@@ -789,9 +494,9 @@ const launchConfetti = () => {
     maxDuration = Math.max(maxDuration, duration + delay);
   }
   confettiRoot.appendChild(fragment);
-  confettiTimeoutId = window.setTimeout(() => {
+  milestoneState.confettiTimeoutId = window.setTimeout(() => {
     confettiRoot.innerHTML = "";
-    confettiTimeoutId = null;
+    milestoneState.confettiTimeoutId = null;
   }, (maxDuration + 0.5) * 1000);
 };
 
@@ -939,470 +644,6 @@ const updateOptimisticMessage = (data, month, hemisphere) => {
   startOptimisticRotation(options);
 };
 
-const getSunEvents = (observer, timeZone, dateParts) => {
-  const startUtc = zonedTimeToUtc(
-    dateParts.year,
-    dateParts.month,
-    dateParts.day,
-    0,
-    0,
-    0,
-    timeZone
-  );
-  return {
-    sunrise: Astronomy.SearchRiseSet("Sun", observer, +1, startUtc, 1),
-    sunset: Astronomy.SearchRiseSet("Sun", observer, -1, startUtc, 1),
-  };
-};
-
-const getDaylightMinutes = (events) => {
-  if (!events?.sunrise || !events?.sunset) {
-    return null;
-  }
-  return (events.sunset.date - events.sunrise.date) / 60000;
-};
-
-const getSunsetMinutesForDateParts = (observer, timeZone, dateParts) => {
-  const { sunset } = getSunEvents(observer, timeZone, dateParts);
-  return sunset ? getMinutesSinceMidnight(sunset.date, timeZone) : null;
-};
-
-const getDaylightMinutesForDateParts = (observer, timeZone, dateParts) =>
-  getDaylightMinutes(getSunEvents(observer, timeZone, dateParts));
-
-const getYearlySunExtremes = (observer, timeZone, year, todayDaylight) => {
-  const yearStart = { year, month: 1, day: 1 };
-  const daysInYear = getDaysInYear(year);
-  let earliestSunsetMinutes = null;
-  let earliestSunsetDateParts = null;
-  let shortestDayMinutes = null;
-  let shortestDayDateParts = null;
-  let longestDayMinutes = null;
-  let longestDayDateParts = null;
-  let maxDailyGainMinutes = null;
-  let maxDailyGainDateParts = null;
-  let previousDaylightMinutes = null;
-  let daysWithLessDaylight =
-    todayDaylight != null && Number.isFinite(todayDaylight) ? 0 : null;
-
-  for (let offset = 0; offset < daysInYear; offset += 1) {
-    const dateParts = addDaysToDateParts(yearStart, offset);
-    const events = getSunEvents(observer, timeZone, dateParts);
-
-    if (events.sunset) {
-      const sunsetMinutes = getMinutesSinceMidnight(events.sunset.date, timeZone);
-      if (earliestSunsetMinutes == null || sunsetMinutes < earliestSunsetMinutes) {
-        earliestSunsetMinutes = sunsetMinutes;
-        earliestSunsetDateParts = dateParts;
-      }
-    }
-
-    const daylightMinutes = getDaylightMinutes(events);
-    if (daylightMinutes != null) {
-      if (shortestDayMinutes == null || daylightMinutes < shortestDayMinutes) {
-        shortestDayMinutes = daylightMinutes;
-        shortestDayDateParts = dateParts;
-      }
-      if (longestDayMinutes == null || daylightMinutes > longestDayMinutes) {
-        longestDayMinutes = daylightMinutes;
-        longestDayDateParts = dateParts;
-      }
-      if (
-        daysWithLessDaylight != null &&
-        Number.isFinite(todayDaylight) &&
-        daylightMinutes < todayDaylight
-      ) {
-        daysWithLessDaylight += 1;
-      }
-      if (previousDaylightMinutes != null) {
-        const gain = daylightMinutes - previousDaylightMinutes;
-        if (maxDailyGainMinutes == null || gain > maxDailyGainMinutes) {
-          maxDailyGainMinutes = gain;
-          maxDailyGainDateParts = dateParts;
-        }
-      }
-      previousDaylightMinutes = daylightMinutes;
-    } else {
-      previousDaylightMinutes = null;
-    }
-  }
-
-  return {
-    earliestSunsetMinutes,
-    earliestSunsetDateParts,
-    shortestDayMinutes,
-    shortestDayDateParts,
-    longestDayMinutes,
-    longestDayDateParts,
-    maxDailyGainMinutes,
-    maxDailyGainDateParts,
-    daysWithLessDaylight,
-  };
-};
-
-const getSeasonDatePartsForYear = (year, timeZone, hemisphere) => {
-  const seasons = Astronomy.Seasons(year);
-  const mapping =
-    hemisphere === "south"
-      ? {
-          spring: seasons.sep_equinox,
-          summer: seasons.dec_solstice,
-          autumn: seasons.mar_equinox,
-          winter: seasons.jun_solstice,
-        }
-      : {
-          spring: seasons.mar_equinox,
-          summer: seasons.jun_solstice,
-          autumn: seasons.sep_equinox,
-          winter: seasons.dec_solstice,
-        };
-  return {
-    spring: getLocalDateParts(mapping.spring.date, timeZone),
-    summer: getLocalDateParts(mapping.summer.date, timeZone),
-    autumn: getLocalDateParts(mapping.autumn.date, timeZone),
-    winter: getLocalDateParts(mapping.winter.date, timeZone),
-  };
-};
-
-const getNextSeasonDateParts = (todayParts, timeZone, hemisphere, season) => {
-  const currentYear = getSeasonDatePartsForYear(
-    todayParts.year,
-    timeZone,
-    hemisphere
-  );
-  let target = currentYear[season];
-  if (compareDateParts(target, todayParts) < 0) {
-    const nextYear = getSeasonDatePartsForYear(
-      todayParts.year + 1,
-      timeZone,
-      hemisphere
-    );
-    target = nextYear[season];
-  }
-  return target;
-};
-
-const getPreviousSeasonDateParts = (todayParts, timeZone, hemisphere, season) => {
-  const currentYear = getSeasonDatePartsForYear(
-    todayParts.year,
-    timeZone,
-    hemisphere
-  );
-  let target = currentYear[season];
-  if (compareDateParts(target, todayParts) > 0) {
-    const previousYear = getSeasonDatePartsForYear(
-      todayParts.year - 1,
-      timeZone,
-      hemisphere
-    );
-    target = previousYear[season];
-  }
-  return target;
-};
-
-const getAverageDaylightForMonths = (observer, timeZone, months) => {
-  let total = 0;
-  let count = 0;
-  months.forEach(({ year, month }) => {
-    const daysInMonth = getDaysInMonth(year, month);
-    for (let day = 1; day <= daysInMonth; day += 1) {
-      const daylight = getDaylightMinutesForDateParts(observer, timeZone, {
-        year,
-        month,
-        day,
-      });
-      if (daylight != null) {
-        total += daylight;
-        count += 1;
-      }
-    }
-  });
-  return count ? total / count : null;
-};
-
-const getAverageWinterDaylight = (
-  observer,
-  timeZone,
-  winterSolsticeParts,
-  hemisphere
-) => {
-  if (!winterSolsticeParts) {
-    return null;
-  }
-  const months =
-    hemisphere === "south"
-      ? [
-          { year: winterSolsticeParts.year, month: 6 },
-          { year: winterSolsticeParts.year, month: 7 },
-          { year: winterSolsticeParts.year, month: 8 },
-        ]
-      : [
-          { year: winterSolsticeParts.year, month: 12 },
-          { year: winterSolsticeParts.year + 1, month: 1 },
-          { year: winterSolsticeParts.year + 1, month: 2 },
-        ];
-  return getAverageDaylightForMonths(observer, timeZone, months);
-};
-
-const getDaysUntilSunsetAfter = (
-  observer,
-  timeZone,
-  todayParts,
-  todaySunsetMinutes,
-  targetMinutes
-) => {
-  if (todaySunsetMinutes == null) {
-    return null;
-  }
-  if (todaySunsetMinutes >= targetMinutes) {
-    return 0;
-  }
-  const match = findNextSunsetThreshold(
-    observer,
-    timeZone,
-    todayParts,
-    targetMinutes
-  );
-  return match ? match.offsetDays : null;
-};
-
-const getWeeksWithSunsetAfter = (
-  observer,
-  timeZone,
-  startDateParts,
-  targetMinutes,
-  limitDays = 370
-) => {
-  let days = 0;
-  for (let offset = 0; offset <= limitDays; offset += 1) {
-    const dateParts = addDaysToDateParts(startDateParts, offset);
-    const { sunset } = getSunEvents(observer, timeZone, dateParts);
-    if (!sunset) {
-      return null;
-    }
-    const sunsetMinutes = getMinutesSinceMidnight(sunset.date, timeZone);
-    if (sunsetMinutes >= targetMinutes) {
-      days += 1;
-    } else {
-      break;
-    }
-  }
-  return days ? Math.floor(days / 7) : 0;
-};
-
-const getDaylightDailyGainThisWeekMin = (observer, timeZone, todayParts) => {
-  let minGain = null;
-  let previousDaylight = null;
-  for (let offset = 6; offset >= 0; offset -= 1) {
-    const dateParts = addDaysToDateParts(todayParts, -offset);
-    const daylight = getDaylightMinutesForDateParts(
-      observer,
-      timeZone,
-      dateParts
-    );
-    if (daylight == null) {
-      return null;
-    }
-    if (previousDaylight != null) {
-      const gain = daylight - previousDaylight;
-      if (minGain == null || gain < minGain) {
-        minGain = gain;
-      }
-    }
-    previousDaylight = daylight;
-  }
-  return minGain;
-};
-
-const getNextHalfHour = (minutes) => {
-  const next = Math.floor((minutes + 30) / 30) * 30;
-  return next % (24 * 60);
-};
-
-const formatTimeFromMinutes = (minutes, dateParts, timeZone) => {
-  const hour = Math.floor(minutes / 60);
-  const minute = Math.round(minutes % 60);
-  const date = zonedTimeToUtc(
-    dateParts.year,
-    dateParts.month,
-    dateParts.day,
-    hour,
-    minute,
-    0,
-    timeZone
-  );
-  return formatTime(date, timeZone);
-};
-
-const findNextSunsetThreshold = (
-  observer,
-  timeZone,
-  startDateParts,
-  targetMinutes,
-  limitDays = 370
-) => {
-  for (let offset = 1; offset <= limitDays; offset += 1) {
-    const dateParts = addDaysToDateParts(startDateParts, offset);
-    const { sunset } = getSunEvents(observer, timeZone, dateParts);
-    if (!sunset) {
-      continue;
-    }
-    const sunsetMinutes = getMinutesSinceMidnight(sunset.date, timeZone);
-    if (sunsetMinutes >= targetMinutes) {
-      return { dateParts, offsetDays: offset };
-    }
-  }
-  return null;
-};
-
-const getOffsetMinutesForDateParts = (dateParts, timeZone) => {
-  if (!dateParts) {
-    return null;
-  }
-  const date = zonedTimeToUtc(
-    dateParts.year,
-    dateParts.month,
-    dateParts.day,
-    12,
-    0,
-    0,
-    timeZone
-  );
-  return getTimeZoneOffsetMinutes(date, timeZone);
-};
-
-const findNextDaylightSavingsStart = (
-  timeZone,
-  startParts,
-  limitDays = 370
-) => {
-  if (!timeZone || !startParts) {
-    return null;
-  }
-  const previousDay = addDaysToDateParts(startParts, -1);
-  let previousOffset = getOffsetMinutesForDateParts(previousDay, timeZone);
-  if (!Number.isFinite(previousOffset)) {
-    return null;
-  }
-  for (let offset = 0; offset <= limitDays; offset += 1) {
-    const dateParts = addDaysToDateParts(startParts, offset);
-    const offsetMinutes = getOffsetMinutesForDateParts(dateParts, timeZone);
-    if (!Number.isFinite(offsetMinutes)) {
-      return null;
-    }
-    if (offsetMinutes > previousOffset) {
-      return dateParts;
-    }
-    previousOffset = offsetMinutes;
-  }
-  return null;
-};
-
-const findFirstSunsetAfter = (
-  observer,
-  timeZone,
-  startParts,
-  targetMinutes,
-  limitDays = 370
-) => {
-  if (!observer || !timeZone || !startParts) {
-    return null;
-  }
-  const startSunset = getSunsetMinutesForDateParts(
-    observer,
-    timeZone,
-    startParts
-  );
-  if (startSunset == null || startSunset >= targetMinutes) {
-    return null;
-  }
-  for (let offset = 1; offset <= limitDays; offset += 1) {
-    const dateParts = addDaysToDateParts(startParts, offset);
-    const sunsetMinutes = getSunsetMinutesForDateParts(
-      observer,
-      timeZone,
-      dateParts
-    );
-    if (sunsetMinutes == null) {
-      continue;
-    }
-    if (sunsetMinutes >= targetMinutes) {
-      return { dateParts, offsetDays: offset };
-    }
-  }
-  return null;
-};
-
-const findFirstDaylightAtLeast = (
-  observer,
-  timeZone,
-  startParts,
-  targetMinutes,
-  limitDays = 370
-) => {
-  if (!observer || !timeZone || !startParts) {
-    return null;
-  }
-  const startDaylight = getDaylightMinutesForDateParts(
-    observer,
-    timeZone,
-    startParts
-  );
-  if (startDaylight == null || startDaylight >= targetMinutes) {
-    return null;
-  }
-  for (let offset = 1; offset <= limitDays; offset += 1) {
-    const dateParts = addDaysToDateParts(startParts, offset);
-    const daylight = getDaylightMinutesForDateParts(
-      observer,
-      timeZone,
-      dateParts
-    );
-    if (daylight == null) {
-      continue;
-    }
-    if (daylight >= targetMinutes) {
-      return { dateParts, offsetDays: offset };
-    }
-  }
-  return null;
-};
-
-const findFirstDaylightGain = (
-  observer,
-  timeZone,
-  startParts,
-  gainMinutes,
-  limitDays = 370
-) => {
-  if (!observer || !timeZone || !startParts) {
-    return null;
-  }
-  const startDaylight = getDaylightMinutesForDateParts(
-    observer,
-    timeZone,
-    startParts
-  );
-  if (startDaylight == null) {
-    return null;
-  }
-  for (let offset = 1; offset <= limitDays; offset += 1) {
-    const dateParts = addDaysToDateParts(startParts, offset);
-    const daylight = getDaylightMinutesForDateParts(
-      observer,
-      timeZone,
-      dateParts
-    );
-    if (daylight == null) {
-      continue;
-    }
-    if (daylight - startDaylight >= gainMinutes) {
-      return { dateParts, offsetDays: offset };
-    }
-  }
-  return null;
-};
-
 const buildMilestone = ({
   id,
   title,
@@ -1463,13 +704,13 @@ const getMilestoneTodayCopy = (milestone) => {
 };
 
 const updateMilestoneCard = (milestones, timeZone, { resetIndex = true } = {}) => {
-  upcomingMilestones = milestones;
+  milestoneState.upcoming = milestones;
   if (resetIndex) {
-    milestoneIndex = 0;
-  } else if (milestoneIndex >= milestones.length) {
-    milestoneIndex = 0;
+    milestoneState.index = 0;
+  } else if (milestoneState.index >= milestones.length) {
+    milestoneState.index = 0;
   }
-  milestoneTimeZone = timeZone;
+  milestoneState.timeZone = timeZone;
   if (!nextHeadline || !nextDate || !nextAway) {
     return;
   }
@@ -1486,7 +727,7 @@ const updateMilestoneCard = (milestones, timeZone, { resetIndex = true } = {}) =
     }
     return;
   }
-  const active = milestones[milestoneIndex];
+  const active = milestones[milestoneState.index];
   setText(nextHeadline, active.title);
   setText(nextDate, formatLongDateFromParts(active.dateParts, timeZone));
   setText(nextAway, formatMilestoneAway(active.offsetDays));
@@ -1499,7 +740,7 @@ const updateMilestoneCard = (milestones, timeZone, { resetIndex = true } = {}) =
     milestoneToggle.setAttribute(
       "aria-label",
       hasMultiple
-        ? `Next milestone (${milestoneIndex + 1} of ${milestones.length})`
+        ? `Next milestone (${milestoneState.index + 1} of ${milestones.length})`
         : "Next milestone"
     );
   }
@@ -1507,16 +748,16 @@ const updateMilestoneCard = (milestones, timeZone, { resetIndex = true } = {}) =
 
 const celebrateMilestone = (milestone) => {
   if (!milestone) {
-    lastCelebratedKey = null;
+    milestoneState.lastCelebratedKey = null;
     return;
   }
   const key = getMilestoneKey(milestone);
   if (!key) {
-    lastCelebratedKey = null;
+    milestoneState.lastCelebratedKey = null;
     return;
   }
-  if (key !== lastCelebratedKey) {
-    lastCelebratedKey = key;
+  if (key !== milestoneState.lastCelebratedKey) {
+    milestoneState.lastCelebratedKey = key;
     launchConfetti();
   }
 };
@@ -1526,20 +767,16 @@ const updateDaylightForLocation = (location) => {
     return;
   }
   const timeZone = location.timezone || FALLBACK_TIMEZONE;
-  const observer = new Astronomy.Observer(
-    location.latitude,
-    location.longitude,
-    location.elevation || 0
-  );
   const hemisphere = location.latitude < 0 ? "south" : "north";
+  const astronomy = createAstronomyContext(location, timeZone);
   const todayParts = getActiveDateParts(timeZone);
   syncDatePicker(timeZone);
   const weekParts = addDaysToDateParts(todayParts, -7);
   const monthParts = addMonthsToDateParts(todayParts, -1);
 
-  const todayEvents = getSunEvents(observer, timeZone, todayParts);
-  const weekEvents = getSunEvents(observer, timeZone, weekParts);
-  const monthEvents = getSunEvents(observer, timeZone, monthParts);
+  const todayEvents = astronomy.getSunEvents(todayParts);
+  const weekEvents = astronomy.getSunEvents(weekParts);
+  const monthEvents = astronomy.getSunEvents(monthParts);
 
   setText(
     sunsetTimeValue,
@@ -1557,9 +794,9 @@ const updateDaylightForLocation = (location) => {
   const monthSunsetMinutes = monthEvents.sunset
     ? getMinutesSinceMidnight(monthEvents.sunset.date, timeZone)
     : null;
-  const todayDaylight = getDaylightMinutes(todayEvents);
-  const weekDaylight = getDaylightMinutes(weekEvents);
-  const monthDaylight = getDaylightMinutes(monthEvents);
+  const todayDaylight = astronomy.getDaylightMinutesForDateParts(todayParts);
+  const weekDaylight = astronomy.getDaylightMinutesForDateParts(weekParts);
+  const monthDaylight = astronomy.getDaylightMinutesForDateParts(monthParts);
   const referenceYear = todayParts.year;
   const {
     earliestSunsetMinutes,
@@ -1570,7 +807,7 @@ const updateDaylightForLocation = (location) => {
     longestDayDateParts,
     maxDailyGainDateParts,
     daysWithLessDaylight,
-  } = getYearlySunExtremes(observer, timeZone, todayParts.year, todayDaylight);
+  } = astronomy.getYearlySunExtremes(todayParts.year, todayDaylight);
 
   const sunsetEarliestDelta =
     todaySunsetMinutes != null && earliestSunsetMinutes != null
@@ -1744,39 +981,24 @@ const updateDaylightForLocation = (location) => {
   );
 
   const startOfYearParts = { year: todayParts.year, month: 1, day: 1 };
-  const sunsetStartOfYear = getSunsetMinutesForDateParts(
-    observer,
-    timeZone,
-    startOfYearParts
-  );
+  const sunsetStartOfYear =
+    astronomy.getSunsetMinutesForDateParts(startOfYearParts);
   const twoMonthsParts = addMonthsToDateParts(todayParts, -2);
-  const twoMonthsDaylight = getDaylightMinutesForDateParts(
-    observer,
-    timeZone,
-    twoMonthsParts
-  );
+  const twoMonthsDaylight =
+    astronomy.getDaylightMinutesForDateParts(twoMonthsParts);
   const endOfMonthParts = {
     year: todayParts.year,
     month: todayParts.month,
     day: getDaysInMonth(todayParts.year, todayParts.month),
   };
-  const daylightAtEndOfMonth = getDaylightMinutesForDateParts(
-    observer,
-    timeZone,
-    endOfMonthParts
-  );
+  const daylightAtEndOfMonth =
+    astronomy.getDaylightMinutesForDateParts(endOfMonthParts);
   const in14Parts = addDaysToDateParts(todayParts, 14);
-  const daylightIn14Days = getDaylightMinutesForDateParts(
-    observer,
-    timeZone,
-    in14Parts
-  );
+  const daylightIn14Days =
+    astronomy.getDaylightMinutesForDateParts(in14Parts);
   const yesterdayParts = addDaysToDateParts(todayParts, -1);
-  const yesterdayDaylight = getDaylightMinutesForDateParts(
-    observer,
-    timeZone,
-    yesterdayParts
-  );
+  const yesterdayDaylight =
+    astronomy.getDaylightMinutesForDateParts(yesterdayParts);
   const daylightGainToday =
     todayDaylight != null && yesterdayDaylight != null
       ? todayDaylight - yesterdayDaylight
@@ -1809,23 +1031,17 @@ const updateDaylightForLocation = (location) => {
     todaySunsetMinutes != null
       ? Math.max(0, todaySunsetMinutes - 17 * 60)
       : null;
-  const daysUntilSunsetAfter5pm = getDaysUntilSunsetAfter(
-    observer,
-    timeZone,
+  const daysUntilSunsetAfter5pm = astronomy.getDaysUntilSunsetAfter(
     todayParts,
     todaySunsetMinutes,
     17 * 60
   );
-  const daysUntilSunsetAfter6pm = getDaysUntilSunsetAfter(
-    observer,
-    timeZone,
+  const daysUntilSunsetAfter6pm = astronomy.getDaysUntilSunsetAfter(
     todayParts,
     todaySunsetMinutes,
     18 * 60
   );
-  const daysUntilSunsetAfter7pm = getDaysUntilSunsetAfter(
-    observer,
-    timeZone,
+  const daysUntilSunsetAfter7pm = astronomy.getDaysUntilSunsetAfter(
     todayParts,
     todaySunsetMinutes,
     19 * 60
@@ -1833,14 +1049,12 @@ const updateDaylightForLocation = (location) => {
   const daysUntilMaxDailyGain = maxDailyGainDateParts
     ? getDaysBetweenDateParts(todayParts, maxDailyGainDateParts)
     : null;
-  const currentSeasonParts = getSeasonDatePartsForYear(
+  const currentSeasonParts = astronomy.getSeasonDatePartsForYear(
     todayParts.year,
-    timeZone,
     hemisphere
   );
-  const previousSummerSolsticeParts = getPreviousSeasonDateParts(
+  const previousSummerSolsticeParts = astronomy.getPreviousSeasonDateParts(
     todayParts,
-    timeZone,
     hemisphere,
     "summer"
   );
@@ -1891,11 +1105,9 @@ const updateDaylightForLocation = (location) => {
   }
   const weeksWithSunsetAfter7pmRemaining =
     todaySunsetMinutes != null
-      ? getWeeksWithSunsetAfter(observer, timeZone, todayParts, 19 * 60)
+      ? astronomy.getWeeksWithSunsetAfter(todayParts, 19 * 60)
       : null;
-  const averageWinterDaylight = getAverageWinterDaylight(
-    observer,
-    timeZone,
+  const averageWinterDaylight = astronomy.getAverageWinterDaylight(
     currentSeasonParts.winter,
     hemisphere
   );
@@ -1915,11 +1127,8 @@ const updateDaylightForLocation = (location) => {
     daylight_after_5pm_today: daylightAfter5pm,
     daylight_one_month_ago: monthDaylight,
     fraction_of_loss_completed: fractionOfLossCompleted,
-    daylight_daily_gain_this_week_min: getDaylightDailyGainThisWeekMin(
-      observer,
-      timeZone,
-      todayParts
-    ),
+    daylight_daily_gain_this_week_min:
+      astronomy.getDaylightDailyGainThisWeekMin(todayParts),
     daylight_in_14_days: daylightIn14Days,
     daylight_gain_this_week: daylightGainThisWeek,
     spring_equinox_date: springEquinoxDate,
@@ -1965,9 +1174,7 @@ const updateDaylightForLocation = (location) => {
       return current;
     }
     if (!nextYearExtremes) {
-      nextYearExtremes = getYearlySunExtremes(
-        observer,
-        timeZone,
+      nextYearExtremes = astronomy.getYearlySunExtremes(
         todayParts.year + 1,
         null
       );
@@ -1975,18 +1182,15 @@ const updateDaylightForLocation = (location) => {
     return nextYearExtremes[key] || null;
   };
 
-  const previousWinterSolsticeParts = getPreviousSeasonDateParts(
+  const previousWinterSolsticeParts = astronomy.getPreviousSeasonDateParts(
     todayParts,
-    timeZone,
     hemisphere,
     "winter"
   );
   const sunsetThresholdMatches = SUNSET_THRESHOLD_MILESTONES.map(
     (milestoneConfig) => ({
       ...milestoneConfig,
-      match: findFirstSunsetAfter(
-        observer,
-        timeZone,
+      match: astronomy.findFirstSunsetAfter(
         previousWinterSolsticeParts,
         milestoneConfig.minutes
       ),
@@ -1994,33 +1198,33 @@ const updateDaylightForLocation = (location) => {
   );
 
   if (todaySunsetMinutes != null) {
-    const targetMinutes = getNextHalfHour(todaySunsetMinutes);
-    const targetLabel = formatTimeFromMinutes(
-      targetMinutes,
-      todayParts,
-      timeZone
-    );
-    const milestoneMatch = findNextSunsetThreshold(
-      observer,
-      timeZone,
-      todayParts,
-      targetMinutes
-    );
-    if (milestoneMatch) {
-      const isThresholdDuplicate = sunsetThresholdMatches.some(
-        (threshold) =>
-          threshold.minutes === targetMinutes &&
-          threshold.match?.dateParts &&
-          compareDateParts(threshold.match.dateParts, milestoneMatch.dateParts) === 0
+    const targetMinutes = astronomy.getNextHalfHour(todaySunsetMinutes);
+    if (targetMinutes > 0) {
+      const targetLabel = formatTimeFromMinutes(
+        targetMinutes,
+        todayParts,
+        timeZone
       );
-      if (!isThresholdDuplicate) {
-        addMilestone(
-          buildMilestone({
-            id: `next-sunset-${targetMinutes}`,
-            title: `Next ${targetLabel} Sunset`,
-            dateParts: milestoneMatch.dateParts,
-          })
+      const milestoneMatch = astronomy.findNextSunsetThreshold(
+        todayParts,
+        targetMinutes
+      );
+      if (milestoneMatch) {
+        const isThresholdDuplicate = sunsetThresholdMatches.some(
+          (threshold) =>
+            threshold.minutes === targetMinutes &&
+            threshold.match?.dateParts &&
+            compareDateParts(threshold.match.dateParts, milestoneMatch.dateParts) === 0
         );
+        if (!isThresholdDuplicate) {
+          addMilestone(
+            buildMilestone({
+              id: `next-sunset-${targetMinutes}`,
+              title: `Next ${targetLabel} Sunset`,
+              dateParts: milestoneMatch.dateParts,
+            })
+          );
+        }
       }
     }
   }
@@ -2056,9 +1260,8 @@ const updateDaylightForLocation = (location) => {
     buildMilestone({
       id: "spring-equinox",
       title: "Spring equinox",
-      dateParts: getNextSeasonDateParts(
+      dateParts: astronomy.getNextSeasonDateParts(
         todayParts,
-        timeZone,
         hemisphere,
         "spring"
       ),
@@ -2070,24 +1273,22 @@ const updateDaylightForLocation = (location) => {
     buildMilestone({
       id: "dst-start",
       title: "Daylight savings time starts",
-      dateParts: findNextDaylightSavingsStart(timeZone, todayParts),
+      dateParts: astronomy.findNextDaylightSavingsStart(todayParts),
       todayHeadline: "Daylight savings time starts today.",
       todayLede: "Don't forget to spring forward.",
     })
   );
 
-  const firstTwelveHours = findFirstDaylightAtLeast(
-    observer,
-    timeZone,
+  const firstTwelveHours = astronomy.findFirstDaylightAtLeast(
     previousWinterSolsticeParts,
     12 * 60
   );
   addMilestone(
     buildMilestone({
       id: "first-12-hours",
-      title: "First day with exactly 12 hours of daylight",
+      title: "First day with at least 12 hours of daylight",
       dateParts: firstTwelveHours?.dateParts,
-      todayHeadline: "Today has exactly 12 hours of daylight.",
+      todayHeadline: "Today has at least 12 hours of daylight.",
       todayLede: "A perfect balance of day and night.",
     })
   );
@@ -2105,9 +1306,7 @@ const updateDaylightForLocation = (location) => {
   });
 
   DAYLIGHT_GAIN_MILESTONES.forEach((milestoneConfig) => {
-    const match = findFirstDaylightGain(
-      observer,
-      timeZone,
+    const match = astronomy.findFirstDaylightGain(
       previousWinterSolsticeParts,
       milestoneConfig.minutes
     );
@@ -2150,7 +1349,7 @@ const updateDaylightForLocation = (location) => {
     });
   updateMilestoneCard(upcoming, timeZone);
 
-  shareSnapshot = {
+  shareState.snapshot = {
     location,
     timeZone,
     dateParts: todayParts,
@@ -2162,204 +1361,6 @@ const updateDaylightForLocation = (location) => {
     hemisphere,
     fractionOfLossCompleted,
   };
-};
-
-const US_STATE_ABBR = {
-  Alabama: "AL",
-  Alaska: "AK",
-  Arizona: "AZ",
-  Arkansas: "AR",
-  California: "CA",
-  Colorado: "CO",
-  Connecticut: "CT",
-  Delaware: "DE",
-  "District of Columbia": "DC",
-  Florida: "FL",
-  Georgia: "GA",
-  Hawaii: "HI",
-  Idaho: "ID",
-  Illinois: "IL",
-  Indiana: "IN",
-  Iowa: "IA",
-  Kansas: "KS",
-  Kentucky: "KY",
-  Louisiana: "LA",
-  Maine: "ME",
-  Maryland: "MD",
-  Massachusetts: "MA",
-  Michigan: "MI",
-  Minnesota: "MN",
-  Mississippi: "MS",
-  Missouri: "MO",
-  Montana: "MT",
-  Nebraska: "NE",
-  Nevada: "NV",
-  "New Hampshire": "NH",
-  "New Jersey": "NJ",
-  "New Mexico": "NM",
-  "New York": "NY",
-  "North Carolina": "NC",
-  "North Dakota": "ND",
-  Ohio: "OH",
-  Oklahoma: "OK",
-  Oregon: "OR",
-  Pennsylvania: "PA",
-  "Rhode Island": "RI",
-  "South Carolina": "SC",
-  "South Dakota": "SD",
-  Tennessee: "TN",
-  Texas: "TX",
-  Utah: "UT",
-  Vermont: "VT",
-  Virginia: "VA",
-  Washington: "WA",
-  "West Virginia": "WV",
-  Wisconsin: "WI",
-  Wyoming: "WY",
-};
-
-const US_STATE_NAME_BY_ABBR = Object.fromEntries(
-  Object.entries(US_STATE_ABBR).map(([name, abbr]) => [
-    abbr.toLowerCase(),
-    name,
-  ])
-);
-
-const STATE_ALIAS_BY_TOKEN = {
-  dc: "District of Columbia",
-};
-
-const formatSelectedLocation = (item) => {
-  const isUnitedStates =
-    normalizeCountryCode(item) === "US" ||
-    item.country?.toLowerCase() === "united states";
-  const regionName = item.admin1 || "";
-  const region =
-    isUnitedStates && US_STATE_ABBR[regionName]
-      ? US_STATE_ABBR[regionName]
-      : regionName;
-  const parts = isUnitedStates
-    ? [item.name, region]
-    : [item.name, region, item.country];
-  return parts.filter(Boolean).join(", ");
-};
-
-const formatSuggestionLocation = (item) => {
-  const isUnitedStates =
-    normalizeCountryCode(item) === "US" ||
-    item.country?.toLowerCase() === "united states";
-  const regionName = item.admin1 || "";
-  const region =
-    isUnitedStates && US_STATE_ABBR[regionName]
-      ? US_STATE_ABBR[regionName]
-      : regionName;
-  const parts = [item.name, region, item.country].filter(Boolean);
-  return parts.join(", ");
-};
-
-const normalizeCountryCode = (item) =>
-  (item.country_code || "").toUpperCase();
-
-const normalizeToken = (value) =>
-  value.replace(/[^a-z0-9]/gi, "").toLowerCase();
-
-const expandFilterTokens = (tokens) => {
-  const expanded = new Set();
-  tokens.forEach((token) => {
-    const normalized = normalizeToken(token);
-    if (!normalized) {
-      return;
-    }
-    expanded.add(normalized);
-    const alias = STATE_ALIAS_BY_TOKEN[normalized];
-    if (alias) {
-      expanded.add(normalizeToken(alias));
-    }
-    const stateName = US_STATE_NAME_BY_ABBR[normalized];
-    if (stateName) {
-      expanded.add(normalizeToken(stateName));
-    }
-  });
-  return [...expanded];
-};
-
-const formatFilterTokens = (tokens) =>
-  tokens
-    .map((token) => (token.length === 2 ? token.toUpperCase() : token))
-    .join(" ");
-
-const parseQuery = (query) => {
-  const parts = query.split(",");
-  const name = (parts[0] || "").trim();
-  const filterText = parts.slice(1).join(" ").trim();
-  let tokens = filterText
-    .split(/\s+/)
-    .map((token) => normalizeToken(token))
-    .filter(Boolean);
-  let nameQuery = name || query;
-  if (!tokens.length) {
-    const words = name.split(/\s+/).filter(Boolean);
-    const lastToken = normalizeToken(words[words.length - 1] || "");
-    if (words.length > 1 && US_STATE_NAME_BY_ABBR[lastToken]) {
-      tokens = [lastToken];
-      nameQuery = words.slice(0, -1).join(" ");
-    }
-  }
-  return {
-    nameQuery: nameQuery || query,
-    filterTokens: expandFilterTokens(tokens),
-    rawFilterTokens: tokens,
-  };
-};
-
-const normalizeNameValue = (value) => normalizeToken(value);
-
-const isNameMatch = (item, nameQuery) => {
-  if (!nameQuery) {
-    return true;
-  }
-  const normalizedQuery = normalizeNameValue(nameQuery);
-  if (!normalizedQuery) {
-    return true;
-  }
-  return normalizeNameValue(item.name || "").startsWith(normalizedQuery);
-};
-
-const matchesToken = (item, token) => {
-  if (!token) {
-    return true;
-  }
-  const fields = [item.admin1, item.admin2, item.country].filter(Boolean);
-  const normalizedFields = fields.map((field) => normalizeNameValue(field));
-  if (normalizedFields.some((field) => field.startsWith(token))) {
-    return true;
-  }
-  const wordMatch = fields.some((field) =>
-    field
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .some((word) => word.startsWith(token))
-  );
-  if (wordMatch) {
-    return true;
-  }
-  const stateMatch = fields.some(
-    (field) => US_STATE_ABBR[field] === token.toUpperCase()
-  );
-  if (stateMatch) {
-    return true;
-  }
-  const countryCode = (item.country_code || "").toLowerCase();
-  return countryCode ? countryCode.startsWith(token) : false;
-};
-
-const applyFilterTokens = (items, tokens) => {
-  if (!tokens.length) {
-    return items;
-  }
-  return items.filter((item) =>
-    tokens.every((token) => matchesToken(item, token))
-  );
 };
 
 const updateClearButton = () => {
@@ -2379,8 +1380,8 @@ const updateGeolocateButton = () => {
     geolocateButton.title = "Location unavailable";
     return;
   }
-  geolocateButton.disabled = locationBiasLoading;
-  geolocateButton.title = locationBiasLoading ? "Locating..." : "Use my location";
+  geolocateButton.disabled = searchState.locationBiasLoading;
+  geolocateButton.title = searchState.locationBiasLoading ? "Locating..." : "Use my location";
 };
 
 const loadRecentLocations = () => {
@@ -2404,7 +1405,8 @@ const loadStoredLocation = () => {
     if (typeof parsed.latitude !== "number" || typeof parsed.longitude !== "number") {
       return null;
     }
-    return parsed;
+    const { reverseGeocodeFailed, ...sanitized } = parsed;
+    return sanitized;
   } catch (error) {
     console.warn("Unable to load stored location:", error);
     return null;
@@ -2428,11 +1430,19 @@ const saveSharePrivacyPreference = (value) => {
   }
 };
 
+const sanitizeStoredLocation = (location) => {
+  if (!location || typeof location !== "object") {
+    return location;
+  }
+  const { reverseGeocodeFailed, ...sanitized } = location;
+  return sanitized;
+};
+
 const saveStoredLocation = (location) => {
   try {
     localStorage.setItem(
       ACTIVE_LOCATION_STORAGE_KEY,
-      JSON.stringify(location)
+      JSON.stringify(sanitizeStoredLocation(location))
     );
   } catch (error) {
     console.warn("Unable to save stored location:", error);
@@ -2455,19 +1465,19 @@ const saveRecentLocations = (items) => {
 const updateRecentLocations = (item) => {
   const updated = [
     item,
-    ...recentLocations.filter(
+    ...searchState.recentLocations.filter(
       (entry) =>
         entry.name !== item.name ||
         entry.admin1 !== item.admin1 ||
         entry.country_code !== item.country_code
     ),
   ].slice(0, MAX_RECENTS);
-  recentLocations = updated;
+  searchState.recentLocations = updated;
   saveRecentLocations(updated);
 };
 
 const showRecentResults = () => {
-  if (!recentLocations.length) {
+  if (!searchState.recentLocations.length) {
     clearResults();
     return;
   }
@@ -2477,7 +1487,7 @@ const showRecentResults = () => {
   const groups = [
     {
       label: "Recent",
-      items: recentLocations,
+      items: searchState.recentLocations,
     },
   ];
   renderResults(groups, {
@@ -2597,8 +1607,8 @@ const renderGroup = (group) => {
     wrapper.appendChild(label);
   }
   group.items.forEach((item) => {
-    const index = suggestionResults.length;
-    suggestionResults.push(item);
+    const index = searchState.suggestionResults.length;
+    searchState.suggestionResults.push(item);
     const option = document.createElement("div");
     option.id = `location-option-${index}`;
     option.className = "location-option";
@@ -2612,8 +1622,8 @@ const renderGroup = (group) => {
 };
 
 const showLoadingState = () => {
-  suggestionResults = [];
-  activeIndex = -1;
+  searchState.suggestionResults = [];
+  searchState.activeIndex = -1;
   if (!resultsList || !cityInput) {
     return;
   }
@@ -2625,8 +1635,8 @@ const showLoadingState = () => {
 };
 
 const showErrorState = () => {
-  suggestionResults = [];
-  activeIndex = -1;
+  searchState.suggestionResults = [];
+  searchState.activeIndex = -1;
   if (!resultsList || !cityInput) {
     return;
   }
@@ -2667,30 +1677,30 @@ const selectLocationFromCoords = async (coords) => {
 };
 
 const requestLocationBias = ({ onError } = {}) => {
-  if (locationBiasRequested || !("geolocation" in navigator)) {
+  if (searchState.locationBiasRequested || !("geolocation" in navigator)) {
     return;
   }
-  locationBiasRequested = true;
-  locationBiasLoading = true;
+  searchState.locationBiasRequested = true;
+  searchState.locationBiasLoading = true;
   updateGeolocateButton();
   renderActions(getActionItems());
   navigator.geolocation.getCurrentPosition(
     async (position) => {
-      userCoords = {
+      searchState.userCoords = {
         lat: position.coords.latitude,
         lon: position.coords.longitude,
       };
       try {
-        await selectLocationFromCoords(userCoords);
+        await selectLocationFromCoords(searchState.userCoords);
       } finally {
-        locationBiasLoading = false;
-        locationBiasRequested = false;
+        searchState.locationBiasLoading = false;
+        searchState.locationBiasRequested = false;
         updateGeolocateButton();
       }
     },
     (error) => {
-      locationBiasLoading = false;
-      locationBiasRequested = false;
+      searchState.locationBiasLoading = false;
+      searchState.locationBiasRequested = false;
       updateGeolocateButton();
       renderActions(getActionItems());
       if (typeof onError === "function") {
@@ -2701,46 +1711,12 @@ const requestLocationBias = ({ onError } = {}) => {
   );
 };
 
-recentLocations = loadRecentLocations();
-
-const distanceKm = (lat1, lon1, lat2, lon2) => {
-  const toRad = (value) => (value * Math.PI) / 180;
-  const earthRadius = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) ** 2;
-  return 2 * earthRadius * Math.asin(Math.sqrt(a));
-};
-
-const sortByDistance = (items) => {
-  if (!userCoords) {
-    return items;
-  }
-  return [...items].sort((a, b) => {
-    const distanceA = distanceKm(
-      userCoords.lat,
-      userCoords.lon,
-      a.latitude,
-      a.longitude
-    );
-    const distanceB = distanceKm(
-      userCoords.lat,
-      userCoords.lon,
-      b.latitude,
-      b.longitude
-    );
-    return distanceA - distanceB;
-  });
-};
+searchState.recentLocations = loadRecentLocations();
 
 const clearResults = () => {
-  suggestionResults = [];
-  rawResults = [];
-  activeIndex = -1;
+  searchState.suggestionResults = [];
+  searchState.rawResults = [];
+  searchState.activeIndex = -1;
   if (!resultsList || !resultsMeta || !resultsActions || !resultsPanel || !cityInput) {
     return;
   }
@@ -2778,8 +1754,8 @@ const renderResults = (groups, options = {}) => {
     return;
   }
   resultsList.innerHTML = "";
-  suggestionResults = [];
-  activeIndex = -1;
+  searchState.suggestionResults = [];
+  searchState.activeIndex = -1;
 
   const statusMessages = [...(options.statusMessages || [])];
   const hasItems = groups.some((group) => group.items.length);
@@ -2804,10 +1780,10 @@ const renderResults = (groups, options = {}) => {
 
 const buildResults = (
   results,
-  filterTokens = lastFilterTokens,
-  rawTokens = lastFilterTokensRaw
+  filterTokens = searchState.lastFilterTokens,
+  rawTokens = searchState.lastFilterTokensRaw
 ) => {
-  rawResults = results;
+  searchState.rawResults = results;
   const filteredResults = applyFilterTokens(results, filterTokens);
   const effectiveResults = filteredResults.length
     ? filteredResults
@@ -2822,23 +1798,23 @@ const buildResults = (
         (item) => normalizeCountryCode(item) !== regionCode
       )
     : effectiveResults;
-  const sortedLocal = sortByDistance(localResults);
-  const sortedAll = sortByDistance(effectiveResults);
+  const sortedLocal = sortByDistance(localResults, searchState.userCoords);
+  const sortedAll = sortByDistance(effectiveResults, searchState.userCoords);
   const filterHint =
     rawTokens.length && !filteredResults.length
-      ? `No matches for "${formatFilterTokens(
+      ? `No matches for "${formatFilterTokensForHint(
           rawTokens
         )}". Showing broader results.`
       : null;
-  const localityLabel = userCoords ? "nearby" : "local";
+  const localityLabel = searchState.userCoords ? "nearby" : "local";
   let displayResults = sortedAll;
   let toggleLabel = null;
   const statusMessages = [];
 
-  if (preferLocalResults && sortedLocal.length) {
+  if (searchState.preferLocalResults && sortedLocal.length) {
     displayResults = sortedLocal;
     toggleLabel = otherResults.length ? "Show worldwide results" : null;
-  } else if (preferLocalResults && !sortedLocal.length && regionCode) {
+  } else if (searchState.preferLocalResults && !sortedLocal.length && regionCode) {
     displayResults = sortedAll;
     statusMessages.push({
       text: `No ${localityLabel} matches. Showing worldwide results.`,
@@ -2847,7 +1823,7 @@ const buildResults = (
   } else {
     displayResults = sortedAll;
     if (sortedLocal.length && otherResults.length) {
-      toggleLabel = userCoords ? "Prefer nearby results" : "Prefer local results";
+      toggleLabel = searchState.userCoords ? "Prefer nearby results" : "Prefer local results";
       statusMessages.push({
         text: "Showing worldwide results.",
         type: "hint",
@@ -2861,7 +1837,7 @@ const buildResults = (
 
   const groups = groupResults(
     displayResults.slice(0, MAX_RESULTS),
-    lastNameQuery
+    searchState.lastNameQuery
   );
   renderResults(groups, {
     statusMessages,
@@ -2882,10 +1858,10 @@ const selectResult = (item, { persist = true, updateRecents = true } = {}) => {
   }
   updateClearButton();
   clearResults();
-  activeLocation = item;
+  searchState.activeLocation = item;
   updateDaylightForLocation(item);
   if (isCurrentLocation(item) && !item.reverseGeocodeFailed) {
-    fetchReverseGeocodeLocation(item);
+    void resolveCurrentLocationName(item);
   }
   console.log(`Selected city: ${label}`, {
     latitude: item.latitude,
@@ -2899,13 +1875,13 @@ const updateActiveOption = (nextIndex) => {
   }
   const options = resultsList.querySelectorAll(".location-option");
   if (!options.length) {
-    activeIndex = -1;
+    searchState.activeIndex = -1;
     cityInput.removeAttribute("aria-activedescendant");
     return;
   }
-  activeIndex = Math.max(0, Math.min(nextIndex, options.length - 1));
+  searchState.activeIndex = Math.max(0, Math.min(nextIndex, options.length - 1));
   options.forEach((option, index) => {
-    const isActive = index === activeIndex;
+    const isActive = index === searchState.activeIndex;
     option.classList.toggle("is-active", isActive);
     option.setAttribute("aria-selected", isActive ? "true" : "false");
     option.tabIndex = isActive ? 0 : -1;
@@ -2960,9 +1936,9 @@ const mapReverseGeocodeResponse = (data, location) => {
 };
 
 const clearReverseGeocodeCache = () => {
-  reverseGeocodeCache = null;
-  reverseGeocodeCacheKey = "";
-  reverseGeocodePromise = null;
+  reverseGeocodeState.cache = null;
+  reverseGeocodeState.cacheKey = "";
+  reverseGeocodeState.promise = null;
 };
 
 const fetchReverseGeocodeLocation = async (location) => {
@@ -2974,14 +1950,14 @@ const fetchReverseGeocodeLocation = async (location) => {
     return null;
   }
   const cacheKey = `${location.latitude},${location.longitude}`;
-  if (reverseGeocodeCache && reverseGeocodeCacheKey === cacheKey) {
-    return reverseGeocodeCache;
+  if (reverseGeocodeState.cache && reverseGeocodeState.cacheKey === cacheKey) {
+    return reverseGeocodeState.cache;
   }
-  if (reverseGeocodePromise && reverseGeocodeCacheKey === cacheKey) {
-    return reverseGeocodePromise;
+  if (reverseGeocodeState.promise && reverseGeocodeState.cacheKey === cacheKey) {
+    return reverseGeocodeState.promise;
   }
-  reverseGeocodeCacheKey = cacheKey;
-  reverseGeocodePromise = (async () => {
+  reverseGeocodeState.cacheKey = cacheKey;
+  reverseGeocodeState.promise = (async () => {
     const url = `${REVERSE_GEOCODE_URL}?latitude=${location.latitude}&longitude=${location.longitude}&localityLanguage=${encodeURIComponent(
       languageCode
     )}`;
@@ -2997,17 +1973,27 @@ const fetchReverseGeocodeLocation = async (location) => {
       return null;
     }
   })();
-  const resolved = await reverseGeocodePromise;
-  reverseGeocodePromise = null;
-  reverseGeocodeCache = resolved;
+  const resolved = await reverseGeocodeState.promise;
+  reverseGeocodeState.promise = null;
+  reverseGeocodeState.cache = resolved;
   return resolved;
 };
 
-const fetchSuggestions = async (nameQuery, filterTokens, rawTokens) => {
-  if (fetchController) {
-    fetchController.abort();
+const resolveCurrentLocationName = async (location) => {
+  if (!isCurrentLocation(location) || location?.reverseGeocodeFailed) {
+    return;
   }
-  fetchController = new AbortController();
+  const resolved = await fetchReverseGeocodeLocation(location);
+  if (resolved) {
+    selectResult(resolved, { persist: true, updateRecents: false });
+  }
+};
+
+const fetchSuggestions = async (nameQuery, filterTokens, rawTokens) => {
+  if (searchState.fetchController) {
+    searchState.fetchController.abort();
+  }
+  searchState.fetchController = new AbortController();
   showLoadingState();
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
     nameQuery
@@ -3015,7 +2001,7 @@ const fetchSuggestions = async (nameQuery, filterTokens, rawTokens) => {
     languageCode
   )}&format=json`;
   try {
-    const response = await fetch(url, { signal: fetchController.signal });
+    const response = await fetch(url, { signal: searchState.fetchController.signal });
     if (!response.ok) {
       throw new Error("Failed to fetch city suggestions.");
     }
@@ -3072,7 +2058,7 @@ const initializeLocation = () => {
   const storedLocation = loadStoredLocation();
   if (storedLocation) {
     if (isCurrentLocation(storedLocation)) {
-      userCoords = {
+      searchState.userCoords = {
         lat: storedLocation.latitude,
         lon: storedLocation.longitude,
       };
@@ -3111,42 +2097,41 @@ const handleInput = () => {
     return;
   }
   const query = cityInput.value.trim();
-  lastQuery = query;
   const { nameQuery, filterTokens, rawFilterTokens } = parseQuery(query);
-  lastNameQuery = nameQuery;
-  lastFilterTokens = filterTokens;
-  lastFilterTokensRaw = rawFilterTokens;
+  searchState.lastNameQuery = nameQuery;
+  searchState.lastFilterTokens = filterTokens;
+  searchState.lastFilterTokensRaw = rawFilterTokens;
   updateClearButton();
   if (nameQuery.length < 2) {
-    if (debounceId) {
-      clearTimeout(debounceId);
-      debounceId = null;
+    if (searchState.debounceId) {
+      clearTimeout(searchState.debounceId);
+      searchState.debounceId = null;
     }
-    if (fetchController) {
-      fetchController.abort();
-      fetchController = null;
+    if (searchState.fetchController) {
+      searchState.fetchController.abort();
+      searchState.fetchController = null;
     }
-    if (recentLocations.length) {
+    if (searchState.recentLocations.length) {
       showRecentResults();
     } else {
       clearResults();
     }
     return;
   }
-  if (debounceId) {
-    clearTimeout(debounceId);
+  if (searchState.debounceId) {
+    clearTimeout(searchState.debounceId);
   }
-  debounceId = window.setTimeout(() => {
+  searchState.debounceId = window.setTimeout(() => {
     fetchSuggestions(nameQuery, filterTokens, rawFilterTokens);
   }, 250);
 };
 
 const getSharePrivacySetting = () =>
-  sharePrivacyToggle ? sharePrivacyToggle.checked : sharePrivacyEnabled;
+  sharePrivacyToggle ? sharePrivacyToggle.checked : shareState.privacyEnabled;
 
 const captureShareSnapshot = () => {
-  const baseSnapshot = shareSnapshot ? { ...shareSnapshot } : {};
-  shareModalSnapshot = {
+  const baseSnapshot = shareState.snapshot ? { ...shareState.snapshot } : {};
+  shareState.modalSnapshot = {
     ...baseSnapshot,
     headline: getText(headline),
     lede: getText(lede),
@@ -3171,10 +2156,10 @@ const resolveShareLocationLabel = async (location) => {
 };
 
 const buildShareMilestoneLine = () => {
-  if (!upcomingMilestones.length) {
+  if (!milestoneState.upcoming.length) {
     return "📈 Upcoming milestone to be announced";
   }
-  const active = upcomingMilestones[milestoneIndex] || upcomingMilestones[0];
+  const active = milestoneState.upcoming[milestoneState.index] || milestoneState.upcoming[0];
   if (!active) {
     return "📈 Upcoming milestone to be announced";
   }
@@ -3187,14 +2172,14 @@ const buildShareMilestoneLine = () => {
 };
 
 const buildShareMessage = async () => {
-  const snapshot = shareModalSnapshot || shareSnapshot;
+  const snapshot = shareState.modalSnapshot || shareState.snapshot;
   const timeZone = snapshot?.timeZone || FALLBACK_TIMEZONE;
   const dateParts = snapshot?.dateParts || getActiveDateParts(timeZone);
   const dateLabel = formatShareDateFromParts(dateParts) || "—";
   const headlineText =
     snapshot?.headline || getText(headline) || "Sunshine Optimist";
   const locationLabel = await resolveShareLocationLabel(
-    snapshot?.location || activeLocation
+    snapshot?.location || searchState.activeLocation
   );
   const progressLine = buildShareProgressLine(snapshot);
   const daylightText = Number.isFinite(snapshot?.todayDaylight)
@@ -3216,15 +2201,15 @@ const buildShareMessage = async () => {
 };
 
 const setSharePreviewText = (text) => {
-  shareText = text || "";
-  setText(sharePreview, shareText);
+  shareState.text = text || "";
+  setText(sharePreview, shareState.text);
 };
 
 const refreshSharePreview = async () => {
   if (!sharePreview) {
     return;
   }
-  shareText = "";
+  shareState.text = "";
   setText(sharePreview, "Preparing your share...");
   try {
     const message = await buildShareMessage();
@@ -3254,7 +2239,7 @@ const closeShareModal = () => {
   if (!shareModal) {
     return;
   }
-  shareModalSnapshot = null;
+  shareState.modalSnapshot = null;
   if (typeof shareModal.close === "function") {
     shareModal.close();
   } else {
@@ -3263,8 +2248,8 @@ const closeShareModal = () => {
 };
 
 const ensureShareText = async () => {
-  if (shareText) {
-    return shareText;
+  if (shareState.text) {
+    return shareState.text;
   }
   const message = await buildShareMessage();
   setSharePreviewText(message);
@@ -3297,28 +2282,28 @@ if (cityInput) {
       clearResults();
       return;
     }
-    if (!suggestionResults.length) {
+    if (!searchState.suggestionResults.length) {
       return;
     }
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      updateActiveOption(activeIndex + 1);
+      updateActiveOption(searchState.activeIndex + 1);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      updateActiveOption(activeIndex - 1);
+      updateActiveOption(searchState.activeIndex - 1);
     } else if (event.key === "Home") {
       event.preventDefault();
       updateActiveOption(0);
     } else if (event.key === "End") {
       event.preventDefault();
-      updateActiveOption(suggestionResults.length - 1);
+      updateActiveOption(searchState.suggestionResults.length - 1);
     } else if (event.key === "Enter") {
-      if (activeIndex >= 0) {
+      if (searchState.activeIndex >= 0) {
         event.preventDefault();
-        selectResult(suggestionResults[activeIndex]);
-      } else if (suggestionResults.length) {
+        selectResult(searchState.suggestionResults[searchState.activeIndex]);
+      } else if (searchState.suggestionResults.length) {
         event.preventDefault();
-        selectResult(suggestionResults[0]);
+        selectResult(searchState.suggestionResults[0]);
       }
     }
   });
@@ -3327,12 +2312,11 @@ if (cityInput) {
 if (clearButton && cityInput) {
   clearButton.addEventListener("click", () => {
     setInputValue(cityInput, "");
-    lastQuery = "";
-    lastNameQuery = "";
-    lastFilterTokens = [];
-    lastFilterTokensRaw = [];
+    searchState.lastNameQuery = "";
+    searchState.lastFilterTokens = [];
+    searchState.lastFilterTokensRaw = [];
     updateClearButton();
-    if (recentLocations.length) {
+    if (searchState.recentLocations.length) {
       showRecentResults();
     } else {
       clearResults();
@@ -3372,11 +2356,11 @@ if (dateInput) {
     ) {
       return;
     }
-    lastDateKeydownAt = Date.now();
+    dateState.lastKeydownAt = Date.now();
     clearDateCommitTimeout();
   });
   dateInput.addEventListener("pointerdown", () => {
-    lastDateKeydownAt = 0;
+    dateState.lastKeydownAt = 0;
     clearDateCommitTimeout();
   });
   dateInput.addEventListener("blur", () => {
@@ -3388,25 +2372,25 @@ if (dateInput) {
 if (dateReset) {
   dateReset.addEventListener("click", () => {
     clearDateCommitTimeout();
-    lastDateKeydownAt = 0;
+    dateState.lastKeydownAt = 0;
     const didChange = applyDateSelection(null);
-    const timeZone = activeLocation?.timezone || FALLBACK_TIMEZONE;
+    const timeZone = searchState.activeLocation?.timezone || FALLBACK_TIMEZONE;
     syncDatePicker(timeZone);
-    if (activeLocation && didChange) {
-      updateDaylightForLocation(activeLocation);
+    if (searchState.activeLocation && didChange) {
+      updateDaylightForLocation(searchState.activeLocation);
     }
   });
 }
 
 if (milestoneToggle) {
   milestoneToggle.addEventListener("click", () => {
-    if (!upcomingMilestones.length) {
+    if (!milestoneState.upcoming.length) {
       return;
     }
-    milestoneIndex = (milestoneIndex + 1) % upcomingMilestones.length;
+    milestoneState.index = (milestoneState.index + 1) % milestoneState.upcoming.length;
     updateMilestoneCard(
-      upcomingMilestones,
-      milestoneTimeZone || FALLBACK_TIMEZONE,
+      milestoneState.upcoming,
+      milestoneState.timeZone || FALLBACK_TIMEZONE,
       { resetIndex: false }
     );
   });
@@ -3422,7 +2406,7 @@ if (resultsList) {
       return;
     }
     const index = Number(target.dataset.index);
-    const item = suggestionResults[index];
+    const item = searchState.suggestionResults[index];
     if (item) {
       selectResult(item);
     }
@@ -3439,20 +2423,20 @@ if (resultsList) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       const index = Number(target.dataset.index);
-      const item = suggestionResults[index];
+      const item = searchState.suggestionResults[index];
       if (item) {
         selectResult(item);
       }
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
-      updateActiveOption(activeIndex + 1);
+      updateActiveOption(searchState.activeIndex + 1);
       const options = resultsList.querySelectorAll(".location-option");
-      options[activeIndex]?.focus();
+      options[searchState.activeIndex]?.focus();
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      updateActiveOption(activeIndex - 1);
+      updateActiveOption(searchState.activeIndex - 1);
       const options = resultsList.querySelectorAll(".location-option");
-      options[activeIndex]?.focus();
+      options[searchState.activeIndex]?.focus();
     } else if (event.key === "Escape") {
       clearResults();
       cityInput?.focus();
@@ -3471,15 +2455,13 @@ if (resultsActions) {
     }
     const actionType = action.dataset.action;
     if (actionType === "toggle-preference") {
-      preferLocalResults = !preferLocalResults;
-      if (rawResults.length) {
-        buildResults(rawResults, lastFilterTokens, lastFilterTokensRaw);
+      searchState.preferLocalResults = !searchState.preferLocalResults;
+      if (searchState.rawResults.length) {
+        buildResults(searchState.rawResults, searchState.lastFilterTokens, searchState.lastFilterTokensRaw);
       }
-    } else if (actionType === "geolocate") {
-      requestLocationBias();
     } else if (actionType === "retry") {
-      if (lastNameQuery.length >= 2) {
-        fetchSuggestions(lastNameQuery, lastFilterTokens, lastFilterTokensRaw);
+      if (searchState.lastNameQuery.length >= 2) {
+        fetchSuggestions(searchState.lastNameQuery, searchState.lastFilterTokens, searchState.lastFilterTokensRaw);
       } else {
         clearResults();
       }
@@ -3506,13 +2488,13 @@ window.addEventListener("resize", updateResultsMaxHeight);
 syncDatePicker(FALLBACK_TIMEZONE);
 updateGeolocateButton();
 initializeLocation();
-sharePrivacyEnabled = loadSharePrivacyPreference();
+shareState.privacyEnabled = loadSharePrivacyPreference();
 
 if (sharePrivacyToggle) {
-  sharePrivacyToggle.checked = sharePrivacyEnabled;
+  sharePrivacyToggle.checked = shareState.privacyEnabled;
   sharePrivacyToggle.addEventListener("change", () => {
-    sharePrivacyEnabled = sharePrivacyToggle.checked;
-    saveSharePrivacyPreference(sharePrivacyEnabled);
+    shareState.privacyEnabled = sharePrivacyToggle.checked;
+    saveSharePrivacyPreference(shareState.privacyEnabled);
     if (shareModal?.open || shareModal?.hasAttribute("open")) {
       refreshSharePreview();
     }

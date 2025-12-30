@@ -1,4 +1,5 @@
 import { clampValue } from "./utils.js";
+import { getAdjustedMonth } from "./date-utils.js";
 
 const PLACEHOLDER_PATTERN = /\{##[^}]*\}/;
 const PLACEHOLDER_PATTERN_GLOBAL = /\{##([^}]*)\}/g;
@@ -476,11 +477,6 @@ const evaluateRequirement = (requirement, data) => {
   return compareRequirementValues(left, match[2], right);
 };
 
-const shiftMonth = (month, offset) => ((month - 1 + offset) % 12) + 1;
-
-const getAdjustedMonth = (month, hemisphere) =>
-  hemisphere === "south" ? shiftMonth(month, 6) : month;
-
 const hasPlaceholder = (text) => PLACEHOLDER_PATTERN.test(text || "");
 
 export const getOptimisticMessageOptions = (data, month, hemisphere) => {
@@ -513,12 +509,4 @@ export const getOptimisticMessageOptions = (data, month, hemisphere) => {
     headline: fillMessageTemplate(entry.message.headline, entry.value),
     lede: fillMessageTemplate(entry.message.lede, entry.value),
   }));
-};
-
-export const selectOptimisticMessage = (data, month, hemisphere) => {
-  const options = getOptimisticMessageOptions(data, month, hemisphere);
-  if (!options.length) {
-    return null;
-  }
-  return options[Math.floor(Math.random() * options.length)];
 };
