@@ -163,6 +163,15 @@ const optimisticState = {
   swapId: 0,
   swapTimeoutId: null,
 };
+const optimisticDebugState = {
+  validOptions: [],
+  displayedOptions: [],
+  data: null,
+  month: null,
+  hemisphere: null,
+  reason: "uninitialized",
+  lastUpdatedAt: null,
+};
 const shareState = {
   snapshot: null,
   modalSnapshot: null,
@@ -320,6 +329,51 @@ const formatComparisonTooltip = (value, parts, timeZone, referenceYear) => {
     return "";
   }
   return `${value} on ${dateLabel}`;
+};
+
+const formatOptimisticLogHeadline = (headline) => {
+  const trimmed = (headline || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+};
+
+const buildOptimisticLogLine = (entry) => {
+  if (!entry) {
+    return "-";
+  }
+  const headline = formatOptimisticLogHeadline(entry.headline);
+  const lede = (entry.lede || "").trim();
+  if (headline && lede) {
+    return `- ${headline} ${lede}`;
+  }
+  if (headline) {
+    return `- ${headline}`;
+  }
+  if (lede) {
+    return `- ${lede}`;
+  }
+  return "-";
+};
+
+const logOptimisticMessages = () => {
+  if (typeof console === "undefined" || typeof console.log !== "function") {
+    return;
+  }
+  const location = searchState.activeLocation;
+  const timeZone = location?.timezone || FALLBACK_TIMEZONE;
+  const dateParts = getActiveDateParts(timeZone);
+  const locationLabel = location ? formatSelectedLocation(location) : "";
+  const dateLabel = dateParts ? formatLongDateFromParts(dateParts, timeZone) : "";
+  const list = optimisticDebugState.validOptions.length
+    ? optimisticDebugState.validOptions
+    : optimisticDebugState.displayedOptions;
+  const header = `Optimistic messages for ${
+    locationLabel || "Unknown location"
+  } on ${dateLabel || "Unknown date"}:`;
+  const lines = list.map(buildOptimisticLogLine);
+  console.log([header, ...lines].join("\n"));
 };
 
 const OPTIMISTIC_ROTATION_MS = 15000;
@@ -627,21 +681,36 @@ document.addEventListener("keydown", (event) => {
 });
 
 const updateOptimisticMessage = (data, month, hemisphere) => {
+  optimisticDebugState.data = data;
+  optimisticDebugState.month = month;
+  optimisticDebugState.hemisphere = hemisphere;
+  optimisticDebugState.lastUpdatedAt = new Date();
   if (
     data.sunset_today == null ||
     Number.isNaN(data.sunset_today) ||
     data.daylight_today == null ||
     Number.isNaN(data.daylight_today)
   ) {
+    optimisticDebugState.validOptions = [];
+    optimisticDebugState.displayedOptions = [OPTIMISTIC_POLAR_COPY];
+    optimisticDebugState.reason = "polar";
     startOptimisticRotation([OPTIMISTIC_POLAR_COPY]);
+    logOptimisticMessages();
     return;
   }
   const options = getOptimisticMessageOptions(data, month, hemisphere);
+  optimisticDebugState.validOptions = options;
   if (!options.length) {
+    optimisticDebugState.displayedOptions = [OPTIMISTIC_FALLBACK_COPY];
+    optimisticDebugState.reason = "fallback";
     startOptimisticRotation([OPTIMISTIC_FALLBACK_COPY]);
+    logOptimisticMessages();
     return;
   }
+  optimisticDebugState.displayedOptions = options;
+  optimisticDebugState.reason = "ok";
   startOptimisticRotation(options);
+  logOptimisticMessages();
 };
 
 const buildMilestone = ({
@@ -1859,14 +1928,14 @@ const selectResult = (item, { persist = true, updateRecents = true } = {}) => {
   updateClearButton();
   clearResults();
   searchState.activeLocation = item;
-  updateDaylightForLocation(item);
-  if (isCurrentLocation(item) && !item.reverseGeocodeFailed) {
-    void resolveCurrentLocationName(item);
-  }
   console.log(`Selected city: ${label}`, {
     latitude: item.latitude,
     longitude: item.longitude,
   });
+  updateDaylightForLocation(item);
+  if (isCurrentLocation(item) && !item.reverseGeocodeFailed) {
+    void resolveCurrentLocationName(item);
+  }
 };
 
 const updateActiveOption = (nextIndex) => {
@@ -2484,6 +2553,38 @@ document.addEventListener("focusin", (event) => {
 });
 
 window.addEventListener("resize", updateResultsMaxHeight);
+
+const getOptimisticDebugSnapshot = () => ({
+  validOptions: optimisticDebugState.validOptions,
+  displayedOptions: optimisticDebugState.displayedOptions,
+  data: optimisticDebugState.data,
+  month: optimisticDebugState.month,
+  hemisphere: optimisticDebugState.hemisphere,
+  reason: optimisticDebugState.reason,
+  lastUpdatedAt: optimisticDebugState.lastUpdatedAt,
+});
+
+window.SunshineOptimistDebug = {
+  getOptimisticMessages: getOptimisticDebugSnapshot,
+  printOptimisticMessages: () => {
+    const snapshot = getOptimisticDebugSnapshot();
+    const list = snapshot.validOptions.length
+      ? snapshot.validOptions
+      : snapshot.displayedOptions;
+    if (typeof console.table === "function") {
+      console.table(
+        list.map((item, index) => ({
+          index,
+          headline: item?.headline || "",
+          lede: item?.lede || "",
+        }))
+      );
+    } else {
+      console.log(list);
+    }
+    return snapshot;
+  },
+};
 
 syncDatePicker(FALLBACK_TIMEZONE);
 updateGeolocateButton();

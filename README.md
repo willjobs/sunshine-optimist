@@ -49,6 +49,17 @@ The headline + lede are computed in `scripts/app.js` from a structured catalog i
 7. Finally, if today matches a milestone date, the milestone copy overrides the
    optimistic message for that day.
 
+## Debugging optimistic messages
+
+- The console logs the full list of optimistic messages on page load, when a
+  new location is selected, and when the date changes, in the format:
+  `Optimistic messages for {LOCATION} on {DATE}:`.
+- `window.SunshineOptimistDebug.printOptimisticMessages()` reprints the current
+  list in the same format.
+- `window.SunshineOptimistDebug.getOptimisticMessages()` returns the last
+  computed data, valid options, displayed options, and the reason (`ok`,
+  `fallback`, or `polar`).
+
 ## Project layout
 
 - `index.html` — markup and structural layout.

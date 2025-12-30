@@ -70,6 +70,9 @@ entirely in the browser with no backend services.
 ## Development and contributions
 - This is a static site with ES modules. Run a local server (for example
   `python3 -m http.server`) and open `http://localhost:8000`.
+- The console logs the full optimistic message list whenever the location/date
+  recalculates. `window.SunshineOptimistDebug` exposes
+  `getOptimisticMessages()` and `printOptimisticMessages()` for ad-hoc checks.
 - When adding messages in `scripts/messages.js`, ensure required `data_needs`
   keys exist in the `messageData` object in `scripts/app.js`.
 - When adding new milestones, update `scripts/milestones.js` or the milestone
