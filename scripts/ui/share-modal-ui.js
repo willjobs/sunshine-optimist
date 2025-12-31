@@ -2,7 +2,7 @@
  * Share modal functionality
  */
 
-import { setText, getText } from "../dom-utils.js";
+import { setText, getText } from "../utils/dom-utils.js";
 import {
   getShareSnapshot,
   setShareSnapshot,
@@ -25,10 +25,10 @@ import {
   formatSharePercent,
   lowerCaseFirstLetter,
 } from "../formatters/formatters.js";
-import { formatSelectedLocation } from "../location-utils.js";
-import { getAdjustedMonth } from "../date-utils.js";
+import { formatSelectedLocation } from "../utils/location-utils.js";
+import { getAdjustedMonth } from "../utils/date-utils.js";
 import { fetchReverseGeocodeLocation } from "../services/reverse-geocode-service.js";
-import { clampValue } from "../utils.js";
+import { clampValue } from "../utils/utils.js";
 
 const CURRENT_LOCATION_LABEL = "Current Location";
 

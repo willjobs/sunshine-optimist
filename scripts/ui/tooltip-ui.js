@@ -2,7 +2,7 @@
  * Delta tooltip behavior for stats comparison references
  */
 
-import { getText } from "../dom-utils.js";
+import { getText } from "../utils/dom-utils.js";
 
 /**
  * Close all delta tooltips except the specified one

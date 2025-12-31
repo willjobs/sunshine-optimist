@@ -14,14 +14,14 @@ import {
   getDaysInYear,
   getLocalNoonDateFromParts,
   getMinutesSinceMidnight,
-} from "../date-utils.js";
-import { setText } from "../dom-utils.js";
-import { createAstronomyContext } from "../astronomy-utils.js";
+} from "../utils/date-utils.js";
+import { setText } from "../utils/dom-utils.js";
+import { createAstronomyContext } from "../utils/astronomy-utils.js";
 import {
   DAYLIGHT_GAIN_MILESTONES,
   SUNSET_THRESHOLD_MILESTONES,
 } from "../milestones.js";
-import { clampValue } from "../utils.js";
+import { clampValue } from "../utils/utils.js";
 import {
   formatDuration,
   formatDeltaStatement,

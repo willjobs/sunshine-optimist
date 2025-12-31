@@ -2,7 +2,7 @@
  * Optimistic message display and rotation
  */
 
-import { setText } from "../dom-utils.js";
+import { setText } from "../utils/dom-utils.js";
 import {
   getOptimisticOptions,
   setOptimisticOptions,

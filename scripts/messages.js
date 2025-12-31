@@ -1,5 +1,5 @@
-import { clampValue } from "./utils.js";
-import { getAdjustedMonth } from "./date-utils.js";
+import { clampValue } from "./utils/utils.js";
+import { getAdjustedMonth } from "./utils/date-utils.js";
 import { formatPlaceholderValue } from "./formatters/formatters.js";
 
 const PLACEHOLDER_PATTERN = /\{##[^}]*\}/;

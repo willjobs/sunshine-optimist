@@ -3,7 +3,7 @@
  * All display formatting logic is centralized here
  */
 
-import { clampValue } from "../utils.js";
+import { clampValue } from "../utils/utils.js";
 
 // ============================================================================
 // Duration Formatting

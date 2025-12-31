@@ -4,7 +4,7 @@
  * Handles city search, results rendering, geolocation, and location selection.
  */
 
-import { setInputValue } from "../dom-utils.js";
+import { setInputValue } from "../utils/dom-utils.js";
 import {
   applyFilterTokens,
   formatFilterTokensForHint,
@@ -14,7 +14,7 @@ import {
   normalizeCountryCode,
   parseQuery,
   sortByDistance,
-} from "../location-utils.js";
+} from "../utils/location-utils.js";
 import {
   getSuggestionResults,
   setSuggestionResults,

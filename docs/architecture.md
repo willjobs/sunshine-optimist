@@ -26,13 +26,14 @@ scripts/
 │   └── storage-service.js    # localStorage abstraction
 ├── formatters/
 │   └── formatters.js         # All formatting functions consolidated
+├── utils/
+│   ├── astronomy-utils.js    # Astronomy Engine wrapper with caching
+│   ├── date-utils.js         # Date/time utilities with cached formatters
+│   ├── location-utils.js     # Location formatting and filtering
+│   ├── dom-utils.js          # Basic DOM helpers
+│   └── utils.js              # General utilities
 ├── messages.js               # Optimistic message templates
-├── milestones.js             # Milestone definitions
-├── astronomy-utils.js        # Astronomy Engine wrapper with caching
-├── date-utils.js             # Date/time utilities with cached formatters
-├── location-utils.js         # Location formatting and filtering
-├── dom-utils.js              # Basic DOM helpers
-└── utils.js                  # General utilities
+└── milestones.js             # Milestone definitions
 ```
 
 ## Module Responsibilities
@@ -48,9 +49,11 @@ scripts/
 | `services/*` | External API calls |
 | `ui/*` | UI component logic |
 | `formatters/formatters.js` | All display formatting |
-| `astronomy-utils.js` | Sun/season calculations with caching and async APIs |
-| `date-utils.js` | Date/time manipulation with cached formatters |
-| `location-utils.js` | Location parsing and formatting |
+| `utils/astronomy-utils.js` | Sun/season calculations with caching and async APIs |
+| `utils/date-utils.js` | Date/time manipulation with cached formatters |
+| `utils/location-utils.js` | Location parsing and formatting |
+| `utils/dom-utils.js` | Basic DOM helpers |
+| `utils/utils.js` | General utilities |
 | `messages.js` | Message template definitions |
 | `milestones.js` | Milestone definitions |
 

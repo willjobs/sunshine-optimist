@@ -11,6 +11,7 @@ A static, single-page web app that turns sunrise/sunset calculations into optimi
 - `scripts/app.js` — thin orchestrator wiring controllers together
 - `scripts/controllers/` — domain logic (date, location, daylight, messages)
 - `scripts/state/app-state.js` — centralized state with getter/setter functions
+- `scripts/utils/` — utility modules (astronomy, date, location, dom)
 - `scripts/messages.js` — optimistic message templates
 - `scripts/milestones.js` — milestone definitions
 

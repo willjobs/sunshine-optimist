@@ -19,7 +19,7 @@ import {
   formatOptimisticLogHeadline,
   buildOptimisticLogLine,
 } from "../formatters/formatters.js";
-import { formatSelectedLocation } from "../location-utils.js";
+import { formatSelectedLocation } from "../utils/location-utils.js";
 
 /**
  * Log optimistic messages to the console for debugging

@@ -35,9 +35,9 @@ scripts/
 ├── services/           # API calls (geocoding, reverse geocode, storage)
 ├── ui/                 # UI components (messages, milestones, share, tooltips)
 ├── formatters/         # Display formatting
+├── utils/              # Utilities (astronomy, date, location, dom)
 ├── messages.js         # Optimistic message catalog
-├── milestones.js       # Milestone definitions
-└── *-utils.js          # Utilities (astronomy, date, location, dom)
+└── milestones.js       # Milestone definitions
 ```
 
 ## Data Sources

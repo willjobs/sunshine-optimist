@@ -5,8 +5,8 @@
  * and coordinates between UI modules, services, and state management.
  */
 
-import { createDateFormatter } from "./date-utils.js";
-import { setInputValue } from "./dom-utils.js";
+import { createDateFormatter } from "./utils/date-utils.js";
+import { setInputValue } from "./utils/dom-utils.js";
 import {
   getSuggestionResults,
   getActiveIndex,

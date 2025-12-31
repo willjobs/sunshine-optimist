@@ -2,7 +2,7 @@
  * Milestone card rendering and interaction
  */
 
-import { setText } from "../dom-utils.js";
+import { setText } from "../utils/dom-utils.js";
 import { formatMilestoneAway } from "../formatters/formatters.js";
 import {
   getUpcomingMilestones,
@@ -13,7 +13,7 @@ import {
   getLastCelebratedKey,
   setLastCelebratedKey,
 } from "../state/app-state.js";
-import { formatDateInputValue } from "../date-utils.js";
+import { formatDateInputValue } from "../utils/date-utils.js";
 import { launchConfetti } from "./confetti-ui.js";
 
 /**
