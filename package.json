@@ -1,0 +1,23 @@
+{
+  "name": "sunshine-optimist",
+  "version": "1.0.0",
+  "description": "A single-page web app that turns sunrise and sunset calculations into upbeat, seasonal insights about daylight for any city.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:unit": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^25.0.3",
+    "vitest": "^4.0.16"
+  }
+}

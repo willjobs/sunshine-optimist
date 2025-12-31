@@ -52,10 +52,58 @@ For detailed architecture, see [docs/architecture.md](docs/architecture.md).
 
 ## Development
 
-Run locally:
+### Running Locally
+
+The app is a static site with no build step. Open `index.html` directly in a browser, or use a local server:
 ```bash
 python3 -m http.server
 ```
+
+### Testing
+
+The project uses **Playwright** for end-to-end tests and **Vitest** for unit tests.
+
+#### Running Tests
+
+After completing a task, run tests to verify nothing broke:
+
+```bash
+# Run Playwright E2E tests (headless)
+npm test
+
+# Run Playwright with visible browser
+npm run test:headed
+
+# Run Playwright in interactive UI mode
+npm run test:ui
+
+# Run Vitest unit tests
+npm run test:unit
+```
+
+**Important**: The Playwright config automatically starts a Python http server on port 9247 before running tests. You don't need to start it manually.
+
+#### Playwright Test Best Practices
+
+1. **Always run tests after completing a task** to catch regressions
+2. **Take screenshots** to debug test failures:
+   ```bash
+   npx playwright test --screenshot=on
+   ```
+3. **Check the console** for warnings or errors during tests. Address any console errors before considering a task complete.
+4. **Use the HTML report** to view detailed results:
+   ```bash
+   npx playwright show-report
+   ```
+
+#### Writing Tests
+
+- **Playwright** ([tests/](tests/)): Test user flows, UI interactions, and integration with external services
+- **Vitest** (files ending in `.test.js`): Test utility functions, formatters, and isolated logic
+
+See [tests/example.spec.js](tests/example.spec.js) for Playwright examples.
+
+### Debugging
 
 Debug messages via console or `window.SunshineOptimistDebug.printOptimisticMessages()`.
 
