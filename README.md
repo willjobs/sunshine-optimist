@@ -68,10 +68,13 @@ via the controllers in `scripts/controllers/`. The selection flow is:
 - `scripts/controllers/` — domain-specific controllers:
   - `date-controller.js` — date picker state management and commit handling.
   - `location-controller.js` — city search, geolocation, results rendering.
-  - `daylight-controller.js` — sun metrics, deltas, milestones, stats UI updates.
+  - `daylight-controller.js` — async sun metrics, deltas, milestones, stats UI updates. Uses async APIs to avoid UI jank during full-year calculations.
   - `optimistic-controller.js` — optimistic message selection and rotation.
+- `scripts/formatters/formatters.js` — consolidated formatting functions for durations, deltas, placeholders, and share text.
 - `scripts/messages.js` — optimistic message templates and selection logic.
 - `scripts/milestones.js` — milestone definitions and copy.
+- `scripts/astronomy-utils.js` — Astronomy Engine wrapper with caching and async APIs for heavy calculations.
+- `scripts/date-utils.js` — date/time utilities with cached `Intl.DateTimeFormat` instances.
 - `scripts/utils.js` — shared helpers.
 - `astronomy-engine/astronomy.browser.min.js` — bundled Astronomy Engine for solar
   events and seasonal calculations.

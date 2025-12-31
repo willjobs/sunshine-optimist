@@ -1,5 +1,6 @@
 import { clampValue } from "./utils.js";
 import { getAdjustedMonth } from "./date-utils.js";
+import { formatPlaceholderValue } from "./formatters/formatters.js";
 
 const PLACEHOLDER_PATTERN = /\{##[^}]*\}/;
 const PLACEHOLDER_PATTERN_GLOBAL = /\{##([^}]*)\}/g;
@@ -20,76 +21,6 @@ const getDelta = (current, previous, allowZero = false) => {
   }
   const delta = current - previous;
   return getPositiveNumber(delta, allowZero);
-};
-
-const formatMinutesValue = (value) => {
-  if (!Number.isFinite(value)) {
-    return "";
-  }
-  const rounded = Math.round(Math.abs(value));
-  if (rounded > 60) {
-    const hours = Math.floor(rounded / 60);
-    const mins = rounded % 60;
-    const hourLabel = hours === 1 ? "hr" : "hrs";
-    if (mins === 0) {
-      return `${hours} ${hourLabel}`;
-    }
-    const minLabel = mins === 1 ? "min" : "mins";
-    return `${hours} ${hourLabel} ${mins} ${minLabel}`;
-  }
-  const minLabel = rounded === 1 ? "minute" : "minutes";
-  return `${rounded} ${minLabel}`;
-};
-
-const formatDaysValue = (value) => {
-  if (!Number.isFinite(value)) {
-    return "";
-  }
-  const rounded = Math.round(Math.abs(value));
-  if (rounded > 14) {
-    const weeks = Math.ceil(rounded / 7);
-    const weekLabel = weeks === 1 ? "week" : "weeks";
-    return `less than ${weeks} ${weekLabel}`;
-  }
-  const dayLabel = rounded === 1 ? "day" : "days";
-  return `${rounded} ${dayLabel}`;
-};
-
-const formatWeeksValue = (value) => {
-  if (!Number.isFinite(value)) {
-    return "";
-  }
-  const rounded = Math.round(Math.abs(value));
-  const weekLabel = rounded === 1 ? "week" : "weeks";
-  return `${rounded} ${weekLabel}`;
-};
-
-const formatPercentValue = (value) => {
-  if (!Number.isFinite(value)) {
-    return "";
-  }
-  return `${Math.round(value)}%`;
-};
-
-const formatPlaceholderValue = (token, value) => {
-  const normalized = token.trim().toLowerCase();
-  if (normalized.includes("%")) {
-    return formatPercentValue(value);
-  }
-  if (normalized.includes("day")) {
-    return formatDaysValue(value);
-  }
-  if (normalized.includes("week")) {
-    return formatWeeksValue(value);
-  }
-  if (normalized.includes("minute")) {
-    const minutesText = formatMinutesValue(value);
-    if (normalized.includes("more")) {
-      return `${minutesText} more`;
-    }
-    return minutesText;
-  }
-  return String(value);
 };
 
 const fillMessageTemplate = (text, value) => {

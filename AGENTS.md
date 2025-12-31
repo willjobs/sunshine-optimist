@@ -16,7 +16,7 @@ scripts/
 ├── controllers/
 │   ├── date-controller.js    # Date picker state management
 │   ├── location-controller.js # City search, geolocation, results
-│   ├── daylight-controller.js # Sun calculations, milestones, stats
+│   ├── daylight-controller.js # Async sun calculations, milestones, stats
 │   └── optimistic-controller.js # Message selection and rotation
 ├── state/
 │   └── app-state.js          # Centralized state management
@@ -25,7 +25,6 @@ scripts/
 │   ├── message-ui.js         # Optimistic message rotation
 │   ├── milestone-ui.js       # Milestone card rendering
 │   ├── share-modal-ui.js     # Share modal functionality
-│   ├── stats-ui.js           # Stats panel rendering
 │   └── tooltip-ui.js         # Delta tooltip behavior
 ├── services/
 │   ├── geocoding-service.js  # Open-Meteo API for city search
@@ -33,10 +32,10 @@ scripts/
 │   └── storage-service.js    # localStorage abstraction
 ├── formatters/
 │   └── formatters.js         # All formatting functions consolidated
-├── messages.js               # Optimistic message templates
+├── messages.js               # Optimistic message templates (uses formatters.js)
 ├── milestones.js             # Milestone definitions
-├── astronomy-utils.js        # Astronomy Engine wrapper with caching
-├── date-utils.js             # Date/time utilities
+├── astronomy-utils.js        # Astronomy Engine wrapper with caching and async APIs
+├── date-utils.js             # Date/time utilities with cached formatters
 ├── location-utils.js         # Location formatting and filtering
 ├── dom-utils.js              # Basic DOM helpers
 └── utils.js                  # General utilities
@@ -53,7 +52,7 @@ scripts/
 Domain-specific logic is organized into controllers in **`scripts/controllers/`**:
 - **`date-controller.js`**: Date picker state (custom vs live date), syncing, debounced commits
 - **`location-controller.js`**: City search, results rendering, geolocation, location selection
-- **`daylight-controller.js`**: Sun metrics calculation, delta comparisons, milestone building, stats UI
+- **`daylight-controller.js`**: Async sun metrics calculation, delta comparisons, milestone building, stats UI. Uses async APIs to yield to the main thread during heavy full-year scans.
 - **`optimistic-controller.js`**: Optimistic message selection and rotation logic
 
 Controllers communicate via callback registration (e.g., `setLocationChangeCallback`, `setDateChangeCallback`)
@@ -88,8 +87,11 @@ Each UI component is in its own module:
 All formatting logic is consolidated in **`formatters/formatters.js`**:
 - Duration formatting (hours/minutes)
 - Delta statements ("X minutes later")
-- Placeholder values for messages
+- Placeholder values for messages (imported by `messages.js` to avoid duplication)
 - Share text formatting
+
+Note: `date-utils.js` also caches `Intl.DateTimeFormat` instances to avoid
+repeated instantiation during hot paths like full-year scans.
 
 ## Key flows
 
@@ -113,6 +115,8 @@ All formatting logic is consolidated in **`formatters/formatters.js`**:
   values like day length.
 - It scans the year to find extremes (earliest sunset, shortest/longest day) and
   seasonal dates (equinoxes and solstices), cached in `astronomy-utils.js`.
+- Heavy full-year calculations use async APIs (`getYearlySunExtremesAsync`,
+  `getAverageWinterDaylightAsync`) that yield to the main thread in chunks to avoid UI jank.
 - These values feed the stats panel and the message/milestone logic.
 
 ### Optimistic messaging
@@ -159,14 +163,14 @@ All formatting logic is consolidated in **`formatters/formatters.js`**:
 | `app.js` | Thin orchestrator, event wiring, controller coordination |
 | `controllers/date-controller.js` | Date picker state and commit handling |
 | `controllers/location-controller.js` | City search, geolocation, results |
-| `controllers/daylight-controller.js` | Sun calculations, milestones, stats |
+| `controllers/daylight-controller.js` | Async sun calculations, milestones, stats |
 | `controllers/optimistic-controller.js` | Message selection and rotation |
 | `state/app-state.js` | All application state |
 | `services/*` | External API calls |
 | `ui/*` | UI component logic |
 | `formatters/formatters.js` | All display formatting |
-| `astronomy-utils.js` | Sun/season calculations with caching |
-| `date-utils.js` | Date/time manipulation |
+| `astronomy-utils.js` | Sun/season calculations with caching and async APIs |
+| `date-utils.js` | Date/time manipulation with cached formatters |
 | `location-utils.js` | Location parsing and formatting |
 | `messages.js` | Message template definitions |
 | `milestones.js` | Milestone definitions |

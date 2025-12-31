@@ -42,8 +42,9 @@ import { updateShareSnapshot } from "../ui/share-modal-ui.js";
 /**
  * Calculate sun metrics for today and comparison periods.
  * Returns raw data needed for delta calculations and UI updates.
+ * Uses async yearly extremes calculation to avoid blocking the main thread.
  */
-export const calculateSunMetrics = (astronomy, todayParts, timeZone) => {
+export const calculateSunMetrics = async (astronomy, todayParts, timeZone) => {
   const weekParts = addDaysToDateParts(todayParts, -7);
   const monthParts = addMonthsToDateParts(todayParts, -1);
 
@@ -65,7 +66,7 @@ export const calculateSunMetrics = (astronomy, todayParts, timeZone) => {
   const weekDaylight = astronomy.getDaylightMinutesForDateParts(weekParts);
   const monthDaylight = astronomy.getDaylightMinutesForDateParts(monthParts);
 
-  const yearlyExtremes = astronomy.getYearlySunExtremes(todayParts.year, todayDaylight);
+  const yearlyExtremes = await astronomy.getYearlySunExtremesAsync(todayParts.year, todayDaylight);
 
   return {
     todayParts,
@@ -325,8 +326,9 @@ export const updateStatsUI = (dom, metrics, deltas, timeZone, formatters) => {
 /**
  * Build the message data object used for optimistic message selection.
  * Also returns daylightGainToday needed for the share snapshot.
+ * Uses async average winter daylight calculation to avoid blocking the main thread.
  */
-export const buildMessageData = (astronomy, todayParts, metrics, deltas, hemisphere, timeZone, formatTimeFromMinutes) => {
+export const buildMessageData = async (astronomy, todayParts, metrics, deltas, hemisphere, timeZone, formatTimeFromMinutes) => {
   const {
     todaySunsetMinutes,
     monthSunsetMinutes,
@@ -424,7 +426,7 @@ export const buildMessageData = (astronomy, todayParts, metrics, deltas, hemisph
     todaySunsetMinutes != null
       ? astronomy.getWeeksWithSunsetAfter(todayParts, 19 * 60)
       : null;
-  const averageWinterDaylight = astronomy.getAverageWinterDaylight(currentSeasonParts.winter, hemisphere);
+  const averageWinterDaylight = await astronomy.getAverageWinterDaylightAsync(currentSeasonParts.winter, hemisphere);
   const todayDate = getLocalNoonDateFromParts(todayParts, timeZone);
   const earliestSunsetDate = getLocalNoonDateFromParts(earliestSunsetDateParts, timeZone);
 
@@ -644,9 +646,10 @@ export const buildUpcomingMilestones = (astronomy, todayParts, metrics, hemisphe
 };
 
 /**
- * Main function to update daylight information for a location
+ * Main function to update daylight information for a location.
+ * Uses async operations to avoid blocking the main thread during heavy calculations.
  */
-export const updateDaylightForLocation = ({
+export const updateDaylightForLocation = async ({
   location,
   dom,
   getActiveDateParts,
@@ -663,8 +666,8 @@ export const updateDaylightForLocation = ({
   const todayParts = getActiveDateParts(timeZone);
   syncDatePicker(timeZone);
 
-  // 1. Calculate all sun metrics
-  const metrics = calculateSunMetrics(astronomy, todayParts, timeZone);
+  // 1. Calculate all sun metrics (async to yield to main thread during full-year scan)
+  const metrics = await calculateSunMetrics(astronomy, todayParts, timeZone);
 
   // 2. Calculate deltas and comparison mode
   const deltas = calculateDeltas(metrics);
@@ -672,8 +675,8 @@ export const updateDaylightForLocation = ({
   // 3. Update stats display
   updateStatsUI(dom, metrics, deltas, timeZone, formatters);
 
-  // 4. Build and display optimistic message
-  const { messageData, daylightGainToday } = buildMessageData(
+  // 4. Build and display optimistic message (async to yield during winter daylight average)
+  const { messageData, daylightGainToday } = await buildMessageData(
     astronomy,
     todayParts,
     metrics,
