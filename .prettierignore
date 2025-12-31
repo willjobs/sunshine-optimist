@@ -1,0 +1,18 @@
+# Dependencies
+node_modules
+
+# Test outputs
+playwright-report
+test-results
+coverage
+
+# Third-party libraries
+astronomy-engine
+
+# Minified files
+*.min.js
+*.min.css
+
+# Build outputs
+dist
+build
