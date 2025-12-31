@@ -2,6 +2,33 @@ import { BOSTON, PARIS_FR, PARIS_TX, SEATTLE } from "./fixtures.js";
 
 const toJson = (data) => JSON.stringify(data);
 
+export const disableServiceWorker = async (page) => {
+  // Block the service worker script from loading - must be set up BEFORE any navigation
+  await page.route("**/sw.js", (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: "application/javascript",
+      body: "// Service worker disabled for testing",
+    });
+  });
+
+  // Unregister any existing service workers and clear caches before page loads
+  await page.addInitScript(() => {
+    // Immediately unregister all service workers
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => registration.unregister());
+      });
+      // Also clear service worker caches
+      if ("caches" in window) {
+        caches.keys().then((cacheNames) => {
+          cacheNames.forEach((cacheName) => caches.delete(cacheName));
+        });
+      }
+    }
+  });
+};
+
 const normalizeQuery = (value) => (value || "").trim().toLowerCase();
 
 export const defaultGeocodeFixtures = {
@@ -118,4 +145,10 @@ export const setSharePrivacyPreference = async (page, enabled) => {
   await page.addInitScript((value) => {
     window.localStorage.setItem("sunshine-optimist:share-privacy", value ? "true" : "false");
   }, enabled);
+};
+
+export const clearStoredState = async (page) => {
+  await page.addInitScript(() => {
+    window.localStorage.clear();
+  });
 };

@@ -15,6 +15,17 @@ import {
   setStoredLocation,
 } from "./helpers/mock-network.js";
 
+// Run location tests serially to avoid Firefox race conditions
+test.describe.configure({ mode: "serial" });
+
+const waitForLocationResults = async (page, expectedCount = 1, timeout = 10000) => {
+  await page.waitForFunction(
+    (count) => document.querySelectorAll(".location-option").length >= count,
+    expectedCount,
+    { timeout }
+  );
+};
+
 const setupPage = async (page, { geocodeFixtures } = {}) => {
   await installFontMocks(page);
   await installPermissionsMock(page, "denied");
@@ -22,12 +33,25 @@ const setupPage = async (page, { geocodeFixtures } = {}) => {
   await setStoredLocation(page, BOSTON);
 };
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.clear();
+  });
+});
+
+test.afterEach(async ({ page }) => {
+  await page.evaluate(() => {
+    window.localStorage.clear();
+  });
+});
+
 test("city search renders results and selection updates input", async ({ page }) => {
   await setupPage(page);
   await page.goto("/");
 
   const cityInput = page.getByRole("combobox", { name: "City" });
   await cityInput.fill("Paris");
+  await waitForLocationResults(page, 1);
 
   const parisTexas = page.getByRole("option", {
     name: "Paris, TX, United States",
@@ -50,6 +74,7 @@ test("keyboard navigation updates active option", async ({ page }) => {
 
   const cityInput = page.getByRole("combobox", { name: "City" });
   await cityInput.fill("San");
+  await waitForLocationResults(page, 2);
 
   const options = page.locator(".location-option");
   await expect(options).toHaveCount(2);
@@ -68,11 +93,17 @@ test("clear button shows recent locations", async ({ page }) => {
 
   const cityInput = page.getByRole("combobox", { name: "City" });
   await cityInput.fill("Paris");
+  await waitForLocationResults(page, 1);
 
   const parisTexas = page.getByRole("option", {
     name: "Paris, TX, United States",
   });
+  await expect(parisTexas).toBeVisible();
   await parisTexas.click();
+
+  // Wait for selection to complete and dropdown to close
+  await expect(cityInput).toHaveValue("Paris, TX");
+  await expect(cityInput).toHaveAttribute("aria-expanded", "false");
 
   await page.getByRole("button", { name: "Clear location" }).click();
   await expect(page.locator("#location-results-meta")).toHaveText(/Recent locations/);
@@ -90,13 +121,18 @@ test("toggle shows worldwide results when local is preferred", async ({ page }) 
 
   const cityInput = page.getByRole("combobox", { name: "City" });
   await cityInput.fill("Paris");
+  await waitForLocationResults(page, 1);
 
   await expect(page.getByRole("option", { name: "Paris, TX, United States" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Show worldwide results" })).toBeVisible();
 
   await page.getByRole("button", { name: "Show worldwide results" }).click();
+
+  // Wait for the France option to appear after toggle
+  const parisFrance = page.getByRole("option", { name: "Paris, Ile-de-France, France" });
+  await expect(parisFrance).toBeVisible({ timeout: 10000 });
+
   await expect(page.getByRole("option", { name: "Paris, TX, United States" })).toBeVisible();
-  await expect(page.getByRole("option", { name: "Paris, Ile-de-France, France" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Prefer local results" })).toBeVisible();
 });
 
