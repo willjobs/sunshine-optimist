@@ -17,7 +17,11 @@ import {
 } from "../utils/date-utils.js";
 import { setText } from "../utils/dom-utils.js";
 import { createAstronomyContext } from "../utils/astronomy-utils.js";
-import { DAYLIGHT_GAIN_MILESTONES, SUNSET_THRESHOLD_MILESTONES } from "../milestones.js";
+import {
+  DAYLIGHT_DURATION_MILESTONES,
+  DAYLIGHT_GAIN_MILESTONES,
+  SUNSET_THRESHOLD_MILESTONES,
+} from "../milestones.js";
 import { clampValue } from "../utils/utils.js";
 import {
   formatDuration,
@@ -627,6 +631,22 @@ export const buildUpcomingMilestones = (
       todayLede: "A perfect balance of day and night.",
     })
   );
+
+  DAYLIGHT_DURATION_MILESTONES.forEach((milestoneConfig) => {
+    const match = astronomy.findFirstDaylightAtLeast(
+      previousWinterSolsticeParts,
+      milestoneConfig.minutes
+    );
+    addMilestone(
+      buildMilestone({
+        id: milestoneConfig.id,
+        title: milestoneConfig.title,
+        dateParts: match?.dateParts,
+        todayHeadline: milestoneConfig.todayHeadline,
+        todayLede: milestoneConfig.todayLede,
+      })
+    );
+  });
 
   sunsetThresholdMatches.forEach((milestoneConfig) => {
     addMilestone(

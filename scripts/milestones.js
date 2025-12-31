@@ -1,5 +1,12 @@
 export const SUNSET_THRESHOLD_MILESTONES = [
   {
+    id: "sunset-after-4",
+    title: "First sunset after 4pm",
+    minutes: 16 * 60,
+    todayHeadline: "First 4pm sunset of the year!",
+    todayLede: "The light is returning.",
+  },
+  {
     id: "sunset-after-430",
     title: "Sunset after 4:30pm",
     minutes: 16 * 60 + 30,
@@ -71,5 +78,22 @@ export const DAYLIGHT_GAIN_MILESTONES = [
     minutes: 120,
     todayHeadline: "You've gained 2 hours of daylight since the winter solstice.",
     todayLede: "Summer is getting closer.",
+  },
+];
+
+export const DAYLIGHT_DURATION_MILESTONES = [
+  {
+    id: "first-10-hours",
+    title: "First day with 10+ hours of daylight",
+    minutes: 10 * 60,
+    todayHeadline: "Today has at least 10 hours of daylight.",
+    todayLede: "Double digits of daylight are here.",
+  },
+  {
+    id: "first-11-hours",
+    title: "First day with 11+ hours of daylight",
+    minutes: 11 * 60,
+    todayHeadline: "Today has at least 11 hours of daylight.",
+    todayLede: "Long days are on the horizon.",
   },
 ];
