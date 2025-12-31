@@ -1,88 +1,52 @@
 # Sunshine Optimist
 
-Sunshine Optimist is a single-page, browser-based experience that turns sunrise and
-sunset calculations into upbeat, seasonal insights about daylight for a chosen city.
+A single-page web app that turns sunrise and sunset calculations into upbeat, seasonal insights about daylight for any city.
 
-The purpose is to provide a website where people can go to get optimistic takes on the current amount of sunlight where they are. The idea is to battle the dread or sadness people feel as the days get shorter, or for those winter months when the days are getting longer but they are still so very short.
+The goal is to battle the dread or sadness people feel as the days get shorter, or during those winter months when days are getting longer but still feel so short.
 
-## Current functionality
+## Features
 
-- City search with typeahead backed by the Open-Meteo geocoding API; supports
-  optional geolocation bias, local/worldwide toggles, and recent locations saved
-  in `localStorage`.
-- Date picker with a Today reset so you can explore daylight insights for other
-  days in the selected location.
-- Dynamic headline and lede selected from a seasonal, hemisphere-aware catalog
-  and rotated when multiple messages apply, with polar-day/night fallback copy.
-- Stats panel for today's sunset time and total daylight, including comparisons
-  to the earliest sunset, the shortest day, and the most recent week/month with
-  tooltip context.
-- Upcoming milestone carousel covering next half-hour sunsets, seasonal extrema
-  and events, sunset-threshold milestones, and daylight-gain milestones (plus
-  confetti when a milestone lands).
-- Share modal with preview text, a privacy toggle for "My Location",
-  copy-to-clipboard, and social share shortcuts.
+- **City search** with typeahead, geolocation bias, local/worldwide toggles, and recent locations
+- **Date picker** to explore daylight insights for any day
+- **Dynamic messaging** — seasonal, hemisphere-aware headlines that rotate when multiple apply
+- **Stats panel** — today's sunset and daylight duration with comparisons to extremes
+- **Milestone carousel** — upcoming events like half-hour sunsets, solstices, and daylight-gain milestones (with confetti!)
+- **Share modal** — preview, privacy toggle, copy-to-clipboard, and social links
 
-## How the optimistic message is chosen
+## Quick Start
 
-The headline + lede are computed from a structured catalog in `scripts/messages.js`
-via the controllers in `scripts/controllers/`. The selection flow is:
+No build step required. Just serve the files:
 
-1. Compute `messageData` for the active location/date (sunset time, daylight
-   duration, seasonal markers, and relative deltas such as “days until sunset
-   after 6pm”). These values come from Astronomy Engine calculations plus local
-   time-zone conversion.
-2. If there is no valid sunrise/sunset for the date (e.g., polar night/day),
-   the copy is hard-coded to “Sunlight looks different here / No sunrise or
-   sunset today.”
-3. Otherwise, adjust the current month for hemisphere (southern hemisphere shifts
-   by six months) so messages align with the local season.
-4. Filter the message catalog to entries whose `months` include the adjusted
-   month, then discard any that do not have all required data (`data_needs`) or
-   fail their `additional_requirements` comparison (simple expressions like
-   `sunset_today > sunset_earliest`).
-5. If a message uses `{## ...}` placeholders, compute its `getValue` number and
-   format it based on the token contents (minutes, days, weeks, or percent).
-6. Rotate through the remaining valid candidates in the UI every 15 seconds. If
-   no candidates remain, fall back to “Enjoy the daylight today / Every bit of
-   sunshine helps.”
-7. Finally, if today matches a milestone date, the milestone copy overrides the
-   optimistic message for that day.
+```bash
+python3 -m http.server
+```
 
-## Debugging optimistic messages
+Then open `http://localhost:8000`.
 
-- The console logs the full list of optimistic messages on page load, when a
-  new location is selected, and when the date changes, in the format:
-  `Optimistic messages for {LOCATION} on {DATE}:`.
-- `window.SunshineOptimistDebug.printOptimisticMessages()` reprints the current
-  list in the same format.
-- `window.SunshineOptimistDebug.getOptimisticMessages()` returns the last
-  computed data, valid options, displayed options, and the reason (`ok`,
-  `fallback`, or `polar`).
+## Project Layout
 
-## Project layout
+```
+index.html              # UI structure
+styles.css              # All styling
+scripts/
+├── app.js              # Main orchestrator
+├── controllers/        # Domain logic (date, location, daylight, messages)
+├── state/              # Centralized state management
+├── services/           # API calls (geocoding, reverse geocode, storage)
+├── ui/                 # UI components (messages, milestones, share, tooltips)
+├── formatters/         # Display formatting
+├── messages.js         # Optimistic message catalog
+├── milestones.js       # Milestone definitions
+└── *-utils.js          # Utilities (astronomy, date, location, dom)
+```
 
-- `index.html` — markup and structural layout.
-- `styles.css` — global styles.
-- `scripts/app.js` — thin orchestrator that wires up event handlers and coordinates controllers.
-- `scripts/controllers/` — domain-specific controllers:
-  - `date-controller.js` — date picker state management and commit handling.
-  - `location-controller.js` — city search, geolocation, results rendering.
-  - `daylight-controller.js` — async sun metrics, deltas, milestones, stats UI updates. Uses async APIs to avoid UI jank during full-year calculations.
-  - `optimistic-controller.js` — optimistic message selection and rotation.
-- `scripts/formatters/formatters.js` — consolidated formatting functions for durations, deltas, placeholders, and share text.
-- `scripts/messages.js` — optimistic message templates and selection logic.
-- `scripts/milestones.js` — milestone definitions and copy.
-- `scripts/astronomy-utils.js` — Astronomy Engine wrapper with caching and async APIs for heavy calculations.
-- `scripts/date-utils.js` — date/time utilities with cached `Intl.DateTimeFormat` instances.
-- `scripts/utils.js` — shared helpers.
-- `astronomy-engine/astronomy.browser.min.js` — bundled Astronomy Engine for solar
-  events and seasonal calculations.
+## Data Sources
 
-## Data sources and dependencies
+- [Open-Meteo Geocoding API](https://open-meteo.com/) — city search
+- [BigDataCloud](https://www.bigdatacloud.com/) — reverse geocoding for current location
+- [Astronomy Engine](https://github.com/cosinekitty/astronomy) — solar calculations
 
-- Open-Meteo Geocoding API for city lookup and default location.
-- BigDataCloud reverse geocoding for turning current coordinates into a readable
-  place name.
-- Browser Geolocation API (optional) for nearby result biasing.
-- Astronomy Engine for solar event and seasonal calculations.
+## Documentation
+
+- [Architecture](docs/architecture.md) — detailed module structure and data flows
+- [Development Guide](docs/development.md) — contributing, debugging, and testing
