@@ -67,6 +67,7 @@ The project uses **Playwright** for end-to-end tests and **Vitest** for unit tes
 **Before considering a task complete, you must:**
 
 1. **Fix linting and formatting**:
+
    ```bash
    npm run lint:fix
    npm run format
@@ -79,6 +80,7 @@ The project uses **Playwright** for end-to-end tests and **Vitest** for unit tes
    ```
 
 **Additional test commands** (as needed):
+
 ```bash
 npm run test:headed              # Run Playwright with visible browser
 npm run test:ui                  # Run Playwright in interactive UI mode
@@ -87,6 +89,7 @@ npx playwright show-report       # View detailed HTML report
 ```
 
 **Notes**:
+
 - The Playwright config automatically starts a Python http server on port 9247 before running tests
 - Address any console errors or warnings before considering a task complete
 - **Playwright** ([tests/](tests/)): Test user flows, UI interactions, and integration with external services

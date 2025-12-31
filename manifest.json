@@ -1,0 +1,19 @@
+{
+  "name": "Sunshine Optimist",
+  "short_name": "Sunshine",
+  "description": "Upbeat, seasonal insights about daylight for any city based on sunrise and sunset calculations.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fffbf0",
+  "theme_color": "#e69522",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["weather", "utilities", "lifestyle"]
+}
