@@ -335,6 +335,14 @@ export const OPTIMISTIC_MESSAGES = [
     additional_requirements: null,
     getValue: ({ daylight_loss_this_week }) => getPositiveNumber(daylight_loss_this_week),
   },
+  {
+    headline: "Only {## days} until {next_milestone_title}!",
+    lede: "Something to look forward to!",
+    months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    data_needs: ["next_milestone_days", "next_milestone_title"],
+    additional_requirements: "next_milestone_days > 0",
+    getValue: ({ next_milestone_days }) => getPositiveNumber(next_milestone_days),
+  },
 ];
 
 const isValidDataValue = (value) => {
@@ -414,15 +422,28 @@ const getMilestoneFallbackLede = (upcomingMilestones) => {
 
 export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMilestones = []) => {
   const adjustedMonth = getAdjustedMonth(month, hemisphere);
+
+  // Inject milestone data into the data object
+  const nextMilestone =
+    Array.isArray(upcomingMilestones) && upcomingMilestones.length > 0
+      ? upcomingMilestones[0]
+      : null;
+  const enrichedData = {
+    ...data,
+    next_milestone_days:
+      nextMilestone && Number.isFinite(nextMilestone.offsetDays) ? nextMilestone.offsetDays : null,
+    next_milestone_title: nextMilestone?.title || null,
+  };
+
   const candidates = OPTIMISTIC_MESSAGES.filter((message) =>
     message.months.includes(adjustedMonth)
   );
   const validMessages = candidates
     .map((message) => {
       if (
-        !message.data_needs.every((key) => isValidDataValue(data[key])) ||
+        !message.data_needs.every((key) => isValidDataValue(enrichedData[key])) ||
         (message.additional_requirements &&
-          !evaluateRequirement(message.additional_requirements, data))
+          !evaluateRequirement(message.additional_requirements, enrichedData))
       ) {
         return null;
       }
@@ -430,7 +451,7 @@ export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMil
       if (!needsValue) {
         return { message, value: null };
       }
-      const value = message.getValue ? message.getValue(data) : null;
+      const value = message.getValue ? message.getValue(enrichedData) : null;
       if (!Number.isFinite(value)) {
         return null;
       }
@@ -439,8 +460,14 @@ export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMil
     .filter(Boolean);
   const milestoneFallbackLede = getMilestoneFallbackLede(upcomingMilestones);
   return validMessages.map((entry) => {
-    const headline = fillMessageTemplate(entry.message.headline, entry.value);
-    const lede = fillMessageTemplate(entry.message.lede, entry.value);
+    let headline = fillMessageTemplate(entry.message.headline, entry.value);
+    let lede = fillMessageTemplate(entry.message.lede, entry.value);
+    // Replace data placeholders like {next_milestone_title}
+    headline = headline.replace(
+      /\{next_milestone_title\}/g,
+      enrichedData.next_milestone_title || ""
+    );
+    lede = lede.replace(/\{next_milestone_title\}/g, enrichedData.next_milestone_title || "");
     return {
       headline,
       lede: lede || milestoneFallbackLede || "",

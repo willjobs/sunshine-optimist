@@ -92,4 +92,39 @@ describe("messages", () => {
     expect(messageWithNullLede).toBeDefined();
     expect(messageWithNullLede.lede).toBe("");
   });
+
+  it("includes milestone countdown as headline message", () => {
+    const data = {};
+    const upcomingMilestones = [
+      { title: "Spring equinox", offsetDays: 10 },
+      { title: "Longest day", offsetDays: 90 },
+    ];
+
+    const options = getOptimisticMessageOptions(data, 3, "north", upcomingMilestones);
+    const milestoneHeadline = options.find((opt) => opt.headline.includes("until Spring equinox"));
+
+    expect(milestoneHeadline).toBeDefined();
+    expect(milestoneHeadline.headline).toBe("Only 10 days until Spring equinox!");
+    expect(milestoneHeadline.lede).toBe("Something to look forward to!");
+  });
+
+  it("excludes milestone headline when no milestones provided", () => {
+    const data = {};
+
+    const options = getOptimisticMessageOptions(data, 3, "north", []);
+    const milestoneHeadline = options.find((opt) => opt.headline.includes("until"));
+
+    expect(milestoneHeadline).toBeUndefined();
+  });
+
+  it("uses singular 'day' in milestone headline for 1 day", () => {
+    const data = {};
+    const upcomingMilestones = [{ title: "Summer solstice", offsetDays: 1 }];
+
+    const options = getOptimisticMessageOptions(data, 6, "north", upcomingMilestones);
+    const milestoneHeadline = options.find((opt) => opt.headline.includes("until Summer solstice"));
+
+    expect(milestoneHeadline).toBeDefined();
+    expect(milestoneHeadline.headline).toBe("Only 1 day until Summer solstice!");
+  });
 });
