@@ -10,6 +10,45 @@ import {
   setStoredLocation,
 } from "./helpers/mock-network.js";
 
+// Run share tests serially to avoid Firefox race conditions
+test.describe.configure({ mode: "serial" });
+
+/**
+ * Open share modal and wait for it to be fully ready
+ * This addresses Firefox timing issues with dialog element rendering
+ */
+const openShareModalAndWait = async (page) => {
+  // Wait for page to be fully loaded and interactive
+  await page.waitForLoadState("networkidle");
+
+  const shareButton = page.getByRole("button", { name: /Share Your Sunlight/i });
+  // Ensure button is ready and stable before clicking
+  await shareButton.waitFor({ state: "visible" });
+  await expect(shareButton).toBeEnabled();
+  await shareButton.click();
+
+  // Wait for dialog to have the 'open' attribute (native dialog behavior)
+  const modal = page.locator("#share-modal");
+  await page.waitForFunction(
+    () => {
+      const dialog = document.querySelector("#share-modal");
+      return dialog?.hasAttribute("open");
+    },
+    { timeout: 10000 }
+  );
+  await modal.waitFor({ state: "visible" });
+
+  // Wait for preview content to be populated (not "Preparing...")
+  await page.waitForFunction(
+    () => {
+      const preview = document.querySelector("#share-preview");
+      const text = preview?.textContent || "";
+      return text.includes("SunshineOptimist.com");
+    },
+    { timeout: 10000 }
+  );
+};
+
 test.beforeEach(async ({ page }) => {
   await installFontMocks(page);
   await installApiMocks(page);
@@ -19,10 +58,19 @@ test.beforeEach(async ({ page }) => {
   await setStoredLocation(page, BOSTON);
 });
 
+test.afterEach(async ({ page }) => {
+  // Ensure modal is closed after each test for proper isolation
+  const modal = page.locator("#share-modal");
+  if ((await modal.getAttribute("open")) !== null) {
+    await page.getByRole("button", { name: "Close share dialog" }).click();
+    await modal.waitFor({ state: "hidden" });
+  }
+});
+
 test("share modal opens, previews text, and closes", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByRole("button", { name: /Share Your Sunlight/i }).click();
+  await openShareModalAndWait(page);
 
   const modal = page.locator("#share-modal");
   await expect(modal).toBeVisible();
@@ -34,7 +82,7 @@ test("share modal opens, previews text, and closes", async ({ page }) => {
 
 test("privacy toggle updates share preview and persists", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /Share Your Sunlight/i }).click();
+  await openShareModalAndWait(page);
 
   const privacyToggle = page.locator("#share-privacy-toggle");
   await privacyToggle.check();
@@ -49,7 +97,7 @@ test("privacy toggle updates share preview and persists", async ({ page }) => {
 
 test("copy button writes to clipboard and flashes feedback", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /Share Your Sunlight/i }).click();
+  await openShareModalAndWait(page);
 
   const copyButton = page.getByRole("button", { name: "Copy to clipboard" });
   await copyButton.click();
@@ -61,7 +109,7 @@ test("copy button writes to clipboard and flashes feedback", async ({ page }) =>
 
 test("share links open with encoded text", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /Share Your Sunlight/i }).click();
+  await openShareModalAndWait(page);
 
   await page.getByRole("button", { name: "Share to X" }).click();
 
