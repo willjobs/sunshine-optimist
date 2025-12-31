@@ -394,7 +394,25 @@ const evaluateRequirement = (requirement, data) => {
 
 const hasPlaceholder = (text) => PLACEHOLDER_PATTERN.test(text || "");
 
-export const getOptimisticMessageOptions = (data, month, hemisphere) => {
+/**
+ * Get the fallback lede message based on upcoming milestones
+ * @param {Array} upcomingMilestones - Array of upcoming milestones with offsetDays and title
+ * @returns {string|null} The fallback lede message or null if no milestones
+ */
+const getMilestoneFallbackLede = (upcomingMilestones) => {
+  if (!Array.isArray(upcomingMilestones) || upcomingMilestones.length === 0) {
+    return null;
+  }
+  const nextMilestone = upcomingMilestones[0];
+  if (!nextMilestone || !Number.isFinite(nextMilestone.offsetDays) || !nextMilestone.title) {
+    return null;
+  }
+  const days = nextMilestone.offsetDays;
+  const title = nextMilestone.title;
+  return `Only ${days} ${days === 1 ? "day" : "days"} until ${title}!`;
+};
+
+export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMilestones = []) => {
   const adjustedMonth = getAdjustedMonth(month, hemisphere);
   const candidates = OPTIMISTIC_MESSAGES.filter((message) =>
     message.months.includes(adjustedMonth)
@@ -419,8 +437,13 @@ export const getOptimisticMessageOptions = (data, month, hemisphere) => {
       return { message, value };
     })
     .filter(Boolean);
-  return validMessages.map((entry) => ({
-    headline: fillMessageTemplate(entry.message.headline, entry.value),
-    lede: fillMessageTemplate(entry.message.lede, entry.value),
-  }));
+  const milestoneFallbackLede = getMilestoneFallbackLede(upcomingMilestones);
+  return validMessages.map((entry) => {
+    const headline = fillMessageTemplate(entry.message.headline, entry.value);
+    const lede = fillMessageTemplate(entry.message.lede, entry.value);
+    return {
+      headline,
+      lede: lede || milestoneFallbackLede || "",
+    };
+  });
 };

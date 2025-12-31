@@ -59,6 +59,7 @@ export const logOptimisticMessages = (
  * @param {Function} params.getActiveDateParts - Function to get active date parts
  * @param {Function} params.formatLongDateFromParts - Function to format date parts
  * @param {string} params.fallbackTimeZone - Fallback timezone
+ * @param {Array} params.upcomingMilestones - Array of upcoming milestones for fallback ledes
  */
 export const updateOptimisticMessage = ({
   data,
@@ -69,6 +70,7 @@ export const updateOptimisticMessage = ({
   getActiveDateParts,
   formatLongDateFromParts,
   fallbackTimeZone,
+  upcomingMilestones = [],
 }) => {
   updateDebugState({ data, month, hemisphere });
 
@@ -92,7 +94,7 @@ export const updateOptimisticMessage = ({
     return;
   }
 
-  const options = getOptimisticMessageOptions(data, month, hemisphere);
+  const options = getOptimisticMessageOptions(data, month, hemisphere, upcomingMilestones);
   updateDebugState({ validOptions: options });
 
   if (!options.length) {

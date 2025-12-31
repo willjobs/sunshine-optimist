@@ -702,7 +702,17 @@ export const updateDaylightForLocation = async ({
   // 3. Update stats display
   updateStatsUI(dom, metrics, deltas, timeZone, formatters);
 
-  // 4. Build and display optimistic message (async to yield during winter daylight average)
+  // 4. Build milestones (needed for optimistic message fallback ledes)
+  const { todayMilestone, upcoming } = buildUpcomingMilestones(
+    astronomy,
+    todayParts,
+    metrics,
+    hemisphere,
+    timeZone,
+    formatters.formatTimeFromMinutes
+  );
+
+  // 5. Build and display optimistic message (async to yield during winter daylight average)
   const { messageData, daylightGainToday } = await buildMessageData(
     astronomy,
     todayParts,
@@ -721,18 +731,10 @@ export const updateDaylightForLocation = async ({
     getActiveDateParts,
     formatLongDateFromParts: formatters.formatLongDateFromParts,
     fallbackTimeZone,
+    upcomingMilestones: upcoming,
   });
 
-  // 5. Build and display milestones
-  const { todayMilestone, upcoming } = buildUpcomingMilestones(
-    astronomy,
-    todayParts,
-    metrics,
-    hemisphere,
-    timeZone,
-    formatters.formatTimeFromMinutes
-  );
-
+  // 6. Handle today's milestone (overrides optimistic message)
   if (todayMilestone) {
     stopOptimisticRotation(dom.headline, dom.lede);
     const todayCopy = getMilestoneTodayCopy(todayMilestone);
@@ -757,7 +759,7 @@ export const updateDaylightForLocation = async ({
     formatters.formatLongDateFromParts
   );
 
-  // 6. Update share snapshot
+  // 7. Update share snapshot
   const { yearlyExtremes } = metrics;
   updateShareSnapshot({
     location,

@@ -28,4 +28,68 @@ describe("messages", () => {
     const options = getOptimisticMessageOptions(data, 1, "north");
     expect(options).toHaveLength(0);
   });
+
+  it("replaces empty lede with milestone countdown when milestones provided", () => {
+    // This message has lede: null - "In two weeks, you'll have {## minutes} more daylight."
+    const data = {
+      daylight_today: 600,
+      daylight_in_14_days: 650,
+    };
+    const upcomingMilestones = [
+      { title: "Spring equinox", offsetDays: 15 },
+      { title: "Longest day", offsetDays: 90 },
+    ];
+
+    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
+    const messageWithNullLede = options.find((opt) =>
+      opt.headline.includes("In two weeks, you'll have")
+    );
+
+    expect(messageWithNullLede).toBeDefined();
+    expect(messageWithNullLede.lede).toBe("Only 15 days until Spring equinox!");
+  });
+
+  it("uses singular 'day' for 1 day until milestone", () => {
+    const data = {
+      daylight_today: 600,
+      daylight_in_14_days: 650,
+    };
+    const upcomingMilestones = [{ title: "Shortest day", offsetDays: 1 }];
+
+    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
+    const messageWithNullLede = options.find((opt) =>
+      opt.headline.includes("In two weeks, you'll have")
+    );
+
+    expect(messageWithNullLede).toBeDefined();
+    expect(messageWithNullLede.lede).toBe("Only 1 day until Shortest day!");
+  });
+
+  it("keeps original lede when not empty", () => {
+    const data = {
+      sunset_today: 1000,
+      sunset_earliest: 900,
+    };
+    const upcomingMilestones = [{ title: "Spring equinox", offsetDays: 15 }];
+
+    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
+
+    expect(options).toHaveLength(1);
+    expect(options[0].lede).toBe("Enjoy the extra evening light!");
+  });
+
+  it("returns empty lede when no milestones and original lede is empty", () => {
+    const data = {
+      daylight_today: 600,
+      daylight_in_14_days: 650,
+    };
+
+    const options = getOptimisticMessageOptions(data, 1, "north", []);
+    const messageWithNullLede = options.find((opt) =>
+      opt.headline.includes("In two weeks, you'll have")
+    );
+
+    expect(messageWithNullLede).toBeDefined();
+    expect(messageWithNullLede.lede).toBe("");
+  });
 });
