@@ -129,8 +129,7 @@ export const createAstronomyContext = (location, timeZone) => {
     return sunset ? getMinutesSinceMidnight(sunset.date, timeZone) : null;
   };
 
-  const getDaylightMinutesForDateParts = (dateParts) =>
-    getDaylightMinutes(getSunEvents(dateParts));
+  const getDaylightMinutesForDateParts = (dateParts) => getDaylightMinutes(getSunEvents(dateParts));
 
   const buildYearSummary = (year) => {
     if (cache.yearSummary.has(year)) {
@@ -155,7 +154,7 @@ export const createAstronomyContext = (location, timeZone) => {
 
       if (events.sunset) {
         const sunsetMinutes = getMinutesSinceMidnight(events.sunset.date, timeZone);
-        if (earliestSunsetMinutes == null || sunsetMinutes < earliestSunsetMinutes) {
+        if (earliestSunsetMinutes === null || sunsetMinutes < earliestSunsetMinutes) {
           earliestSunsetMinutes = sunsetMinutes;
           earliestSunsetDateParts = dateParts;
         }
@@ -163,18 +162,18 @@ export const createAstronomyContext = (location, timeZone) => {
 
       const daylightMinutes = getDaylightMinutes(events);
       daylightByDay.push(daylightMinutes);
-      if (daylightMinutes != null) {
-        if (shortestDayMinutes == null || daylightMinutes < shortestDayMinutes) {
+      if (daylightMinutes !== null) {
+        if (shortestDayMinutes === null || daylightMinutes < shortestDayMinutes) {
           shortestDayMinutes = daylightMinutes;
           shortestDayDateParts = dateParts;
         }
-        if (longestDayMinutes == null || daylightMinutes > longestDayMinutes) {
+        if (longestDayMinutes === null || daylightMinutes > longestDayMinutes) {
           longestDayMinutes = daylightMinutes;
           longestDayDateParts = dateParts;
         }
-        if (previousDaylightMinutes != null) {
+        if (previousDaylightMinutes !== null) {
           const gain = daylightMinutes - previousDaylightMinutes;
-          if (maxDailyGainMinutes == null || gain > maxDailyGainMinutes) {
+          if (maxDailyGainMinutes === null || gain > maxDailyGainMinutes) {
             maxDailyGainMinutes = gain;
             maxDailyGainDateParts = dateParts;
           }
@@ -226,7 +225,7 @@ export const createAstronomyContext = (location, timeZone) => {
 
       if (events.sunset) {
         const sunsetMinutes = getMinutesSinceMidnight(events.sunset.date, timeZone);
-        if (earliestSunsetMinutes == null || sunsetMinutes < earliestSunsetMinutes) {
+        if (earliestSunsetMinutes === null || sunsetMinutes < earliestSunsetMinutes) {
           earliestSunsetMinutes = sunsetMinutes;
           earliestSunsetDateParts = dateParts;
         }
@@ -234,18 +233,18 @@ export const createAstronomyContext = (location, timeZone) => {
 
       const daylightMinutes = getDaylightMinutes(events);
       daylightByDay.push(daylightMinutes);
-      if (daylightMinutes != null) {
-        if (shortestDayMinutes == null || daylightMinutes < shortestDayMinutes) {
+      if (daylightMinutes !== null) {
+        if (shortestDayMinutes === null || daylightMinutes < shortestDayMinutes) {
           shortestDayMinutes = daylightMinutes;
           shortestDayDateParts = dateParts;
         }
-        if (longestDayMinutes == null || daylightMinutes > longestDayMinutes) {
+        if (longestDayMinutes === null || daylightMinutes > longestDayMinutes) {
           longestDayMinutes = daylightMinutes;
           longestDayDateParts = dateParts;
         }
-        if (previousDaylightMinutes != null) {
+        if (previousDaylightMinutes !== null) {
           const gain = daylightMinutes - previousDaylightMinutes;
-          if (maxDailyGainMinutes == null || gain > maxDailyGainMinutes) {
+          if (maxDailyGainMinutes === null || gain > maxDailyGainMinutes) {
             maxDailyGainMinutes = gain;
             maxDailyGainDateParts = dateParts;
           }
@@ -275,9 +274,9 @@ export const createAstronomyContext = (location, timeZone) => {
     const summary = buildYearSummary(year);
     const { daylightByDay, ...extremes } = summary;
     let daysWithLessDaylight = null;
-    if (todayDaylight != null && Number.isFinite(todayDaylight)) {
+    if (todayDaylight !== null && Number.isFinite(todayDaylight)) {
       daysWithLessDaylight = daylightByDay.reduce((count, value) => {
-        if (value == null || Number.isNaN(value)) {
+        if (value === null || Number.isNaN(value)) {
           return count;
         }
         return value < todayDaylight ? count + 1 : count;
@@ -290,9 +289,9 @@ export const createAstronomyContext = (location, timeZone) => {
     const summary = await buildYearSummaryAsync(year);
     const { daylightByDay, ...extremes } = summary;
     let daysWithLessDaylight = null;
-    if (todayDaylight != null && Number.isFinite(todayDaylight)) {
+    if (todayDaylight !== null && Number.isFinite(todayDaylight)) {
       daysWithLessDaylight = daylightByDay.reduce((count, value) => {
-        if (value == null || Number.isNaN(value)) {
+        if (value === null || Number.isNaN(value)) {
           return count;
         }
         return value < todayDaylight ? count + 1 : count;
@@ -332,32 +331,20 @@ export const createAstronomyContext = (location, timeZone) => {
   };
 
   const getNextSeasonDateParts = (todayParts, hemisphere, season) => {
-    const currentYear = getSeasonDatePartsForYear(
-      todayParts.year,
-      hemisphere
-    );
+    const currentYear = getSeasonDatePartsForYear(todayParts.year, hemisphere);
     let target = currentYear[season];
     if (compareDateParts(target, todayParts) < 0) {
-      const nextYear = getSeasonDatePartsForYear(
-        todayParts.year + 1,
-        hemisphere
-      );
+      const nextYear = getSeasonDatePartsForYear(todayParts.year + 1, hemisphere);
       target = nextYear[season];
     }
     return target;
   };
 
   const getPreviousSeasonDateParts = (todayParts, hemisphere, season) => {
-    const currentYear = getSeasonDatePartsForYear(
-      todayParts.year,
-      hemisphere
-    );
+    const currentYear = getSeasonDatePartsForYear(todayParts.year, hemisphere);
     let target = currentYear[season];
     if (compareDateParts(target, todayParts) > 0) {
-      const previousYear = getSeasonDatePartsForYear(
-        todayParts.year - 1,
-        hemisphere
-      );
+      const previousYear = getSeasonDatePartsForYear(todayParts.year - 1, hemisphere);
       target = previousYear[season];
     }
     return target;
@@ -374,7 +361,7 @@ export const createAstronomyContext = (location, timeZone) => {
           month,
           day,
         });
-        if (daylight != null) {
+        if (daylight !== null) {
           total += daylight;
           count += 1;
         }
@@ -399,7 +386,7 @@ export const createAstronomyContext = (location, timeZone) => {
           month,
           day,
         });
-        if (daylight != null) {
+        if (daylight !== null) {
           total += daylight;
           count += 1;
         }
@@ -458,11 +445,7 @@ export const createAstronomyContext = (location, timeZone) => {
     return average;
   };
 
-  const findNextSunsetThreshold = (
-    startDateParts,
-    targetMinutes,
-    limitDays = 370
-  ) => {
+  const findNextSunsetThreshold = (startDateParts, targetMinutes, limitDays = 370) => {
     for (let offset = 1; offset <= limitDays; offset += 1) {
       const dateParts = addDaysToDateParts(startDateParts, offset);
       const { sunset } = getSunEvents(dateParts);
@@ -477,29 +460,18 @@ export const createAstronomyContext = (location, timeZone) => {
     return null;
   };
 
-  const getDaysUntilSunsetAfter = (
-    todayParts,
-    todaySunsetMinutes,
-    targetMinutes
-  ) => {
-    if (todaySunsetMinutes == null) {
+  const getDaysUntilSunsetAfter = (todayParts, todaySunsetMinutes, targetMinutes) => {
+    if (todaySunsetMinutes === null) {
       return null;
     }
     if (todaySunsetMinutes >= targetMinutes) {
       return 0;
     }
-    const match = findNextSunsetThreshold(
-      todayParts,
-      targetMinutes
-    );
+    const match = findNextSunsetThreshold(todayParts, targetMinutes);
     return match ? match.offsetDays : null;
   };
 
-  const getWeeksWithSunsetAfter = (
-    startDateParts,
-    targetMinutes,
-    limitDays = 370
-  ) => {
+  const getWeeksWithSunsetAfter = (startDateParts, targetMinutes, limitDays = 370) => {
     let days = 0;
     for (let offset = 0; offset <= limitDays; offset += 1) {
       const dateParts = addDaysToDateParts(startDateParts, offset);
@@ -523,12 +495,12 @@ export const createAstronomyContext = (location, timeZone) => {
     for (let offset = 6; offset >= 0; offset -= 1) {
       const dateParts = addDaysToDateParts(todayParts, -offset);
       const daylight = getDaylightMinutesForDateParts(dateParts);
-      if (daylight == null) {
+      if (daylight === null) {
         return null;
       }
-      if (previousDaylight != null) {
+      if (previousDaylight !== null) {
         const gain = daylight - previousDaylight;
-        if (minGain == null || gain < minGain) {
+        if (minGain === null || gain < minGain) {
           minGain = gain;
         }
       }
@@ -546,15 +518,7 @@ export const createAstronomyContext = (location, timeZone) => {
     if (!dateParts) {
       return null;
     }
-    const date = zonedTimeToUtc(
-      dateParts.year,
-      dateParts.month,
-      dateParts.day,
-      12,
-      0,
-      0,
-      timeZone
-    );
+    const date = zonedTimeToUtc(dateParts.year, dateParts.month, dateParts.day, 12, 0, 0, timeZone);
     return getTimeZoneOffsetMinutes(date, timeZone);
   };
 
@@ -581,19 +545,15 @@ export const createAstronomyContext = (location, timeZone) => {
     return null;
   };
 
-  const findFirstSunsetAfter = (
-    startParts,
-    targetMinutes,
-    limitDays = 370
-  ) => {
+  const findFirstSunsetAfter = (startParts, targetMinutes, limitDays = 370) => {
     const startSunset = getSunsetMinutesForDateParts(startParts);
-    if (startSunset == null || startSunset >= targetMinutes) {
+    if (startSunset === null || startSunset >= targetMinutes) {
       return null;
     }
     for (let offset = 1; offset <= limitDays; offset += 1) {
       const dateParts = addDaysToDateParts(startParts, offset);
       const sunsetMinutes = getSunsetMinutesForDateParts(dateParts);
-      if (sunsetMinutes == null) {
+      if (sunsetMinutes === null) {
         continue;
       }
       if (sunsetMinutes >= targetMinutes) {
@@ -603,19 +563,15 @@ export const createAstronomyContext = (location, timeZone) => {
     return null;
   };
 
-  const findFirstDaylightAtLeast = (
-    startParts,
-    targetMinutes,
-    limitDays = 370
-  ) => {
+  const findFirstDaylightAtLeast = (startParts, targetMinutes, limitDays = 370) => {
     const startDaylight = getDaylightMinutesForDateParts(startParts);
-    if (startDaylight == null || startDaylight >= targetMinutes) {
+    if (startDaylight === null || startDaylight >= targetMinutes) {
       return null;
     }
     for (let offset = 1; offset <= limitDays; offset += 1) {
       const dateParts = addDaysToDateParts(startParts, offset);
       const daylight = getDaylightMinutesForDateParts(dateParts);
-      if (daylight == null) {
+      if (daylight === null) {
         continue;
       }
       if (daylight >= targetMinutes) {
@@ -625,19 +581,15 @@ export const createAstronomyContext = (location, timeZone) => {
     return null;
   };
 
-  const findFirstDaylightGain = (
-    startParts,
-    gainMinutes,
-    limitDays = 370
-  ) => {
+  const findFirstDaylightGain = (startParts, gainMinutes, limitDays = 370) => {
     const startDaylight = getDaylightMinutesForDateParts(startParts);
-    if (startDaylight == null) {
+    if (startDaylight === null) {
       return null;
     }
     for (let offset = 1; offset <= limitDays; offset += 1) {
       const dateParts = addDaysToDateParts(startParts, offset);
       const daylight = getDaylightMinutesForDateParts(dateParts);
-      if (daylight == null) {
+      if (daylight === null) {
         continue;
       }
       if (daylight - startDaylight >= gainMinutes) {

@@ -27,6 +27,7 @@ export default [
       sourceType: "module",
       globals: {
         ...globals.browser,
+        Astronomy: "readonly", // Third-party astronomy library
       },
     },
     plugins: {
@@ -53,8 +54,8 @@ export default [
       "object-shorthand": "warn",
 
       // Code quality
-      "eqeqeq": ["error", "always"],
-      "curly": ["error", "all"],
+      eqeqeq: ["error", "always"],
+      curly: ["error", "all"],
       "no-eval": "error",
       "no-implied-eval": "error",
       "no-new-func": "error",

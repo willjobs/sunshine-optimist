@@ -20,7 +20,6 @@ import {
   setSuggestionResults,
   getRawResults,
   setRawResults,
-  getActiveIndex,
   setActiveIndex,
   getDebounceId,
   setDebounceId,
@@ -42,7 +41,6 @@ import {
   setLastFilterTokensRaw,
   getRecentLocations,
   setRecentLocations,
-  getActiveLocation,
   setActiveLocation,
   clearReverseGeocodeCache,
 } from "../state/app-state.js";
@@ -347,8 +345,7 @@ export const updateResultsMaxHeight = () => {
     milestoneRect && milestoneRect.top > locationRect.bottom + spacing
       ? milestoneRect.top - locationRect.bottom - spacing
       : window.innerHeight - locationRect.bottom - spacing;
-  const chromeHeight =
-    (resultsMeta?.offsetHeight || 0) + (resultsActions?.offsetHeight || 0) + 24;
+  const chromeHeight = (resultsMeta?.offsetHeight || 0) + (resultsActions?.offsetHeight || 0) + 24;
   const maxHeight = Math.max(0, Math.min(260, available - chromeHeight));
   resultsList.style.maxHeight = `${maxHeight}px`;
 };
@@ -475,6 +472,7 @@ export const selectResult = (item, { persist = true, updateRecents = true } = {}
   updateClearButton();
   clearResults();
   setActiveLocation(item);
+  // eslint-disable-next-line no-console
   console.log(`Selected city: ${label}`, {
     latitude: item.latitude,
     longitude: item.longitude,

@@ -9,7 +9,6 @@ import {
   getModalSnapshot,
   setModalSnapshot,
   isSharePrivacyEnabled,
-  setSharePrivacyEnabled,
   getShareText,
   setShareText,
   getActiveLocation,
@@ -71,11 +70,7 @@ const getLossFraction = (snapshot) => {
   if (totalLoss <= 0) {
     return null;
   }
-  return clampValue(
-    (snapshot.longestDayMinutes - snapshot.todayDaylight) / totalLoss,
-    0,
-    1
-  );
+  return clampValue((snapshot.longestDayMinutes - snapshot.todayDaylight) / totalLoss, 0, 1);
 };
 
 /**
@@ -96,7 +91,7 @@ export const buildShareProgressLine = (snapshot) => {
   }
   if (mode === "shortest") {
     const fraction =
-      snapshot.fractionOfLossCompleted != null
+      snapshot.fractionOfLossCompleted !== null
         ? snapshot.fractionOfLossCompleted
         : getLossFraction(snapshot);
     if (!Number.isFinite(fraction)) {
@@ -165,7 +160,13 @@ const buildShareMilestoneLine = () => {
 /**
  * Build share message text
  */
-export const buildShareMessage = async (headline, lede, getActiveDateParts, languageCode, fallbackTimeZone) => {
+export const buildShareMessage = async (
+  headline,
+  lede,
+  getActiveDateParts,
+  languageCode,
+  fallbackTimeZone
+) => {
   const snapshot = getModalSnapshot() || getShareSnapshot();
   const timeZone = snapshot?.timeZone || fallbackTimeZone;
   const dateParts = snapshot?.dateParts || getActiveDateParts(timeZone);
@@ -239,7 +240,13 @@ export const refreshSharePreview = async (
   setShareText("");
   setText(sharePreview, "Preparing your share...");
   try {
-    const message = await buildShareMessage(headline, lede, getActiveDateParts, languageCode, fallbackTimeZone);
+    const message = await buildShareMessage(
+      headline,
+      lede,
+      getActiveDateParts,
+      languageCode,
+      fallbackTimeZone
+    );
     setSharePreviewText(sharePreview, message);
   } catch (error) {
     console.warn("Share preview failed:", error);
@@ -270,7 +277,14 @@ export const openShareModal = (
   } else {
     shareModal.setAttribute("open", "true");
   }
-  refreshSharePreview(sharePreview, headline, lede, getActiveDateParts, languageCode, fallbackTimeZone);
+  refreshSharePreview(
+    sharePreview,
+    headline,
+    lede,
+    getActiveDateParts,
+    languageCode,
+    fallbackTimeZone
+  );
 };
 
 /**
@@ -291,12 +305,24 @@ export const closeShareModal = (shareModal) => {
 /**
  * Ensure share text is available
  */
-export const ensureShareText = async (headline, lede, getActiveDateParts, languageCode, fallbackTimeZone) => {
+export const ensureShareText = async (
+  headline,
+  lede,
+  getActiveDateParts,
+  languageCode,
+  fallbackTimeZone
+) => {
   const currentText = getShareText();
   if (currentText) {
     return currentText;
   }
-  const message = await buildShareMessage(headline, lede, getActiveDateParts, languageCode, fallbackTimeZone);
+  const message = await buildShareMessage(
+    headline,
+    lede,
+    getActiveDateParts,
+    languageCode,
+    fallbackTimeZone
+  );
   setShareText(message);
   return message;
 };
@@ -304,8 +330,20 @@ export const ensureShareText = async (headline, lede, getActiveDateParts, langua
 /**
  * Copy share text to clipboard
  */
-export const copyShareText = async (headline, lede, getActiveDateParts, languageCode, fallbackTimeZone) => {
-  const text = await ensureShareText(headline, lede, getActiveDateParts, languageCode, fallbackTimeZone);
+export const copyShareText = async (
+  headline,
+  lede,
+  getActiveDateParts,
+  languageCode,
+  fallbackTimeZone
+) => {
+  const text = await ensureShareText(
+    headline,
+    lede,
+    getActiveDateParts,
+    languageCode,
+    fallbackTimeZone
+  );
   if (!navigator.clipboard?.writeText) {
     return false;
   }

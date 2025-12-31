@@ -101,9 +101,7 @@ export const updateMilestoneCard = (
     milestoneToggle.disabled = !hasMultiple;
     milestoneToggle.setAttribute(
       "aria-label",
-      hasMultiple
-        ? `Next milestone (${index + 1} of ${milestones.length})`
-        : "Next milestone"
+      hasMultiple ? `Next milestone (${index + 1} of ${milestones.length})` : "Next milestone"
     );
   }
 };

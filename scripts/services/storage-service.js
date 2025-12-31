@@ -13,6 +13,7 @@ const sanitizeStoredLocation = (location) => {
   if (!location || typeof location !== "object") {
     return location;
   }
+  // eslint-disable-next-line no-unused-vars
   const { reverseGeocodeFailed, ...sanitized } = location;
   return sanitized;
 };
@@ -54,6 +55,7 @@ export const loadStoredLocation = () => {
     if (typeof parsed.latitude !== "number" || typeof parsed.longitude !== "number") {
       return null;
     }
+    // eslint-disable-next-line no-unused-vars
     const { reverseGeocodeFailed, ...sanitized } = parsed;
     return sanitized;
   } catch (error) {

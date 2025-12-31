@@ -156,13 +156,12 @@ export const formatSharePercent = (fraction) => {
  * Format a delta value with descriptor (e.g., "15 minutes later")
  */
 export const formatDeltaStatement = (minutes, positiveLabel, negativeLabel) => {
-  if (minutes == null || Number.isNaN(minutes)) {
+  if (minutes === null || Number.isNaN(minutes)) {
     return "";
   }
   const rounded = Math.round(minutes);
   const abs = Math.abs(rounded);
-  const value =
-    abs >= 60 ? formatDuration(abs) : `${abs} ${abs === 1 ? "minute" : "minutes"}`;
+  const value = abs >= 60 ? formatDuration(abs) : `${abs} ${abs === 1 ? "minute" : "minutes"}`;
   const descriptor = rounded >= 0 ? positiveLabel : negativeLabel;
   return `${value} ${descriptor}`;
 };
@@ -170,7 +169,13 @@ export const formatDeltaStatement = (minutes, positiveLabel, negativeLabel) => {
 /**
  * Format a comparison tooltip (e.g., "4:30 PM on Dec 15")
  */
-export const formatComparisonTooltip = (value, parts, timeZone, referenceYear, formatShortDateFn) => {
+export const formatComparisonTooltip = (
+  value,
+  parts,
+  timeZone,
+  referenceYear,
+  formatShortDateFn
+) => {
   if (!value || !parts) {
     return "";
   }
@@ -186,8 +191,18 @@ export const formatComparisonTooltip = (value, parts, timeZone, referenceYear, f
 // ============================================================================
 
 const SHARE_MONTHS = [
-  "Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.",
-  "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec.",
+  "Jan.",
+  "Feb.",
+  "Mar.",
+  "Apr.",
+  "May",
+  "Jun.",
+  "Jul.",
+  "Aug.",
+  "Sep.",
+  "Oct.",
+  "Nov.",
+  "Dec.",
 ];
 
 /**

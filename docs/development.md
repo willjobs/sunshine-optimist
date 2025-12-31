@@ -17,6 +17,7 @@ Then open `http://localhost:8000`.
 The console logs the full list of optimistic messages on page load, when a new location is selected, and when the date changes, in the format: `Optimistic messages for {LOCATION} on {DATE}:`.
 
 Debug helpers are available on `window.SunshineOptimistDebug`:
+
 - `printOptimisticMessages()` — reprints the current list
 - `getOptimisticMessages()` — returns the last computed data, valid options, displayed options, and the reason (`ok`, `fallback`, or `polar`)
 
@@ -38,18 +39,19 @@ Messages live in `scripts/messages.js` in the `OPTIMISTIC_MESSAGES` array. Each 
 
 ### Message fields
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `headline` | Yes | Main message text. Can include `{## unit}` placeholders. |
-| `lede` | No | Secondary text shown below the headline. |
-| `months` | Yes | Array of months (1-12) when the message is valid. Adjusted for hemisphere. |
-| `data_needs` | Yes | Array of keys that must exist in `messageData`. |
-| `additional_requirements` | No | Comparison expression like `"value_a > value_b"`. Supports `>`, `<`, `>=`, `<=`, `==`. |
-| `getValue` | No | Function returning a number for placeholders. Required if headline/lede has `{## ...}`. |
+| Field                     | Required | Description                                                                             |
+| ------------------------- | -------- | --------------------------------------------------------------------------------------- |
+| `headline`                | Yes      | Main message text. Can include `{## unit}` placeholders.                                |
+| `lede`                    | No       | Secondary text shown below the headline.                                                |
+| `months`                  | Yes      | Array of months (1-12) when the message is valid. Adjusted for hemisphere.              |
+| `data_needs`              | Yes      | Array of keys that must exist in `messageData`.                                         |
+| `additional_requirements` | No       | Comparison expression like `"value_a > value_b"`. Supports `>`, `<`, `>=`, `<=`, `==`.  |
+| `getValue`                | No       | Function returning a number for placeholders. Required if headline/lede has `{## ...}`. |
 
 ### Placeholders
 
 Use `{## unit}` in headlines or ledes:
+
 - `{## minutes}` — formats as "X minutes" or "X hours Y minutes"
 - `{## days}` — formats as "X days" or "X day"
 - `{## weeks}` — formats as "X weeks" or "X week"
@@ -114,6 +116,7 @@ Two arrays of predefined milestones:
 ### Computed milestones (`scripts/controllers/daylight-controller.js`)
 
 Dynamic milestones are built in `buildUpcomingMilestones()`:
+
 - Earliest sunset of the year
 - Shortest/longest day of the year
 - Spring/fall equinox
@@ -126,6 +129,7 @@ To add a new computed milestone, update `buildUpcomingMilestones()` in `daylight
 ### Milestone structure
 
 All milestones need:
+
 - `id` — unique identifier
 - `title` — text for the carousel
 - `date` — JavaScript Date object (computed milestones set this dynamically)
@@ -134,12 +138,14 @@ All milestones need:
 ## Modifying the DOM
 
 If you change `index.html` ids/classes:
+
 - Update the DOM selectors in `app.js`
 - Keep the ARIA attributes for the location combobox intact
 
 ## Testing
 
 Manual checks usually cover the main flows:
+
 - City search (local and worldwide toggle)
 - Geolocation bias
 - Date picker and Today reset

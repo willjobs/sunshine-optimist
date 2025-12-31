@@ -20,23 +20,32 @@ For detailed architecture, see [docs/architecture.md](docs/architecture.md).
 ## Code Style
 
 ### JavaScript
+
 - ES modules with explicit imports/exports
 - No build step or transpilation
 - Prefer `const` over `let`; avoid `var`
 - Use async/await for asynchronous code
 - Controllers communicate via callbacks to avoid circular dependencies
 
-### Formatting
-- 2-space indentation
-- Single quotes for strings
-- No semicolons (project uses ASI)
+### Linting and Formatting
+
+This project uses **ESLint** for linting and **Prettier** for code formatting.
+
+- **Always run the linter and formatter before running tests**:
+  ```bash
+  npm run lint:fix
+  npm run format
+  ```
+- The linter enforces strict equality (`===`/`!==`), no unused variables, and other code quality rules
+- Prettier enforces consistent formatting (2-space indentation, single quotes, no semicolons)
+- See [eslint.config.js](eslint.config.js) and [.prettierrc.json](.prettierrc.json) for configuration details
 
 ### Naming
+
 - `camelCase` for variables and functions
 - `PascalCase` for classes (rare in this codebase)
 - Descriptive names: `getYearlySunExtremes` not `getSunData`
 - File names use kebab-case: `date-controller.js`
-
 
 ## Important Conventions
 
@@ -55,6 +64,7 @@ For detailed architecture, see [docs/architecture.md](docs/architecture.md).
 ### Running Locally
 
 The app is a static site with no build step. Open `index.html` directly in a browser, or use a local server:
+
 ```bash
 python3 -m http.server
 ```
@@ -65,23 +75,35 @@ The project uses **Playwright** for end-to-end tests and **Vitest** for unit tes
 
 #### Running Tests
 
-After completing a task, run tests to verify nothing broke:
+After completing a task, **always run all tests** to verify nothing broke. Follow this workflow:
 
-```bash
-# Run Playwright E2E tests (headless)
-npm test
+1. **Fix linting and formatting issues first**:
+   ```bash
+   npm run lint:fix
+   npm run format
+   ```
 
-# Run Playwright with visible browser
-npm run test:headed
+2. **Run both unit tests AND end-to-end tests**:
+   ```bash
+   # Run Vitest unit tests
+   npm run test:unit
 
-# Run Playwright in interactive UI mode
-npm run test:ui
+   # Run Playwright E2E tests (headless)
+   npm test
+   ```
 
-# Run Vitest unit tests
-npm run test:unit
-```
+3. **Additional Playwright options** (if needed):
+   ```bash
+   # Run Playwright with visible browser
+   npm run test:headed
 
-**Important**: The Playwright config automatically starts a Python http server on port 9247 before running tests. You don't need to start it manually.
+   # Run Playwright in interactive UI mode
+   npm run test:ui
+   ```
+
+**Important**:
+- The Playwright config automatically starts a Python http server on port 9247 before running tests. You don't need to start it manually.
+- **Always run both unit tests (`npm run test:unit`) and E2E tests (`npm test`) before considering a task complete**.
 
 #### Playwright Test Best Practices
 

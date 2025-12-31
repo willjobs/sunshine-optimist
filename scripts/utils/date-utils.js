@@ -117,8 +117,7 @@ export const addMonthsToDateParts = (parts, deltaMonths) => {
   };
 };
 
-export const getDaysInMonth = (year, month) =>
-  new Date(Date.UTC(year, month, 0)).getUTCDate();
+export const getDaysInMonth = (year, month) => new Date(Date.UTC(year, month, 0)).getUTCDate();
 
 export const compareDateParts = (left, right) => {
   if (!left || !right) {
@@ -140,11 +139,7 @@ export const getDaysBetweenDateParts = (startParts, endParts) => {
   if (!startParts || !endParts) {
     return null;
   }
-  const startUtc = Date.UTC(
-    startParts.year,
-    startParts.month - 1,
-    startParts.day
-  );
+  const startUtc = Date.UTC(startParts.year, startParts.month - 1, startParts.day);
   const endUtc = Date.UTC(endParts.year, endParts.month - 1, endParts.day);
   return Math.round((endUtc - startUtc) / 86400000);
 };
@@ -206,7 +201,7 @@ export const createDateFormatter = (localeSource) => {
       month: "short",
       day: "numeric",
     };
-    if (referenceYear != null && parts.year !== referenceYear) {
+    if (referenceYear !== null && parts.year !== referenceYear) {
       options.year = "numeric";
     }
     return getFormatter(options).format(date);

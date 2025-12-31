@@ -28,12 +28,8 @@ const mapReverseGeocodeResponse = (data, location) => {
   if (!name) {
     return null;
   }
-  const latitude = Number.isFinite(data.latitude)
-    ? data.latitude
-    : location.latitude;
-  const longitude = Number.isFinite(data.longitude)
-    ? data.longitude
-    : location.longitude;
+  const latitude = Number.isFinite(data.latitude) ? data.latitude : location.latitude;
+  const longitude = Number.isFinite(data.longitude) ? data.longitude : location.longitude;
   return {
     name,
     admin1: data.principalSubdivision || "",
@@ -54,11 +50,7 @@ const mapReverseGeocodeResponse = (data, location) => {
  * @returns {Promise<Object|null>} Resolved location or null on failure
  */
 export const fetchReverseGeocodeLocation = async (location, languageCode = "en") => {
-  if (
-    !location ||
-    !Number.isFinite(location.latitude) ||
-    !Number.isFinite(location.longitude)
-  ) {
+  if (!location || !Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) {
     return null;
   }
 

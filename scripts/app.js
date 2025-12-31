@@ -26,10 +26,7 @@ import {
   loadSharePrivacyPreference,
   saveSharePrivacyPreference,
 } from "./services/storage-service.js";
-import {
-  initializeTooltipTarget,
-  initializeGlobalTooltipHandlers,
-} from "./ui/tooltip-ui.js";
+import { initializeTooltipTarget, initializeGlobalTooltipHandlers } from "./ui/tooltip-ui.js";
 import { updateMilestoneCard } from "./ui/milestone-ui.js";
 import {
   openShareModal,
@@ -81,12 +78,8 @@ const languageCode = localeSource.split("-")[0] || "en";
 const regionCode = (localeSource.split("-")[1] || "").toUpperCase();
 
 // Date formatters
-const {
-  formatLongDateFromParts,
-  formatShortDateFromParts,
-  formatTime,
-  formatTimeFromMinutes,
-} = createDateFormatter(localeSource);
+const { formatLongDateFromParts, formatShortDateFromParts, formatTime, formatTimeFromMinutes } =
+  createDateFormatter(localeSource);
 
 // ============================================================================
 // DOM Elements
@@ -305,7 +298,13 @@ if (milestoneToggle) {
     const nextIndex = (currentIndex + 1) % upcoming.length;
     setMilestoneIndex(nextIndex);
     updateMilestoneCard(
-      { nextHeadline: dom.nextHeadline, nextDate: dom.nextDate, nextAway: dom.nextAway, milestone, milestoneToggle },
+      {
+        nextHeadline: dom.nextHeadline,
+        nextDate: dom.nextDate,
+        nextAway: dom.nextAway,
+        milestone,
+        milestoneToggle,
+      },
       upcoming,
       getMilestoneTimeZone() || FALLBACK_TIMEZONE,
       formatLongDateFromParts,
@@ -448,18 +447,36 @@ if (shareActionButtons.length) {
       if (!action) return;
       try {
         if (action === "copy") {
-          const success = await copyShareText(headline, lede, (tz) => getActiveDateParts(tz), languageCode, FALLBACK_TIMEZONE);
+          const success = await copyShareText(
+            headline,
+            lede,
+            (tz) => getActiveDateParts(tz),
+            languageCode,
+            FALLBACK_TIMEZONE
+          );
           if (success) flashActionLabel(button, "Copied!");
           return;
         }
         if (action === "instagram") {
-          const success = await copyShareText(headline, lede, (tz) => getActiveDateParts(tz), languageCode, FALLBACK_TIMEZONE);
+          const success = await copyShareText(
+            headline,
+            lede,
+            (tz) => getActiveDateParts(tz),
+            languageCode,
+            FALLBACK_TIMEZONE
+          );
           if (success) flashActionLabel(button, "Copied!");
           openShareLink("https://www.instagram.com/");
           return;
         }
         const { ensureShareText } = await import("./ui/share-modal-ui.js");
-        const text = await ensureShareText(headline, lede, (tz) => getActiveDateParts(tz), languageCode, FALLBACK_TIMEZONE);
+        const text = await ensureShareText(
+          headline,
+          lede,
+          (tz) => getActiveDateParts(tz),
+          languageCode,
+          FALLBACK_TIMEZONE
+        );
         const encodedText = encodeURIComponent(text);
         if (action === "facebook") {
           const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
@@ -519,9 +536,7 @@ window.SunshineOptimistDebug = {
   getOptimisticMessages: getOptimisticDebugSnapshot,
   printOptimisticMessages: () => {
     const snapshot = getOptimisticDebugSnapshot();
-    const list = snapshot.validOptions.length
-      ? snapshot.validOptions
-      : snapshot.displayedOptions;
+    const list = snapshot.validOptions.length ? snapshot.validOptions : snapshot.displayedOptions;
     if (typeof console.table === "function") {
       console.table(
         list.map((item, index) => ({
@@ -531,6 +546,7 @@ window.SunshineOptimistDebug = {
         }))
       );
     } else {
+      // eslint-disable-next-line no-console
       console.log(list);
     }
     return snapshot;

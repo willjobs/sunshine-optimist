@@ -1,6 +1,7 @@
 {
   "name": "sunshine-optimist",
   "version": "1.0.0",
+  "type": "module",
   "description": "A single-page web app that turns sunrise and sunset calculations into upbeat, seasonal insights about daylight for any city.",
   "main": "index.js",
   "directories": {

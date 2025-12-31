@@ -39,8 +39,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [1, 2, 3, 4, 12],
     data_needs: ["sunset_today", "sunset_earliest"],
     additional_requirements: "sunset_today > sunset_earliest",
-    getValue: ({ sunset_today, sunset_earliest }) =>
-      getDelta(sunset_today, sunset_earliest, true),
+    getValue: ({ sunset_today, sunset_earliest }) => getDelta(sunset_today, sunset_earliest, true),
   },
   {
     headline: "Today's sunset is {## minutes} later than it was at the start of the year.",
@@ -61,7 +60,8 @@ export const OPTIMISTIC_MESSAGES = [
       getDelta(sunset_today, sunset_one_month_ago),
   },
   {
-    headline: "By the end of this month, days will be {## minutes} longer than the winter solstice.",
+    headline:
+      "By the end of this month, days will be {## minutes} longer than the winter solstice.",
     lede: "Woohoo!",
     months: [1, 2, 3, 4],
     data_needs: ["daylight_minimum", "daylight_at_end_of_month"],
@@ -75,8 +75,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [1, 2, 3, 4, 5],
     data_needs: ["daylight_today", "daylight_minimum"],
     additional_requirements: null,
-    getValue: ({ daylight_today, daylight_minimum }) =>
-      getDelta(daylight_today, daylight_minimum),
+    getValue: ({ daylight_today, daylight_minimum }) => getDelta(daylight_today, daylight_minimum),
   },
   {
     headline: "You have {## minutes} of daylight after 5pm.",
@@ -84,8 +83,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [2, 3, 4, 5, 6, 7, 8, 9],
     data_needs: ["daylight_after_5pm_today"],
     additional_requirements: "daylight_after_5pm_today > 0",
-    getValue: ({ daylight_after_5pm_today }) =>
-      getPositiveNumber(daylight_after_5pm_today, true),
+    getValue: ({ daylight_after_5pm_today }) => getPositiveNumber(daylight_after_5pm_today, true),
   },
   {
     headline: "You've gained {## minutes} of daylight in the last month.",
@@ -102,8 +100,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [7, 8, 9, 10],
     data_needs: ["daylight_today", "daylight_minimum"],
     additional_requirements: null,
-    getValue: ({ daylight_today, daylight_minimum }) =>
-      getDelta(daylight_today, daylight_minimum),
+    getValue: ({ daylight_today, daylight_minimum }) => getDelta(daylight_today, daylight_minimum),
   },
   {
     headline: "Only {## minutes} of daylight remain to lose before the turnaround.",
@@ -111,8 +108,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [11, 12],
     data_needs: ["daylight_today", "daylight_minimum"],
     additional_requirements: "today_date < winter_solstice_date",
-    getValue: ({ daylight_today, daylight_minimum }) =>
-      getDelta(daylight_today, daylight_minimum),
+    getValue: ({ daylight_today, daylight_minimum }) => getDelta(daylight_today, daylight_minimum),
   },
   {
     headline: "Most of the daylight loss is already behind you.",
@@ -145,8 +141,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [1, 2, 3],
     data_needs: ["daylight_gain_this_week", "spring_equinox_date", "today_date"],
     additional_requirements: "today_date < spring_equinox_date",
-    getValue: ({ daylight_gain_this_week }) =>
-      getPositiveNumber(daylight_gain_this_week),
+    getValue: ({ daylight_gain_this_week }) => getPositiveNumber(daylight_gain_this_week),
   },
   {
     headline: "Each day you're gaining {## minutes} of daylight.",
@@ -162,8 +157,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [2, 3, 4, 5],
     data_needs: ["daylight_gain_this_week"],
     additional_requirements: null,
-    getValue: ({ daylight_gain_this_week }) =>
-      getPositiveNumber(daylight_gain_this_week),
+    getValue: ({ daylight_gain_this_week }) => getPositiveNumber(daylight_gain_this_week),
   },
   {
     headline: "You're losing daylight less quickly than you were a month ago.",
@@ -178,8 +172,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [1, 2, 3],
     data_needs: ["days_until_sunset_after_5pm"],
     additional_requirements: "days_until_sunset_after_5pm > 0",
-    getValue: ({ days_until_sunset_after_5pm }) =>
-      getPositiveNumber(days_until_sunset_after_5pm),
+    getValue: ({ days_until_sunset_after_5pm }) => getPositiveNumber(days_until_sunset_after_5pm),
   },
   {
     headline: "Only {## days} until sunset reaches 6pm.",
@@ -187,8 +180,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [2, 3, 4],
     data_needs: ["days_until_sunset_after_6pm"],
     additional_requirements: "days_until_sunset_after_6pm > 0",
-    getValue: ({ days_until_sunset_after_6pm }) =>
-      getPositiveNumber(days_until_sunset_after_6pm),
+    getValue: ({ days_until_sunset_after_6pm }) => getPositiveNumber(days_until_sunset_after_6pm),
   },
   {
     headline: "Only {## days} until sunset reaches 7pm.",
@@ -196,8 +188,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [3, 4, 5],
     data_needs: ["days_until_sunset_after_7pm"],
     additional_requirements: "days_until_sunset_after_7pm > 0",
-    getValue: ({ days_until_sunset_after_7pm }) =>
-      getPositiveNumber(days_until_sunset_after_7pm),
+    getValue: ({ days_until_sunset_after_7pm }) => getPositiveNumber(days_until_sunset_after_7pm),
   },
   {
     headline: "The largest daily increase in daylight is only {## days} away.",
@@ -205,8 +196,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [1, 2, 3],
     data_needs: ["days_until_max_daily_gain"],
     additional_requirements: "days_until_max_daily_gain > 0",
-    getValue: ({ days_until_max_daily_gain }) =>
-      getPositiveNumber(days_until_max_daily_gain),
+    getValue: ({ days_until_max_daily_gain }) => getPositiveNumber(days_until_max_daily_gain),
   },
   {
     headline: "Only {## days} until the longest day of the year.",
@@ -214,8 +204,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [4, 5, 6],
     data_needs: ["days_until_summer_solstice"],
     additional_requirements: "days_until_summer_solstice > 0",
-    getValue: ({ days_until_summer_solstice }) =>
-      getPositiveNumber(days_until_summer_solstice),
+    getValue: ({ days_until_summer_solstice }) => getPositiveNumber(days_until_summer_solstice),
   },
   {
     headline: "You still have over {## weeks} of sunset after 7pm.",
@@ -232,8 +221,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [11, 12],
     data_needs: ["days_until_winter_solstice"],
     additional_requirements: "days_until_winter_solstice > 0",
-    getValue: ({ days_until_winter_solstice }) =>
-      getPositiveNumber(days_until_winter_solstice),
+    getValue: ({ days_until_winter_solstice }) => getPositiveNumber(days_until_winter_solstice),
   },
   {
     headline: "The earliest sunset is only {## days} away.",
@@ -241,8 +229,7 @@ export const OPTIMISTIC_MESSAGES = [
     months: [11, 12],
     data_needs: ["days_until_earliest_sunset"],
     additional_requirements: "days_until_earliest_sunset > 0",
-    getValue: ({ days_until_earliest_sunset }) =>
-      getPositiveNumber(days_until_earliest_sunset),
+    getValue: ({ days_until_earliest_sunset }) => getPositiveNumber(days_until_earliest_sunset),
   },
   {
     headline: "You've regained {##%} of the daylight lost in winter.",
@@ -346,13 +333,12 @@ export const OPTIMISTIC_MESSAGES = [
     months: [10, 11, 12],
     data_needs: ["daylight_loss_this_week"],
     additional_requirements: null,
-    getValue: ({ daylight_loss_this_week }) =>
-      getPositiveNumber(daylight_loss_this_week),
+    getValue: ({ daylight_loss_this_week }) => getPositiveNumber(daylight_loss_this_week),
   },
 ];
 
 const isValidDataValue = (value) => {
-  if (value == null) {
+  if (value === null) {
     return false;
   }
   if (value instanceof Date) {
@@ -385,7 +371,7 @@ const compareRequirementValues = (left, operator, right) => {
     case "<=":
       return leftValue <= rightValue;
     case "==":
-      return leftValue == rightValue;
+      return leftValue === rightValue;
     case "===":
       return leftValue === rightValue;
     default:
@@ -397,9 +383,7 @@ const evaluateRequirement = (requirement, data) => {
   if (!requirement) {
     return true;
   }
-  const match = requirement.match(
-    /^([a-z0-9_]+)\s*(<=|>=|<|>|===|==)\s*([a-z0-9_.-]+)$/i
-  );
+  const match = requirement.match(/^([a-z0-9_]+)\s*(<=|>=|<|>|===|==)\s*([a-z0-9_.-]+)$/i);
   if (!match) {
     return false;
   }
@@ -424,8 +408,7 @@ export const getOptimisticMessageOptions = (data, month, hemisphere) => {
       ) {
         return null;
       }
-      const needsValue =
-        hasPlaceholder(message.headline) || hasPlaceholder(message.lede);
+      const needsValue = hasPlaceholder(message.headline) || hasPlaceholder(message.lede);
       if (!needsValue) {
         return { message, value: null };
       }

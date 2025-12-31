@@ -15,10 +15,7 @@ import {
   OPTIMISTIC_POLAR_COPY,
   OPTIMISTIC_FALLBACK_COPY,
 } from "../ui/message-ui.js";
-import {
-  formatOptimisticLogHeadline,
-  buildOptimisticLogLine,
-} from "../formatters/formatters.js";
+import { buildOptimisticLogLine } from "../formatters/formatters.js";
 import { formatSelectedLocation } from "../utils/location-utils.js";
 
 /**
@@ -27,7 +24,12 @@ import { formatSelectedLocation } from "../utils/location-utils.js";
  * @param {Function} formatLongDateFromParts - Function to format date parts
  * @param {string} fallbackTimeZone - Fallback timezone if no location
  */
-export const logOptimisticMessages = (getActiveDateParts, formatLongDateFromParts, fallbackTimeZone) => {
+export const logOptimisticMessages = (
+  getActiveDateParts,
+  formatLongDateFromParts,
+  fallbackTimeZone
+) => {
+  // eslint-disable-next-line no-console
   if (typeof console === "undefined" || typeof console.log !== "function") return;
   const location = getActiveLocation();
   const timeZone = location?.timezone || fallbackTimeZone;
@@ -42,6 +44,7 @@ export const logOptimisticMessages = (getActiveDateParts, formatLongDateFromPart
     locationLabel || "Unknown location"
   } on ${dateLabel || "Unknown date"}:`;
   const lines = list.map(buildOptimisticLogLine);
+  // eslint-disable-next-line no-console
   console.log([header, ...lines].join("\n"));
 };
 
@@ -74,9 +77,9 @@ export const updateOptimisticMessage = ({
   };
 
   if (
-    data.sunset_today == null ||
+    data.sunset_today === null ||
     Number.isNaN(data.sunset_today) ||
-    data.daylight_today == null ||
+    data.daylight_today === null ||
     Number.isNaN(data.daylight_today)
   ) {
     updateDebugState({

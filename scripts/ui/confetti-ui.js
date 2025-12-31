@@ -4,14 +4,7 @@
 
 import { getConfettiTimeoutId, setConfettiTimeoutId } from "../state/app-state.js";
 
-const CONFETTI_COLORS = [
-  "#f94144",
-  "#f3722c",
-  "#f9c74f",
-  "#90be6d",
-  "#43aa8b",
-  "#577590",
-];
+const CONFETTI_COLORS = ["#f94144", "#f3722c", "#f9c74f", "#90be6d", "#43aa8b", "#577590"];
 const CONFETTI_COUNT = 72;
 
 /**
@@ -45,10 +38,7 @@ export const launchConfetti = (confettiRoot) => {
     const spin = rotate + (Math.random() > 0.5 ? 300 : -300);
     piece.style.setProperty("--confetti-x", `${Math.random() * 100}%`);
     piece.style.setProperty("--confetti-size", `${size.toFixed(1)}px`);
-    piece.style.setProperty(
-      "--confetti-color",
-      CONFETTI_COLORS[i % CONFETTI_COLORS.length]
-    );
+    piece.style.setProperty("--confetti-color", CONFETTI_COLORS[i % CONFETTI_COLORS.length]);
     piece.style.setProperty("--confetti-delay", `${delay.toFixed(2)}s`);
     piece.style.setProperty("--confetti-duration", `${duration.toFixed(2)}s`);
     piece.style.setProperty("--confetti-drift", `${drift}px`);
@@ -60,10 +50,13 @@ export const launchConfetti = (confettiRoot) => {
 
   confettiRoot.appendChild(fragment);
 
-  const timeoutId = window.setTimeout(() => {
-    confettiRoot.innerHTML = "";
-    setConfettiTimeoutId(null);
-  }, (maxDuration + 0.5) * 1000);
+  const timeoutId = window.setTimeout(
+    () => {
+      confettiRoot.innerHTML = "";
+      setConfettiTimeoutId(null);
+    },
+    (maxDuration + 0.5) * 1000
+  );
 
   setConfettiTimeoutId(timeoutId);
 };

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   loadRecentLocations,
   saveRecentLocations,
@@ -7,46 +7,46 @@ import {
   saveStoredLocation,
   loadSharePrivacyPreference,
   saveSharePrivacyPreference,
-} from './storage-service.js'
+} from "./storage-service.js";
 
 beforeEach(() => {
-  window.localStorage.clear()
-})
+  window.localStorage.clear();
+});
 
-describe('storage-service', () => {
-  it('saves and loads recent locations', () => {
-    const items = [{ name: 'Boston', latitude: 1, longitude: 2 }]
-    saveRecentLocations(items)
-    expect(loadRecentLocations()).toEqual(items)
-  })
+describe("storage-service", () => {
+  it("saves and loads recent locations", () => {
+    const items = [{ name: "Boston", latitude: 1, longitude: 2 }];
+    saveRecentLocations(items);
+    expect(loadRecentLocations()).toEqual(items);
+  });
 
-  it('returns empty list for invalid recent locations JSON', () => {
-    window.localStorage.setItem('sunshine-optimist:recent-locations', '{bad json}')
-    expect(loadRecentLocations()).toEqual([])
-  })
+  it("returns empty list for invalid recent locations JSON", () => {
+    window.localStorage.setItem("sunshine-optimist:recent-locations", "{bad json}");
+    expect(loadRecentLocations()).toEqual([]);
+  });
 
-  it('saves and loads stored location safely', () => {
+  it("saves and loads stored location safely", () => {
     const location = {
-      name: 'Seattle',
+      name: "Seattle",
       latitude: 1,
       longitude: 2,
       reverseGeocodeFailed: true,
-    }
-    saveStoredLocation(location)
+    };
+    saveStoredLocation(location);
     expect(loadStoredLocation()).toEqual({
-      name: 'Seattle',
+      name: "Seattle",
       latitude: 1,
       longitude: 2,
-    })
-  })
+    });
+  });
 
-  it('handles invalid stored location data', () => {
-    window.localStorage.setItem('sunshine-optimist:active-location', '"not object"')
-    expect(loadStoredLocation()).toBe(null)
-  })
+  it("handles invalid stored location data", () => {
+    window.localStorage.setItem("sunshine-optimist:active-location", '"not object"');
+    expect(loadStoredLocation()).toBe(null);
+  });
 
-  it('persists share privacy preference', () => {
-    saveSharePrivacyPreference(true)
-    expect(loadSharePrivacyPreference()).toBe(true)
-  })
-})
+  it("persists share privacy preference", () => {
+    saveSharePrivacyPreference(true);
+    expect(loadSharePrivacyPreference()).toBe(true);
+  });
+});

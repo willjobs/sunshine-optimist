@@ -53,43 +53,31 @@ const US_STATE_ABBR = {
 };
 
 const US_STATE_NAME_BY_ABBR = Object.fromEntries(
-  Object.entries(US_STATE_ABBR).map(([name, abbr]) => [
-    abbr.toLowerCase(),
-    name,
-  ])
+  Object.entries(US_STATE_ABBR).map(([name, abbr]) => [abbr.toLowerCase(), name])
 );
 
 const STATE_ALIAS_BY_TOKEN = {
   dc: "District of Columbia",
 };
 
-export const normalizeCountryCode = (item) =>
-  (item.country_code || "").toUpperCase();
+export const normalizeCountryCode = (item) => (item.country_code || "").toUpperCase();
 
 export const formatSelectedLocation = (item) => {
   const isUnitedStates =
-    normalizeCountryCode(item) === "US" ||
-    item.country?.toLowerCase() === "united states";
+    normalizeCountryCode(item) === "US" || item.country?.toLowerCase() === "united states";
   const regionName = item.admin1 || "";
   const region =
-    isUnitedStates && US_STATE_ABBR[regionName]
-      ? US_STATE_ABBR[regionName]
-      : regionName;
-  const parts = isUnitedStates
-    ? [item.name, region]
-    : [item.name, region, item.country];
+    isUnitedStates && US_STATE_ABBR[regionName] ? US_STATE_ABBR[regionName] : regionName;
+  const parts = isUnitedStates ? [item.name, region] : [item.name, region, item.country];
   return parts.filter(Boolean).join(", ");
 };
 
 export const formatSuggestionLocation = (item) => {
   const isUnitedStates =
-    normalizeCountryCode(item) === "US" ||
-    item.country?.toLowerCase() === "united states";
+    normalizeCountryCode(item) === "US" || item.country?.toLowerCase() === "united states";
   const regionName = item.admin1 || "";
   const region =
-    isUnitedStates && US_STATE_ABBR[regionName]
-      ? US_STATE_ABBR[regionName]
-      : regionName;
+    isUnitedStates && US_STATE_ABBR[regionName] ? US_STATE_ABBR[regionName] : regionName;
   const parts = [item.name, region, item.country].filter(Boolean);
   return parts.join(", ");
 };
@@ -117,9 +105,7 @@ const expandFilterTokens = (tokens) => {
 };
 
 const formatFilterTokens = (tokens) =>
-  tokens
-    .map((token) => (token.length === 2 ? token.toUpperCase() : token))
-    .join(" ");
+  tokens.map((token) => (token.length === 2 ? token.toUpperCase() : token)).join(" ");
 
 export const parseQuery = (query) => {
   const parts = query.split(",");
@@ -176,9 +162,7 @@ const matchesToken = (item, token) => {
   if (wordMatch) {
     return true;
   }
-  const stateMatch = fields.some(
-    (field) => US_STATE_ABBR[field] === token.toUpperCase()
-  );
+  const stateMatch = fields.some((field) => US_STATE_ABBR[field] === token.toUpperCase());
   if (stateMatch) {
     return true;
   }
@@ -190,9 +174,7 @@ export const applyFilterTokens = (items, tokens) => {
   if (!tokens.length) {
     return items;
   }
-  return items.filter((item) =>
-    tokens.every((token) => matchesToken(item, token))
-  );
+  return items.filter((item) => tokens.every((token) => matchesToken(item, token)));
 };
 
 export const formatFilterTokensForHint = (tokens) => formatFilterTokens(tokens);
@@ -204,9 +186,7 @@ export const distanceKm = (lat1, lon1, lat2, lon2) => {
   const dLon = toRad(lon2 - lon1);
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) ** 2;
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return 2 * earthRadius * Math.asin(Math.sqrt(a));
 };
 
@@ -215,18 +195,8 @@ export const sortByDistance = (items, userCoords) => {
     return items;
   }
   return [...items].sort((a, b) => {
-    const distanceA = distanceKm(
-      userCoords.lat,
-      userCoords.lon,
-      a.latitude,
-      a.longitude
-    );
-    const distanceB = distanceKm(
-      userCoords.lat,
-      userCoords.lon,
-      b.latitude,
-      b.longitude
-    );
+    const distanceA = distanceKm(userCoords.lat, userCoords.lon, a.latitude, a.longitude);
+    const distanceB = distanceKm(userCoords.lat, userCoords.lon, b.latitude, b.longitude);
     return distanceA - distanceB;
   });
 };

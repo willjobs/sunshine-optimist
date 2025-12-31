@@ -145,10 +145,7 @@ export const getUserCoords = () => locationState.userCoords;
 export const setUserCoords = (coords) => {
   const current = locationState.userCoords;
   const coordsChanged =
-    !current ||
-    !coords ||
-    current.lat !== coords.lat ||
-    current.lon !== coords.lon;
+    !current || !coords || current.lat !== coords.lat || current.lon !== coords.lon;
   if (coordsChanged) {
     reverseGeocodeState.cache = null;
     reverseGeocodeState.cacheKey = "";
@@ -300,7 +297,14 @@ export const setDebugLastUpdatedAt = (date) => {
   optimisticDebugState.lastUpdatedAt = date;
 };
 
-export const updateDebugState = ({ data, month, hemisphere, validOptions, displayedOptions, reason }) => {
+export const updateDebugState = ({
+  data,
+  month,
+  hemisphere,
+  validOptions,
+  displayedOptions,
+  reason,
+}) => {
   if (data !== undefined) optimisticDebugState.data = data;
   if (month !== undefined) optimisticDebugState.month = month;
   if (hemisphere !== undefined) optimisticDebugState.hemisphere = hemisphere;

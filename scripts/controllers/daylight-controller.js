@@ -17,10 +17,7 @@ import {
 } from "../utils/date-utils.js";
 import { setText } from "../utils/dom-utils.js";
 import { createAstronomyContext } from "../utils/astronomy-utils.js";
-import {
-  DAYLIGHT_GAIN_MILESTONES,
-  SUNSET_THRESHOLD_MILESTONES,
-} from "../milestones.js";
+import { DAYLIGHT_GAIN_MILESTONES, SUNSET_THRESHOLD_MILESTONES } from "../milestones.js";
 import { clampValue } from "../utils/utils.js";
 import {
   formatDuration,
@@ -33,10 +30,7 @@ import {
   getMilestoneTodayCopy,
   celebrateMilestone,
 } from "../ui/milestone-ui.js";
-import {
-  stopOptimisticRotation,
-  setOptimisticCopy,
-} from "../ui/message-ui.js";
+import { stopOptimisticRotation, setOptimisticCopy } from "../ui/message-ui.js";
 import { updateShareSnapshot } from "../ui/share-modal-ui.js";
 
 /**
@@ -104,60 +98,45 @@ export const calculateDeltas = (metrics) => {
   const { earliestSunsetMinutes, shortestDayMinutes, longestDayMinutes } = yearlyExtremes;
 
   const sunsetEarliestDelta =
-    todaySunsetMinutes != null && earliestSunsetMinutes != null
+    todaySunsetMinutes !== null && earliestSunsetMinutes !== null
       ? todaySunsetMinutes - earliestSunsetMinutes
       : null;
   const sunsetWeekDelta =
-    todaySunsetMinutes != null && weekSunsetMinutes != null
+    todaySunsetMinutes !== null && weekSunsetMinutes !== null
       ? todaySunsetMinutes - weekSunsetMinutes
       : null;
   const sunsetMonthDelta =
-    todaySunsetMinutes != null && monthSunsetMinutes != null
+    todaySunsetMinutes !== null && monthSunsetMinutes !== null
       ? todaySunsetMinutes - monthSunsetMinutes
       : null;
   const daylightShortestDelta =
-    todayDaylight != null && shortestDayMinutes != null
+    todayDaylight !== null && shortestDayMinutes !== null
       ? todayDaylight - shortestDayMinutes
       : null;
   const daylightWeekDelta =
-    todayDaylight != null && weekDaylight != null
-      ? todayDaylight - weekDaylight
-      : null;
+    todayDaylight !== null && weekDaylight !== null ? todayDaylight - weekDaylight : null;
   const daylightMonthDelta =
-    todayDaylight != null && monthDaylight != null
-      ? todayDaylight - monthDaylight
-      : null;
+    todayDaylight !== null && monthDaylight !== null ? todayDaylight - monthDaylight : null;
 
   const isNegativeDelta = (value) => Number.isFinite(value) && value < 0;
-  const monthHasNegative =
-    isNegativeDelta(sunsetMonthDelta) || isNegativeDelta(daylightMonthDelta);
-  const weekHasNegative =
-    isNegativeDelta(sunsetWeekDelta) || isNegativeDelta(daylightWeekDelta);
-  const comparisonMode = monthHasNegative
-    ? weekHasNegative
-      ? "none"
-      : "week"
-    : "month";
+  const monthHasNegative = isNegativeDelta(sunsetMonthDelta) || isNegativeDelta(daylightMonthDelta);
+  const weekHasNegative = isNegativeDelta(sunsetWeekDelta) || isNegativeDelta(daylightWeekDelta);
+  const comparisonMode = monthHasNegative ? (weekHasNegative ? "none" : "week") : "month";
 
-  const sunsetComparisonDelta =
-    comparisonMode === "week" ? sunsetWeekDelta : sunsetMonthDelta;
+  const sunsetComparisonDelta = comparisonMode === "week" ? sunsetWeekDelta : sunsetMonthDelta;
   const daylightComparisonDelta =
     comparisonMode === "week" ? daylightWeekDelta : daylightMonthDelta;
 
   // Calculate fraction of annual daylight loss completed
   let fractionOfLossCompleted = null;
   if (
-    todayDaylight != null &&
+    todayDaylight !== null &&
     Number.isFinite(longestDayMinutes) &&
     Number.isFinite(shortestDayMinutes)
   ) {
     const totalLoss = longestDayMinutes - shortestDayMinutes;
     if (totalLoss > 0) {
-      fractionOfLossCompleted = clampValue(
-        (longestDayMinutes - todayDaylight) / totalLoss,
-        0,
-        1
-      );
+      fractionOfLossCompleted = clampValue((longestDayMinutes - todayDaylight) / totalLoss, 0, 1);
     }
   }
 
@@ -200,8 +179,12 @@ export const updateStatsUI = (dom, metrics, deltas, timeZone, formatters) => {
 
   const { formatTime, formatTimeFromMinutes, formatShortDateFromParts } = formatters;
 
-  const { earliestSunsetMinutes, earliestSunsetDateParts, shortestDayMinutes, shortestDayDateParts } =
-    yearlyExtremes;
+  const {
+    earliestSunsetMinutes,
+    earliestSunsetDateParts,
+    shortestDayMinutes,
+    shortestDayDateParts,
+  } = yearlyExtremes;
 
   const showComparison = comparisonMode !== "none";
   const comparisonReference = comparisonMode === "week" ? "1 week ago" : "1 month ago";
@@ -224,7 +207,7 @@ export const updateStatsUI = (dom, metrics, deltas, timeZone, formatters) => {
 
   // Update delta values
   setText(dom.sunsetEarliestDeltaValue, sunsetEarliestText);
-  setText(dom.daylightDurationValue, todayDaylight == null ? "—" : formatDuration(todayDaylight));
+  setText(dom.daylightDurationValue, todayDaylight === null ? "—" : formatDuration(todayDaylight));
   setText(dom.daylightShortestDeltaValue, daylightShortestText);
 
   // Toggle row visibility
@@ -253,7 +236,7 @@ export const updateStatsUI = (dom, metrics, deltas, timeZone, formatters) => {
 
   // Build and update tooltips
   const sunsetEarliestTooltip =
-    earliestSunsetMinutes != null && earliestSunsetDateParts
+    earliestSunsetMinutes !== null && earliestSunsetDateParts
       ? formatComparisonTooltip(
           formatTimeFromMinutes(earliestSunsetMinutes, earliestSunsetDateParts, timeZone),
           earliestSunsetDateParts,
@@ -284,10 +267,13 @@ export const updateStatsUI = (dom, metrics, deltas, timeZone, formatters) => {
     comparisonMode === "week" ? sunsetWeekTooltip : sunsetMonthTooltip;
 
   updateDeltaTooltip(dom.sunsetEarliestReference, sunsetEarliestText ? sunsetEarliestTooltip : "");
-  updateDeltaTooltip(dom.sunsetComparisonReference, showSunsetComparison ? sunsetComparisonTooltip : "");
+  updateDeltaTooltip(
+    dom.sunsetComparisonReference,
+    showSunsetComparison ? sunsetComparisonTooltip : ""
+  );
 
   const daylightShortestTooltip =
-    shortestDayMinutes != null && shortestDayDateParts
+    shortestDayMinutes !== null && shortestDayDateParts
       ? formatComparisonTooltip(
           formatDuration(shortestDayMinutes),
           shortestDayDateParts,
@@ -297,7 +283,7 @@ export const updateStatsUI = (dom, metrics, deltas, timeZone, formatters) => {
         )
       : "";
   const daylightWeekTooltip =
-    metrics.weekDaylight != null
+    metrics.weekDaylight !== null
       ? formatComparisonTooltip(
           formatDuration(metrics.weekDaylight),
           weekParts,
@@ -307,7 +293,7 @@ export const updateStatsUI = (dom, metrics, deltas, timeZone, formatters) => {
         )
       : "";
   const daylightMonthTooltip =
-    metrics.monthDaylight != null
+    metrics.monthDaylight !== null
       ? formatComparisonTooltip(
           formatDuration(metrics.monthDaylight),
           monthParts,
@@ -319,8 +305,14 @@ export const updateStatsUI = (dom, metrics, deltas, timeZone, formatters) => {
   const daylightComparisonTooltip =
     comparisonMode === "week" ? daylightWeekTooltip : daylightMonthTooltip;
 
-  updateDeltaTooltip(dom.daylightShortestReference, daylightShortestText ? daylightShortestTooltip : "");
-  updateDeltaTooltip(dom.daylightComparisonReference, showDaylightComparison ? daylightComparisonTooltip : "");
+  updateDeltaTooltip(
+    dom.daylightShortestReference,
+    daylightShortestText ? daylightShortestTooltip : ""
+  );
+  updateDeltaTooltip(
+    dom.daylightComparisonReference,
+    showDaylightComparison ? daylightComparisonTooltip : ""
+  );
 };
 
 /**
@@ -328,7 +320,15 @@ export const updateStatsUI = (dom, metrics, deltas, timeZone, formatters) => {
  * Also returns daylightGainToday needed for the share snapshot.
  * Uses async average winter daylight calculation to avoid blocking the main thread.
  */
-export const buildMessageData = async (astronomy, todayParts, metrics, deltas, hemisphere, timeZone, formatTimeFromMinutes) => {
+export const buildMessageData = async (
+  astronomy,
+  todayParts,
+  metrics,
+  deltas,
+  hemisphere,
+  timeZone,
+  _formatTimeFromMinutes
+) => {
   const {
     todaySunsetMinutes,
     monthSunsetMinutes,
@@ -366,39 +366,51 @@ export const buildMessageData = async (astronomy, todayParts, metrics, deltas, h
   const yesterdayDaylight = astronomy.getDaylightMinutesForDateParts(yesterdayParts);
 
   const daylightGainToday =
-    todayDaylight != null && yesterdayDaylight != null
-      ? todayDaylight - yesterdayDaylight
-      : null;
+    todayDaylight !== null && yesterdayDaylight !== null ? todayDaylight - yesterdayDaylight : null;
   const daylightGainThisWeek =
-    todayDaylight != null && weekDaylight != null ? todayDaylight - weekDaylight : null;
+    todayDaylight !== null && weekDaylight !== null ? todayDaylight - weekDaylight : null;
   const daylightLossThisWeek =
-    todayDaylight != null && weekDaylight != null ? weekDaylight - todayDaylight : null;
+    todayDaylight !== null && weekDaylight !== null ? weekDaylight - todayDaylight : null;
   const daylightLossThisMonthRaw =
-    monthDaylight != null && todayDaylight != null ? monthDaylight - todayDaylight : null;
+    monthDaylight !== null && todayDaylight !== null ? monthDaylight - todayDaylight : null;
   const daylightLossThisMonth =
-    daylightLossThisMonthRaw != null && daylightLossThisMonthRaw > 0
+    daylightLossThisMonthRaw !== null && daylightLossThisMonthRaw > 0
       ? daylightLossThisMonthRaw
       : null;
   const daylightLossLastMonthRaw =
-    twoMonthsDaylight != null && monthDaylight != null
-      ? twoMonthsDaylight - monthDaylight
-      : null;
+    twoMonthsDaylight !== null && monthDaylight !== null ? twoMonthsDaylight - monthDaylight : null;
   const daylightLossLastMonth =
-    daylightLossLastMonthRaw != null && daylightLossLastMonthRaw > 0
+    daylightLossLastMonthRaw !== null && daylightLossLastMonthRaw > 0
       ? daylightLossLastMonthRaw
       : null;
   const daylightAfter5pm =
-    todaySunsetMinutes != null ? Math.max(0, todaySunsetMinutes - 17 * 60) : null;
+    todaySunsetMinutes !== null ? Math.max(0, todaySunsetMinutes - 17 * 60) : null;
 
-  const daysUntilSunsetAfter5pm = astronomy.getDaysUntilSunsetAfter(todayParts, todaySunsetMinutes, 17 * 60);
-  const daysUntilSunsetAfter6pm = astronomy.getDaysUntilSunsetAfter(todayParts, todaySunsetMinutes, 18 * 60);
-  const daysUntilSunsetAfter7pm = astronomy.getDaysUntilSunsetAfter(todayParts, todaySunsetMinutes, 19 * 60);
+  const daysUntilSunsetAfter5pm = astronomy.getDaysUntilSunsetAfter(
+    todayParts,
+    todaySunsetMinutes,
+    17 * 60
+  );
+  const daysUntilSunsetAfter6pm = astronomy.getDaysUntilSunsetAfter(
+    todayParts,
+    todaySunsetMinutes,
+    18 * 60
+  );
+  const daysUntilSunsetAfter7pm = astronomy.getDaysUntilSunsetAfter(
+    todayParts,
+    todaySunsetMinutes,
+    19 * 60
+  );
   const daysUntilMaxDailyGain = maxDailyGainDateParts
     ? getDaysBetweenDateParts(todayParts, maxDailyGainDateParts)
     : null;
 
   const currentSeasonParts = astronomy.getSeasonDatePartsForYear(todayParts.year, hemisphere);
-  const previousSummerSolsticeParts = astronomy.getPreviousSeasonDateParts(todayParts, hemisphere, "summer");
+  const previousSummerSolsticeParts = astronomy.getPreviousSeasonDateParts(
+    todayParts,
+    hemisphere,
+    "summer"
+  );
   const springEquinoxDate = getLocalNoonDateFromParts(currentSeasonParts.spring, timeZone);
   const summerSolsticeDate = getLocalNoonDateFromParts(previousSummerSolsticeParts, timeZone);
   const winterSolsticeDate = getLocalNoonDateFromParts(currentSeasonParts.winter, timeZone);
@@ -407,14 +419,14 @@ export const buildMessageData = async (astronomy, todayParts, metrics, deltas, h
     ? getDaysBetweenDateParts(todayParts, currentSeasonParts.summer)
     : null;
   const daysUntilSummerSolstice =
-    daysUntilSummerSolsticeRaw != null && daysUntilSummerSolsticeRaw > 0
+    daysUntilSummerSolsticeRaw !== null && daysUntilSummerSolsticeRaw > 0
       ? daysUntilSummerSolsticeRaw
       : null;
   const daysUntilWinterSolsticeRaw = currentSeasonParts.winter
     ? getDaysBetweenDateParts(todayParts, currentSeasonParts.winter)
     : null;
   const daysUntilWinterSolstice =
-    daysUntilWinterSolsticeRaw != null && daysUntilWinterSolsticeRaw > 0
+    daysUntilWinterSolsticeRaw !== null && daysUntilWinterSolsticeRaw > 0
       ? daysUntilWinterSolsticeRaw
       : null;
   const daysUntilEarliestSunset = earliestSunsetDateParts
@@ -423,10 +435,11 @@ export const buildMessageData = async (astronomy, todayParts, metrics, deltas, h
   const daysInYear = getDaysInYear(todayParts.year);
 
   const weeksWithSunsetAfter7pmRemaining =
-    todaySunsetMinutes != null
-      ? astronomy.getWeeksWithSunsetAfter(todayParts, 19 * 60)
-      : null;
-  const averageWinterDaylight = await astronomy.getAverageWinterDaylightAsync(currentSeasonParts.winter, hemisphere);
+    todaySunsetMinutes !== null ? astronomy.getWeeksWithSunsetAfter(todayParts, 19 * 60) : null;
+  const averageWinterDaylight = await astronomy.getAverageWinterDaylightAsync(
+    currentSeasonParts.winter,
+    hemisphere
+  );
   const todayDate = getLocalNoonDateFromParts(todayParts, timeZone);
   const earliestSunsetDate = getLocalNoonDateFromParts(earliestSunsetDateParts, timeZone);
 
@@ -493,7 +506,14 @@ const withMilestoneOffset = (milestoneItem, todayParts) => {
  * Build milestone candidates and filter to upcoming milestones.
  * Returns todayMilestone (if any) and sorted upcoming milestones.
  */
-export const buildUpcomingMilestones = (astronomy, todayParts, metrics, hemisphere, timeZone, formatTimeFromMinutes) => {
+export const buildUpcomingMilestones = (
+  astronomy,
+  todayParts,
+  metrics,
+  hemisphere,
+  timeZone,
+  formatTimeFromMinutes
+) => {
   const { todaySunsetMinutes, yearlyExtremes } = metrics;
   const { earliestSunsetDateParts, shortestDayDateParts, longestDayDateParts } = yearlyExtremes;
 
@@ -514,7 +534,11 @@ export const buildUpcomingMilestones = (astronomy, todayParts, metrics, hemisphe
     return nextYearExtremes[key] || null;
   };
 
-  const previousWinterSolsticeParts = astronomy.getPreviousSeasonDateParts(todayParts, hemisphere, "winter");
+  const previousWinterSolsticeParts = astronomy.getPreviousSeasonDateParts(
+    todayParts,
+    hemisphere,
+    "winter"
+  );
 
   const sunsetThresholdMatches = SUNSET_THRESHOLD_MILESTONES.map((milestoneConfig) => ({
     ...milestoneConfig,
@@ -522,7 +546,7 @@ export const buildUpcomingMilestones = (astronomy, todayParts, metrics, hemisphe
   }));
 
   // Next half-hour sunset milestone
-  if (todaySunsetMinutes != null) {
+  if (todaySunsetMinutes !== null) {
     const targetMinutes = astronomy.getNextHalfHour(todaySunsetMinutes);
     if (targetMinutes > 0) {
       const targetLabel = formatTimeFromMinutes(targetMinutes, todayParts, timeZone);
@@ -617,7 +641,10 @@ export const buildUpcomingMilestones = (astronomy, todayParts, metrics, hemisphe
   });
 
   DAYLIGHT_GAIN_MILESTONES.forEach((milestoneConfig) => {
-    const match = astronomy.findFirstDaylightGain(previousWinterSolsticeParts, milestoneConfig.minutes);
+    const match = astronomy.findFirstDaylightGain(
+      previousWinterSolsticeParts,
+      milestoneConfig.minutes
+    );
     addMilestone(
       buildMilestone({
         id: milestoneConfig.id,
@@ -718,7 +745,13 @@ export const updateDaylightForLocation = async ({
   }
 
   updateMilestoneCard(
-    { nextHeadline: dom.nextHeadline, nextDate: dom.nextDate, nextAway: dom.nextAway, milestone: dom.milestone, milestoneToggle: dom.milestoneToggle },
+    {
+      nextHeadline: dom.nextHeadline,
+      nextDate: dom.nextDate,
+      nextAway: dom.nextAway,
+      milestone: dom.milestone,
+      milestoneToggle: dom.milestoneToggle,
+    },
     upcoming,
     timeZone,
     formatters.formatLongDateFromParts

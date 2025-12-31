@@ -15,7 +15,7 @@
   --serif: "Merriweather", "Iowan Old Style", "Palatino", "Times New Roman", serif;
   --shadow: 0 20px 48px rgba(82, 48, 18, 0.14);
   color: var(--text);
-  background: linear-gradient(180deg, #D7ECFF 0%, #FFFBF0 50%, #FFF0C2 100%);
+  background: linear-gradient(180deg, #d7ecff 0%, #fffbf0 50%, #fff0c2 100%);
 }
 
 * {
@@ -30,7 +30,7 @@ body {
   justify-content: center;
   padding: 36px 18px 52px;
   font-family: var(--sans);
-  background: linear-gradient(180deg, #D7ECFF 0%, #FFFBF0 50%, #FFF0C2 100%);
+  background: linear-gradient(180deg, #d7ecff 0%, #fffbf0 50%, #fff0c2 100%);
 }
 
 .shell {
@@ -143,8 +143,12 @@ body {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease,
-    color 120ms ease, border-color 120ms ease;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
 }
 
 .date-reset:hover {
@@ -203,8 +207,12 @@ body {
   border-radius: 10px;
   cursor: pointer;
   box-shadow: 0 6px 12px rgba(164, 88, 0, 0.16);
-  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease,
-    color 120ms ease, border-color 120ms ease;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
 }
 
 .location-geolocate:hover {
@@ -571,8 +579,12 @@ h1 {
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease,
-    color 120ms ease, border-color 120ms ease;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
 }
 
 .milestone-toggle:hover {
@@ -623,8 +635,8 @@ h1 {
   opacity: 0;
   border-radius: 2px;
   transform: translate3d(0, -10vh, 0) rotate(var(--confetti-rotate, 0deg));
-  animation: confetti-fall var(--confetti-duration, 2.4s)
-    var(--confetti-delay, 0s) ease-out forwards;
+  animation: confetti-fall var(--confetti-duration, 2.4s) var(--confetti-delay, 0s) ease-out
+    forwards;
 }
 
 @keyframes confetti-fall {
@@ -637,11 +649,7 @@ h1 {
   }
   100% {
     opacity: 0;
-    transform: translate3d(
-        var(--confetti-drift, 24px),
-        110vh,
-        0
-      )
+    transform: translate3d(var(--confetti-drift, 24px), 110vh, 0)
       rotate(var(--confetti-spin, 280deg));
   }
 }
@@ -791,7 +799,9 @@ h1 {
   opacity: 0;
   transform: translate(-50%, 6px);
   pointer-events: none;
-  transition: opacity 120ms ease, transform 120ms ease;
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
   z-index: 2;
   white-space: normal;
 }
@@ -880,7 +890,9 @@ h1 {
   border-radius: 999px;
   padding: 6px 12px;
   cursor: pointer;
-  transition: transform 140ms ease, box-shadow 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease;
   box-shadow: 0 6px 12px rgba(128, 71, 14, 0.16);
 }
 
@@ -953,7 +965,10 @@ h1 {
   padding: 10px 16px;
   border-radius: 14px;
   cursor: pointer;
-  transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
   box-shadow: 0 8px 14px rgba(164, 88, 0, 0.12);
 }
 
@@ -985,7 +1000,10 @@ h1 {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
   box-shadow: 0 8px 14px rgba(164, 88, 0, 0.12);
 }
 
@@ -1006,7 +1024,8 @@ h1 {
 }
 
 .share-icon-button.is-flash {
-  box-shadow: 0 0 0 3px rgba(74, 154, 44, 0.28),
+  box-shadow:
+    0 0 0 3px rgba(74, 154, 44, 0.28),
     0 12px 18px rgba(164, 88, 0, 0.18);
 }
 
@@ -1049,7 +1068,9 @@ h1 {
   box-shadow: 0 15px 25px rgba(191, 109, 14, 0.28);
   cursor: pointer;
   font-size: 16px;
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .cta:hover {
@@ -1126,5 +1147,4 @@ h1 {
   .share-actions-buttons {
     width: 100%;
   }
-
 }
