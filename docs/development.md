@@ -10,6 +10,64 @@ python3 -m http.server
 
 Then open `http://localhost:8000`.
 
+## Code Quality
+
+### Linting
+
+The project uses ESLint to enforce code quality and consistency. To check for linting issues:
+
+```bash
+npm run lint
+```
+
+To automatically fix linting issues where possible:
+
+```bash
+npm run lint:fix
+```
+
+### Formatting
+
+The project uses Prettier for code formatting. To check if files are formatted correctly:
+
+```bash
+npm run format:check
+```
+
+To automatically format all files:
+
+```bash
+npm run format
+```
+
+### Running Tests
+
+The project has two types of tests:
+
+**Unit tests** (using Vitest):
+
+```bash
+npm run test:unit
+```
+
+**End-to-end tests** (using Playwright):
+
+```bash
+npm test
+```
+
+To run Playwright tests in UI mode for debugging:
+
+```bash
+npm run test:ui
+```
+
+To run Playwright tests in headed mode (visible browser):
+
+```bash
+npm run test:headed
+```
+
 ## Debugging
 
 ### Optimistic Messages
