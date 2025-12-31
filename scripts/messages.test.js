@@ -130,4 +130,71 @@ describe("messages", () => {
     expect(milestoneHeadline).toBeDefined();
     expect(milestoneHeadline.headline).toBe("Only 1 day until summer solstice!");
   });
+
+  it("rewrites daylight gain milestone titles for countdown headlines", () => {
+    const data = {};
+    const upcomingMilestones = [
+      {
+        title: "Gained 30 minutes of daylight since the winter solstice",
+        offsetDays: 11,
+      },
+    ];
+
+    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
+    const milestoneHeadline = options.find((opt) => opt.headline.includes("until you've gained"));
+
+    expect(milestoneHeadline).toBeDefined();
+    expect(milestoneHeadline.headline).toBe(
+      "Only 11 days until you've gained 30 minutes of daylight since the winter solstice!"
+    );
+  });
+
+  it("rewrites daylight gain milestone titles for fallback ledes", () => {
+    const data = {
+      daylight_today: 600,
+      daylight_in_14_days: 650,
+    };
+    const upcomingMilestones = [
+      {
+        title: "Gained 30 minutes of daylight since the winter solstice",
+        offsetDays: 11,
+      },
+    ];
+
+    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
+    const messageWithNullLede = options.find((opt) =>
+      opt.headline.includes("In two weeks, you'll have")
+    );
+
+    expect(messageWithNullLede).toBeDefined();
+    expect(messageWithNullLede.lede).toBe(
+      "Only 11 days until you've gained 30 minutes of daylight since the winter solstice!"
+    );
+  });
+
+  it("drops 'Only' when day formatting becomes 'less than' weeks", () => {
+    const data = {
+      days_until_sunset_after_5pm: 20,
+    };
+
+    const options = getOptimisticMessageOptions(data, 1, "north");
+    const message = options.find((opt) => opt.headline.includes("sunset reaches 5pm"));
+
+    expect(message).toBeDefined();
+    expect(message.headline).toBe("Less than 3 weeks until sunset reaches 5pm.");
+  });
+
+  it("drops 'only' mid-sentence when day formatting becomes 'less than' weeks", () => {
+    const data = {
+      days_until_max_daily_gain: 50,
+    };
+
+    const options = getOptimisticMessageOptions(data, 1, "north");
+    const message = options.find((opt) => opt.headline.includes("largest daily increase"));
+
+    expect(message).toBeDefined();
+    expect(message.headline).toBe(
+      "The largest daily increase in daylight is less than 8 weeks away."
+    );
+  });
 });

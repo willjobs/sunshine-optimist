@@ -1,6 +1,6 @@
 import { clampValue } from "./utils/utils.js";
 import { getAdjustedMonth } from "./utils/date-utils.js";
-import { formatPlaceholderValue } from "./formatters/formatters.js";
+import { formatPlaceholderValue, lowerCaseFirstLetter } from "./formatters/formatters.js";
 
 const PLACEHOLDER_PATTERN = /\{##[^}]*\}/;
 const PLACEHOLDER_PATTERN_GLOBAL = /\{##([^}]*)\}/g;
@@ -23,13 +23,37 @@ const getDelta = (current, previous, allowZero = false) => {
   return getPositiveNumber(delta, allowZero);
 };
 
+const removeOnlyBeforeLessThan = (text) => {
+  if (!text) {
+    return "";
+  }
+  return text
+    .replace(/\bOnly\s+less than\b/g, "Less than")
+    .replace(/\bonly\s+less than\b/g, "less than");
+};
+
+const formatMilestoneCountdownTitle = (title) => {
+  if (!title) {
+    return "";
+  }
+  const trimmed = title.trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (/^gained\b/i.test(trimmed)) {
+    return `you've ${lowerCaseFirstLetter(trimmed)}`;
+  }
+  return trimmed;
+};
+
 const fillMessageTemplate = (text, value) => {
   if (!text) {
     return "";
   }
-  return text.replace(PLACEHOLDER_PATTERN_GLOBAL, (_match, token) =>
+  const filled = text.replace(PLACEHOLDER_PATTERN_GLOBAL, (_match, token) =>
     formatPlaceholderValue(token, value)
   );
+  return removeOnlyBeforeLessThan(filled);
 };
 
 export const OPTIMISTIC_MESSAGES = [
@@ -43,7 +67,7 @@ export const OPTIMISTIC_MESSAGES = [
   },
   {
     headline: "Today's sunset is {## minutes} later than it was at the start of the year.",
-    lede: "So nice to have some evening light",
+    lede: "It's so nice to have some evening light.",
     months: [2, 3, 4, 5, 6, 7, 8, 9],
     data_needs: ["sunset_today", "sunset_start_of_year"],
     additional_requirements: null,
@@ -160,7 +184,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ daylight_gain_this_week }) => getPositiveNumber(daylight_gain_this_week),
   },
   {
-    headline: "You're losing daylight less quickly than you were a month ago.",
+    headline: "Daylight loss is slowing down.",
     lede: "The turnaround is coming!",
     months: [10, 11],
     data_needs: ["daylight_loss_this_month", "daylight_loss_last_month"],
@@ -233,7 +257,7 @@ export const OPTIMISTIC_MESSAGES = [
   },
   {
     headline: "You've regained {##%} of the daylight lost in winter.",
-    lede: "It feels better everyday!",
+    lede: "It feels better every day!",
     months: [2, 3, 4, 5],
     data_needs: ["daylight_today", "daylight_minimum", "daylight_maximum"],
     additional_requirements: null,
@@ -419,7 +443,7 @@ const getMilestoneFallbackLede = (upcomingMilestones) => {
     return null;
   }
   const days = nextMilestone.offsetDays;
-  const title = nextMilestone.title.toLowerCase();
+  const title = formatMilestoneCountdownTitle(nextMilestone.title).toLowerCase();
   return `Only ${days} ${days === 1 ? "day" : "days"} until ${title}!`;
 };
 
@@ -463,14 +487,12 @@ export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMil
     .filter(Boolean);
   const milestoneFallbackLede = getMilestoneFallbackLede(upcomingMilestones);
   return validMessages.map((entry) => {
+    const milestoneTitle = formatMilestoneCountdownTitle(enrichedData.next_milestone_title);
     let headline = fillMessageTemplate(entry.message.headline, entry.value);
     let lede = fillMessageTemplate(entry.message.lede, entry.value);
     // Replace data placeholders like {next_milestone_title}
-    headline = headline.replace(
-      /\{next_milestone_title\}/g,
-      (enrichedData.next_milestone_title || "").toLowerCase()
-    );
-    lede = lede.replace(/\{next_milestone_title\}/g, enrichedData.next_milestone_title || "");
+    headline = headline.replace(/\{next_milestone_title\}/g, (milestoneTitle || "").toLowerCase());
+    lede = lede.replace(/\{next_milestone_title\}/g, milestoneTitle || "");
     return {
       headline,
       lede: lede || milestoneFallbackLede || "",

@@ -35,6 +35,7 @@ describe("message-ui", () => {
 
   it("rotates through multiple messages", () => {
     vi.useFakeTimers();
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
     const { headline, lede } = buildNodes();
     const messages = [
       { headline: "First headline", lede: "First lede" },
@@ -46,6 +47,7 @@ describe("message-ui", () => {
     vi.advanceTimersByTime(15000 + 400);
     expect(headline.textContent).toBe("Second headline");
     expect(lede.textContent).toBe("Second lede");
+    randomSpy.mockRestore();
   });
 
   it("stops rotation and clears options", () => {
