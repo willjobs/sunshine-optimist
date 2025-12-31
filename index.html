@@ -287,17 +287,29 @@
             </button>
           </div>
           <div class="share-modal-body">
-            <label class="share-privacy">
-              <input type="checkbox" id="share-privacy-toggle" />
-              <span>Share as "My Location"</span>
-            </label>
-            <div class="share-preview" aria-live="polite">
+            <div class="share-mode-toggle">
+              <button type="button" data-share-mode="text" class="share-mode-button is-active">
+                Text
+              </button>
+              <button type="button" data-share-mode="story" class="share-mode-button">Image</button>
+              <label class="share-privacy">
+                <input type="checkbox" id="share-privacy-toggle" />
+                <span>Share as "My Location"</span>
+              </label>
+            </div>
+            <div class="share-preview" id="share-text-preview" aria-live="polite">
               <pre id="share-preview"></pre>
+            </div>
+            <div class="share-story-preview" id="share-story-preview" hidden>
+              <canvas id="share-story-canvas"></canvas>
             </div>
           </div>
           <div class="share-actions" aria-label="Share options">
             <button class="share-copy-button" type="button" data-share="copy">
               Copy to clipboard
+            </button>
+            <button class="share-download-button" type="button" id="share-download-button" hidden>
+              Download Image
             </button>
             <div class="share-actions-group">
               <span class="share-actions-label">Share to:</span>

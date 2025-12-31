@@ -35,7 +35,11 @@ import {
   copyShareText,
   openShareLink,
   flashActionLabel,
+  getShareMode,
+  setShareMode,
+  refreshStoryPreview,
 } from "./ui/share-modal-ui.js";
+import { downloadStoryImage } from "./ui/story-image-ui.js";
 
 // Controllers
 import {
@@ -93,6 +97,13 @@ const dom = {
   shareActionButtons: document.querySelectorAll(
     ".share-icon-button[data-share], .share-copy-button[data-share]"
   ),
+  shareModeButtons: document.querySelectorAll(".share-mode-button[data-share-mode]"),
+  shareTextPreview: document.getElementById("share-text-preview"),
+  shareStoryPreview: document.getElementById("share-story-preview"),
+  shareStoryCanvas: document.getElementById("share-story-canvas"),
+  shareDownloadButton: document.getElementById("share-download-button"),
+  shareTextActions: document.querySelector(".share-actions-group"),
+  shareCopyButton: document.querySelector(".share-copy-button"),
   headline: document.getElementById("headline"),
   lede: document.getElementById("lede"),
   cityInput: document.getElementById("city-input"),
@@ -135,6 +146,13 @@ const {
   sharePreview,
   sharePrivacyToggle,
   shareActionButtons,
+  shareModeButtons,
+  shareTextPreview,
+  shareStoryPreview,
+  shareStoryCanvas,
+  shareDownloadButton,
+  shareTextActions,
+  shareCopyButton,
   headline,
   lede,
   cityInput,
@@ -406,25 +424,48 @@ setSharePrivacyEnabled(loadSharePrivacyPreference());
 
 if (sharePrivacyToggle) {
   sharePrivacyToggle.checked = isSharePrivacyEnabled();
-  sharePrivacyToggle.addEventListener("change", () => {
+  sharePrivacyToggle.addEventListener("change", async () => {
     setSharePrivacyEnabled(sharePrivacyToggle.checked);
     saveSharePrivacyPreference(sharePrivacyToggle.checked);
     if (shareModal?.open || shareModal?.hasAttribute("open")) {
-      refreshSharePreview(
-        sharePreview,
-        headline,
-        lede,
-        (tz) => getActiveDateParts(tz),
-        languageCode,
-        FALLBACK_TIMEZONE
-      );
+      if (getShareMode() === "story" && shareStoryCanvas) {
+        await refreshStoryPreview(
+          shareStoryCanvas,
+          headline,
+          lede,
+          languageCode,
+          FALLBACK_TIMEZONE
+        );
+      } else {
+        refreshSharePreview(
+          sharePreview,
+          headline,
+          lede,
+          (tz) => getActiveDateParts(tz),
+          languageCode,
+          FALLBACK_TIMEZONE
+        );
+      }
     }
   });
 }
 
+// Reset share modal UI to default text mode
+const resetShareModalUI = () => {
+  shareModeButtons.forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.shareMode === "text");
+  });
+  if (shareTextPreview) shareTextPreview.hidden = false;
+  if (shareStoryPreview) shareStoryPreview.hidden = true;
+  if (shareCopyButton) shareCopyButton.hidden = false;
+  if (shareTextActions) shareTextActions.hidden = false;
+  if (shareDownloadButton) shareDownloadButton.hidden = true;
+};
+
 if (shareModalClose) {
   shareModalClose.addEventListener("click", () => {
     closeShareModal(shareModal);
+    resetShareModalUI();
   });
 }
 
@@ -432,11 +473,13 @@ if (shareModal) {
   shareModal.addEventListener("click", (event) => {
     if (event.target === shareModal) {
       closeShareModal(shareModal);
+      resetShareModalUI();
     }
   });
   shareModal.addEventListener("cancel", (event) => {
     event.preventDefault();
     closeShareModal(shareModal);
+    resetShareModalUI();
   });
 }
 
@@ -512,6 +555,77 @@ if (shareButton) {
       languageCode,
       FALLBACK_TIMEZONE
     );
+  });
+}
+
+// Share mode toggle handlers
+if (shareModeButtons.length) {
+  shareModeButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const mode = button.dataset.shareMode;
+      if (!mode || getShareMode() === mode) return;
+
+      setShareMode(mode);
+
+      // Update button active states
+      shareModeButtons.forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.shareMode === mode);
+      });
+
+      // Toggle visibility based on mode
+      const isStoryMode = mode === "story";
+
+      // Toggle preview areas
+      if (shareTextPreview) {
+        shareTextPreview.hidden = isStoryMode;
+      }
+      if (shareStoryPreview) {
+        shareStoryPreview.hidden = !isStoryMode;
+      }
+
+      // Toggle action buttons
+      if (shareCopyButton) {
+        shareCopyButton.hidden = isStoryMode;
+      }
+      if (shareTextActions) {
+        shareTextActions.hidden = isStoryMode;
+      }
+      if (shareDownloadButton) {
+        shareDownloadButton.hidden = !isStoryMode;
+      }
+
+      // Refresh the appropriate preview when switching modes
+      if (isStoryMode && shareStoryCanvas) {
+        await refreshStoryPreview(
+          shareStoryCanvas,
+          headline,
+          lede,
+          languageCode,
+          FALLBACK_TIMEZONE
+        );
+      } else {
+        refreshSharePreview(
+          sharePreview,
+          headline,
+          lede,
+          (tz) => getActiveDateParts(tz),
+          languageCode,
+          FALLBACK_TIMEZONE
+        );
+      }
+    });
+  });
+}
+
+// Download button handler
+if (shareDownloadButton) {
+  shareDownloadButton.addEventListener("click", async () => {
+    if (!shareStoryCanvas) return;
+    try {
+      await downloadStoryImage(shareStoryCanvas);
+    } catch (error) {
+      console.warn("Story download failed:", error);
+    }
   });
 }
 

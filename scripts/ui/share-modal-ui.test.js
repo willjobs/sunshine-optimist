@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { buildShareProgressLine, flashActionLabel } from "./share-modal-ui.js";
+import {
+  buildShareProgressLine,
+  flashActionLabel,
+  getShareMode,
+  setShareMode,
+} from "./share-modal-ui.js";
 
 describe("share-modal-ui", () => {
   it("builds progress lines for max and shortest modes", () => {
@@ -49,5 +54,29 @@ describe("share-modal-ui", () => {
     vi.advanceTimersByTime(1200);
     expect(button.textContent).toBe("Copy to clipboard");
     vi.useRealTimers();
+  });
+
+  it("manages share mode state", () => {
+    // Default mode is "text"
+    setShareMode("text");
+    expect(getShareMode()).toBe("text");
+
+    // Switch to story mode
+    setShareMode("story");
+    expect(getShareMode()).toBe("story");
+
+    // Switch back to text mode
+    setShareMode("text");
+    expect(getShareMode()).toBe("text");
+
+    // Invalid mode defaults to text
+    setShareMode("invalid");
+    expect(getShareMode()).toBe("text");
+
+    setShareMode(null);
+    expect(getShareMode()).toBe("text");
+
+    setShareMode(undefined);
+    expect(getShareMode()).toBe("text");
   });
 });

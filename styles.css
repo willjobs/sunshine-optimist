@@ -917,7 +917,7 @@ h1 {
   border-radius: 18px;
   border: 1px solid var(--divider);
   padding: 14px 16px;
-  max-height: 240px;
+  max-height: 320px;
   overflow: auto;
 }
 
@@ -1051,6 +1051,94 @@ h1 {
   background: #0285ff;
   border-color: rgba(2, 133, 255, 0.6);
   color: #fff;
+}
+
+.share-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.share-mode-toggle .share-privacy {
+  margin-left: auto;
+}
+
+.share-mode-button {
+  border: 1px solid rgba(200, 111, 21, 0.35);
+  background: #fff8ed;
+  color: #7c4a12;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.share-mode-button:hover {
+  background: #fff2e0;
+}
+
+.share-mode-button.is-active {
+  background: linear-gradient(135deg, #f2a042, #d27a1b);
+  border-color: rgba(184, 104, 12, 0.6);
+  color: #fff8f0;
+}
+
+.share-mode-button:focus-visible {
+  outline: 2px solid #d9b079;
+  outline-offset: 2px;
+}
+
+.share-story-preview {
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 18px;
+  border: 1px solid var(--divider);
+  padding: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.share-story-preview[hidden] {
+  display: none;
+}
+
+.share-story-preview canvas {
+  max-width: 200px;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 6px 16px rgba(100, 60, 20, 0.2);
+}
+
+.share-download-button {
+  border: 1px solid rgba(184, 104, 12, 0.6);
+  background: linear-gradient(135deg, #f2a042, #d27a1b);
+  color: #fff8f0;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
+  box-shadow: 0 8px 14px rgba(164, 88, 0, 0.12);
+}
+
+.share-download-button:hover {
+  background: linear-gradient(135deg, #f2a74f, #d87f1f);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 18px rgba(164, 88, 0, 0.18);
+}
+
+.share-download-button:focus-visible {
+  outline: 2px solid #d9b079;
+  outline-offset: 2px;
 }
 
 .cta {

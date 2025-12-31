@@ -122,3 +122,137 @@ test("share links open with encoded text", async ({ page }) => {
   const text = xUrl.searchParams.get("text") || "";
   expect(text).toContain("SunshineOptimist.com");
 });
+
+test("mode toggle switches between text and image views", async ({ page }) => {
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  const textPreview = page.locator("#share-text-preview");
+  const storyPreview = page.locator("#share-story-preview");
+  const copyButton = page.getByRole("button", { name: "Copy to clipboard" });
+  const downloadButton = page.locator("#share-download-button");
+  const textModeButton = page.locator("[data-share-mode='text']");
+  const imageModeButton = page.locator("[data-share-mode='story']");
+
+  // Initially in text mode
+  await expect(textPreview).toBeVisible();
+  await expect(storyPreview).toBeHidden();
+  await expect(copyButton).toBeVisible();
+  await expect(downloadButton).toBeHidden();
+  await expect(textModeButton).toHaveClass(/is-active/);
+
+  // Switch to image mode
+  await imageModeButton.click();
+
+  // Wait for canvas to be rendered
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector("#share-story-canvas");
+    return canvas && canvas.width > 0;
+  });
+
+  await expect(textPreview).toBeHidden();
+  await expect(storyPreview).toBeVisible();
+  await expect(copyButton).toBeHidden();
+  await expect(downloadButton).toBeVisible();
+  await expect(imageModeButton).toHaveClass(/is-active/);
+
+  // Switch back to text mode
+  await textModeButton.click();
+
+  await expect(textPreview).toBeVisible();
+  await expect(storyPreview).toBeHidden();
+  await expect(copyButton).toBeVisible();
+  await expect(downloadButton).toBeHidden();
+});
+
+test("story image canvas renders with correct dimensions", async ({ page }) => {
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  // Switch to image mode
+  await page.locator("[data-share-mode='story']").click();
+
+  // Wait for canvas to be rendered
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector("#share-story-canvas");
+    return canvas && canvas.width > 0;
+  });
+
+  const dimensions = await page.evaluate(() => {
+    const canvas = document.querySelector("#share-story-canvas");
+    return { width: canvas?.width, height: canvas?.height };
+  });
+
+  expect(dimensions.width).toBe(1080);
+  expect(dimensions.height).toBe(1920);
+});
+
+test("privacy toggle updates story image preview", async ({ page }) => {
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  // Switch to image mode
+  await page.locator("[data-share-mode='story']").click();
+
+  // Wait for initial canvas render
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector("#share-story-canvas");
+    return canvas && canvas.width > 0;
+  });
+
+  // Get initial canvas data (use more characters to capture actual image data, not just PNG header)
+  const initialData = await page.evaluate(() => {
+    const canvas = document.querySelector("#share-story-canvas");
+    return canvas?.toDataURL();
+  });
+
+  // Toggle privacy
+  await page.locator("#share-privacy-toggle").check();
+
+  // Wait for canvas to re-render (data should change)
+  await page.waitForFunction(
+    (prevData) => {
+      const canvas = document.querySelector("#share-story-canvas");
+      const newData = canvas?.toDataURL();
+      return newData !== prevData;
+    },
+    initialData,
+    { timeout: 5000 }
+  );
+
+  // Verify canvas was re-rendered (data changed)
+  const newData = await page.evaluate(() => {
+    const canvas = document.querySelector("#share-story-canvas");
+    return canvas?.toDataURL();
+  });
+
+  expect(newData).not.toBe(initialData);
+});
+
+test("modal resets to text mode when closed and reopened", async ({ page }) => {
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  // Switch to image mode
+  await page.locator("[data-share-mode='story']").click();
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector("#share-story-canvas");
+    return canvas && canvas.width > 0;
+  });
+
+  // Close modal
+  await page.getByRole("button", { name: "Close share dialog" }).click();
+  await page.locator("#share-modal").waitFor({ state: "hidden" });
+
+  // Reopen modal
+  await openShareModalAndWait(page);
+
+  // Should be back in text mode
+  const textPreview = page.locator("#share-text-preview");
+  const storyPreview = page.locator("#share-story-preview");
+  const textModeButton = page.locator("[data-share-mode='text']");
+
+  await expect(textPreview).toBeVisible();
+  await expect(storyPreview).toBeHidden();
+  await expect(textModeButton).toHaveClass(/is-active/);
+});

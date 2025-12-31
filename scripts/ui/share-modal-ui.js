@@ -28,8 +28,26 @@ import { formatSelectedLocation } from "../utils/location-utils.js";
 import { getAdjustedMonth } from "../utils/date-utils.js";
 import { fetchReverseGeocodeLocation } from "../services/reverse-geocode-service.js";
 import { clampValue } from "../utils/utils.js";
+import { generateStoryCanvas } from "./story-image-ui.js";
 
 const CURRENT_LOCATION_LABEL = "Current Location";
+
+/**
+ * Share mode state - "text" or "story"
+ */
+let shareMode = "text";
+
+/**
+ * Get current share mode
+ */
+export const getShareMode = () => shareMode;
+
+/**
+ * Set share mode
+ */
+export const setShareMode = (mode) => {
+  shareMode = mode === "story" ? "story" : "text";
+};
 
 /**
  * Check if a location is "Current Location"
@@ -295,6 +313,7 @@ export const closeShareModal = (shareModal) => {
     return;
   }
   setModalSnapshot(null);
+  shareMode = "text";
   if (typeof shareModal.close === "function") {
     shareModal.close();
   } else {
@@ -388,4 +407,28 @@ export const flashActionLabel = (button, message) => {
     button.setAttribute("title", previousTitle);
     button.classList.remove("is-flash");
   }, 1200);
+};
+
+/**
+ * Refresh story preview canvas
+ */
+export const refreshStoryPreview = async (canvas, headline, _lede, languageCode) => {
+  if (!canvas) {
+    return;
+  }
+  const snapshot = getModalSnapshot() || getShareSnapshot();
+  const locationLabel = await resolveShareLocationLabel(
+    snapshot?.location || getActiveLocation(),
+    languageCode
+  );
+  const headlineText = snapshot?.headline || getText(headline) || "Sunshine Optimist";
+
+  const generatedCanvas = await generateStoryCanvas(headlineText, locationLabel);
+
+  // Copy generated canvas content to the preview canvas
+  canvas.width = generatedCanvas.width;
+  canvas.height = generatedCanvas.height;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(generatedCanvas, 0, 0);
 };
