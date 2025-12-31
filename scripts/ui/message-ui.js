@@ -175,8 +175,9 @@ export const startOptimisticRotation = (headline, lede, messages) => {
     return;
   }
 
-  setOptimisticIndex(0);
-  setOptimisticCopy(headline, lede, options[0], { animate: false });
+  const startIndex = Math.floor(Math.random() * options.length);
+  setOptimisticIndex(startIndex);
+  setOptimisticCopy(headline, lede, options[startIndex], { animate: false });
 
   if (options.length < 2) {
     return;
