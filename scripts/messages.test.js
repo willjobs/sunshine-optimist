@@ -46,7 +46,7 @@ describe("messages", () => {
     );
 
     expect(messageWithNullLede).toBeDefined();
-    expect(messageWithNullLede.lede).toBe("Only 15 days until Spring equinox!");
+    expect(messageWithNullLede.lede).toBe("Only 15 days until spring equinox!");
   });
 
   it("uses singular 'day' for 1 day until milestone", () => {
@@ -62,7 +62,7 @@ describe("messages", () => {
     );
 
     expect(messageWithNullLede).toBeDefined();
-    expect(messageWithNullLede.lede).toBe("Only 1 day until Shortest day!");
+    expect(messageWithNullLede.lede).toBe("Only 1 day until shortest day!");
   });
 
   it("keeps original lede when not empty", () => {
@@ -74,8 +74,11 @@ describe("messages", () => {
 
     const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
 
-    expect(options).toHaveLength(1);
-    expect(options[0].lede).toBe("Enjoy the extra evening light!");
+    const sunsetMessage = options.find((opt) =>
+      opt.headline.includes("later than it was at its earliest")
+    );
+    expect(sunsetMessage).toBeDefined();
+    expect(sunsetMessage.lede).toBe("Enjoy the extra evening light!");
   });
 
   it("returns empty lede when no milestones and original lede is empty", () => {
@@ -101,10 +104,10 @@ describe("messages", () => {
     ];
 
     const options = getOptimisticMessageOptions(data, 3, "north", upcomingMilestones);
-    const milestoneHeadline = options.find((opt) => opt.headline.includes("until Spring equinox"));
+    const milestoneHeadline = options.find((opt) => opt.headline.includes("until spring equinox"));
 
     expect(milestoneHeadline).toBeDefined();
-    expect(milestoneHeadline.headline).toBe("Only 10 days until Spring equinox!");
+    expect(milestoneHeadline.headline).toBe("Only 10 days until spring equinox!");
     expect(milestoneHeadline.lede).toBe("Something to look forward to!");
   });
 
@@ -122,9 +125,9 @@ describe("messages", () => {
     const upcomingMilestones = [{ title: "Summer solstice", offsetDays: 1 }];
 
     const options = getOptimisticMessageOptions(data, 6, "north", upcomingMilestones);
-    const milestoneHeadline = options.find((opt) => opt.headline.includes("until Summer solstice"));
+    const milestoneHeadline = options.find((opt) => opt.headline.includes("until summer solstice"));
 
     expect(milestoneHeadline).toBeDefined();
-    expect(milestoneHeadline.headline).toBe("Only 1 day until Summer solstice!");
+    expect(milestoneHeadline.headline).toBe("Only 1 day until summer solstice!");
   });
 });

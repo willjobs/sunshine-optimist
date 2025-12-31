@@ -605,7 +605,7 @@ export const buildUpcomingMilestones = (
   addMilestone(
     buildMilestone({
       id: "spring-equinox",
-      title: "Spring equinox",
+      title: "spring equinox",
       dateParts: astronomy.getNextSeasonDateParts(todayParts, hemisphere, "spring"),
       todayHeadline: "It's the spring equinox today.",
       todayLede: null,
@@ -616,7 +616,7 @@ export const buildUpcomingMilestones = (
       id: "dst-start",
       title: "Daylight savings time starts",
       dateParts: astronomy.findNextDaylightSavingsStart(todayParts),
-      todayHeadline: "Daylight savings time starts today.",
+      todayHeadline: "Daylight Savings Time starts today.",
       todayLede: "Don't forget to spring forward.",
     })
   );

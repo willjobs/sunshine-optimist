@@ -352,6 +352,9 @@ const isValidDataValue = (value) => {
   if (value instanceof Date) {
     return Number.isFinite(value.getTime());
   }
+  if (typeof value === "string") {
+    return value.length > 0;
+  }
   return Number.isFinite(value);
 };
 
@@ -416,7 +419,7 @@ const getMilestoneFallbackLede = (upcomingMilestones) => {
     return null;
   }
   const days = nextMilestone.offsetDays;
-  const title = nextMilestone.title;
+  const title = nextMilestone.title.toLowerCase();
   return `Only ${days} ${days === 1 ? "day" : "days"} until ${title}!`;
 };
 
@@ -465,7 +468,7 @@ export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMil
     // Replace data placeholders like {next_milestone_title}
     headline = headline.replace(
       /\{next_milestone_title\}/g,
-      enrichedData.next_milestone_title || ""
+      (enrichedData.next_milestone_title || "").toLowerCase()
     );
     lede = lede.replace(/\{next_milestone_title\}/g, enrichedData.next_milestone_title || "");
     return {
