@@ -337,7 +337,7 @@ export const OPTIMISTIC_MESSAGES = [
   },
   {
     headline: "Only {## days} until {next_milestone_title}!",
-    lede: "Something to look forward to!",
+    lede: "You're almost there :)",
     months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     data_needs: ["next_milestone_days", "next_milestone_title"],
     additional_requirements: "next_milestone_days > 0",

@@ -108,7 +108,7 @@ describe("messages", () => {
 
     expect(milestoneHeadline).toBeDefined();
     expect(milestoneHeadline.headline).toBe("Only 10 days until spring equinox!");
-    expect(milestoneHeadline.lede).toBe("Something to look forward to!");
+    expect(milestoneHeadline.lede).toBe("You're almost there :)");
   });
 
   it("excludes milestone headline when no milestones provided", () => {
