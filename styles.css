@@ -656,7 +656,7 @@ h1 {
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 18px;
   padding-top: 22px;
   border-top: 1px solid var(--divider);
@@ -721,7 +721,7 @@ h1 {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 16px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   align-self: stretch;
   text-align: left;
