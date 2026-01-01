@@ -137,6 +137,7 @@ Controllers communicate via callback registration (e.g., `setLocationChangeCallb
 The service worker ([sw.js](../sw.js)) implements different caching strategies for different resource types:
 
 **Static Assets** (cache-first):
+
 - HTML, CSS, JavaScript files
 - Astronomy Engine library
 - All app modules
@@ -145,6 +146,7 @@ The service worker ([sw.js](../sw.js)) implements different caching strategies f
 - Cache version: `sunshine-optimist-static-v1`
 
 **API Requests** (network-first with stale-while-revalidate):
+
 - Open-Meteo Geocoding API
 - BigDataCloud Reverse Geocoding API
 - Tries network first, updates cache on success
@@ -153,11 +155,13 @@ The service worker ([sw.js](../sw.js)) implements different caching strategies f
 - Cache version: `sunshine-optimist-api-v1`
 
 **External Resources** (network-only):
+
 - Google Fonts
 - Other CDN resources
 - Relies on their own caching headers
 
 **Cache Lifecycle**:
+
 - `install`: Precaches all static assets
 - `activate`: Deletes old cache versions, takes control immediately via `skipWaiting()` and `clients.claim()`
 - Old caches cleaned up automatically on version change
@@ -173,6 +177,7 @@ The service worker ([sw.js](../sw.js)) implements different caching strategies f
 ### Installability
 
 Web app manifest ([manifest.json](../manifest.json)) provides:
+
 - App name: "Sunshine Optimist"
 - Standalone display mode (no browser UI)
 - Portrait orientation
@@ -185,6 +190,7 @@ Web app manifest ([manifest.json](../manifest.json)) provides:
 ### Caching Layers
 
 **Astronomy Calculations**:
+
 - Sun events cached by date parts key (year-month-day)
 - Yearly extremes cached by year and approximate daylight
 - Seasonal dates cached by year and hemisphere
@@ -192,12 +198,14 @@ Web app manifest ([manifest.json](../manifest.json)) provides:
 - Prevents redundant expensive calculations
 
 **Reverse Geocoding**:
+
 - Results cached by coordinate key (lat,lon rounded to 4 decimals)
 - In-flight request deduplication: same coordinates share single promise
 - Cache cleared on location change or coordinate update
 - Prevents redundant API calls for same location
 
 **Formatters**:
+
 - Date formatters (`Intl.DateTimeFormat`, `Intl.RelativeTimeFormat`) created once and cached
 - Reused across all date/time formatting operations
 - Significant performance improvement over creating new formatters each time
@@ -205,17 +213,20 @@ Web app manifest ([manifest.json](../manifest.json)) provides:
 ### Async Operations
 
 **Full-Year Scans**:
+
 - `getYearlySunExtremesAsync()`: Yields every 30 iterations to avoid blocking UI
 - `getAverageWinterDaylightAsync()`: Yields every 7 days of calculations
 - Uses `await new Promise(resolve => setTimeout(resolve, 0))` to yield to main thread
 - Critical for maintaining 60fps during heavy calculations
 
 **Debouncing**:
+
 - Search input: 250ms debounce
 - Date input: 1.2s debounce (immediate on blur/Enter)
 - Prevents excessive API calls and recalculations
 
 **Request Management**:
+
 - `AbortController` cancels previous geocoding requests on new input
 - Single in-flight promise per reverse geocoding coordinate set
 - Date commit timeout cleared on rapid changes
@@ -233,6 +244,7 @@ Web app manifest ([manifest.json](../manifest.json)) provides:
 ### Unit Tests (Vitest)
 
 63 tests across 17 test files covering:
+
 - Date utilities and timezone handling
 - Message selection logic and placeholders
 - State management getters/setters
@@ -245,6 +257,7 @@ Web app manifest ([manifest.json](../manifest.json)) provides:
 ### End-to-End Tests (Playwright)
 
 6 test suites covering:
+
 - App initialization and loading
 - Date selection and timezone synchronization
 - Default location loading
@@ -263,12 +276,14 @@ Web app manifest ([manifest.json](../manifest.json)) provides:
 ## Browser Compatibility
 
 **Minimum Requirements**:
+
 - ES Modules support
 - ES2020 features (optional chaining, nullish coalescing, async/await)
 - Modern Web APIs: Fetch, Geolocation, Canvas, Clipboard, Service Worker
 - Modern browsers: Chrome 80+, Firefox 74+, Safari 13.1+, Edge 80+
 
 **Graceful Degradation**:
+
 - No geolocation: Falls back to default location
 - No Clipboard API: Copy button hidden or disabled
 - No Service Worker: App works but no offline support
@@ -278,18 +293,21 @@ Web app manifest ([manifest.json](../manifest.json)) provides:
 ## Security Considerations
 
 **API Calls**:
+
 - All external APIs called over HTTPS
 - No user credentials or sensitive data transmitted
 - Geocoding APIs are public (no API keys exposed)
 - CORS handled by API providers
 
 **User Data**:
+
 - Location data stored only in browser's localStorage (not transmitted)
 - Share privacy mode prevents accidental location disclosure
 - No analytics or tracking
 - No cookies used
 
 **Content Security**:
+
 - Static site hosted on HTTPS
 - Service worker enforces same-origin policy for caching
 - External resources (fonts, API calls) loaded over HTTPS

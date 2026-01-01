@@ -70,10 +70,7 @@ self.addEventListener("activate", (event) => {
           cacheNames
             .filter((cacheName) => {
               // Delete old versioned caches
-              return (
-                cacheName.startsWith("sunshine-optimist-") &&
-                cacheName !== STATIC_CACHE_NAME
-              );
+              return cacheName.startsWith("sunshine-optimist-") && cacheName !== STATIC_CACHE_NAME;
             })
             .map((cacheName) => {
               // eslint-disable-next-line no-console
