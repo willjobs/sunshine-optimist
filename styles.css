@@ -748,14 +748,14 @@ h1 {
 }
 
 .delta-emphasis {
-  font-size: clamp(11px, 1.4vw, 13px);
+  font-size: clamp(13px, 1.4vw, 15px);
   font-weight: 700;
   color: #d8861c;
   letter-spacing: 0;
 }
 
 .delta-text {
-  font-size: clamp(11px, 1.2vw, 12.5px);
+  font-size: clamp(13px, 1.2vw, 14px);
   color: #5b4f45;
   letter-spacing: 0;
 }
