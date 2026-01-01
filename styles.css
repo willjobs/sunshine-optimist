@@ -774,6 +774,13 @@ h1 {
   text-decoration-thickness: 1px;
   text-decoration-color: rgba(107, 95, 85, 0.55);
   text-underline-offset: 3px;
+  padding: 6px 2px;
+  margin: -6px -2px;
+  border-radius: 4px;
+}
+
+.delta-reference.has-tooltip:active {
+  background: rgba(200, 111, 21, 0.1);
 }
 
 .delta-reference.has-tooltip:hover,
