@@ -1,14 +1,12 @@
 /**
  * Service Worker for Sunshine Optimist
  *
- * Provides offline support by caching static assets and API responses.
- * Uses a cache-first strategy for static assets and a network-first
- * strategy for API calls with stale-while-revalidate behavior.
+ * Provides offline support by caching static assets.
+ * Uses a cache-first strategy for static assets.
  */
 
 const CACHE_VERSION = "v1";
 const STATIC_CACHE_NAME = `sunshine-optimist-static-${CACHE_VERSION}`;
-const API_CACHE_NAME = `sunshine-optimist-api-${CACHE_VERSION}`;
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
@@ -40,12 +38,6 @@ const STATIC_ASSETS = [
   "/scripts/utils/location-utils.js",
   "/scripts/utils/utils.js",
 ];
-
-// API endpoints to cache
-const API_HOSTS = ["geocoding-api.open-meteo.com", "api.bigdatacloud.net"];
-
-// Cache duration for API responses (24 hours in milliseconds)
-const API_CACHE_MAX_AGE = 24 * 60 * 60 * 1000;
 
 /**
  * Install event - cache static assets
@@ -80,8 +72,7 @@ self.addEventListener("activate", (event) => {
               // Delete old versioned caches
               return (
                 cacheName.startsWith("sunshine-optimist-") &&
-                cacheName !== STATIC_CACHE_NAME &&
-                cacheName !== API_CACHE_NAME
+                cacheName !== STATIC_CACHE_NAME
               );
             })
             .map((cacheName) => {
@@ -97,39 +88,6 @@ self.addEventListener("activate", (event) => {
       })
   );
 });
-
-/**
- * Check if a URL is an API request
- */
-const isApiRequest = (url) => {
-  return API_HOSTS.some((host) => url.hostname === host);
-};
-
-/**
- * Check if a cached response is still valid
- */
-const isCacheValid = (response) => {
-  if (!response) return false;
-  const cachedTime = response.headers.get("sw-cached-time");
-  if (!cachedTime) return true; // If no timestamp, treat as valid
-  const age = Date.now() - parseInt(cachedTime, 10);
-  return age < API_CACHE_MAX_AGE;
-};
-
-/**
- * Add timestamp header to response for cache validation
- */
-const addCacheTimestamp = async (response) => {
-  const clonedResponse = response.clone();
-  const body = await clonedResponse.blob();
-  const headers = new Headers(clonedResponse.headers);
-  headers.set("sw-cached-time", Date.now().toString());
-  return new Response(body, {
-    status: clonedResponse.status,
-    statusText: clonedResponse.statusText,
-    headers,
-  });
-};
 
 /**
  * Handle static asset requests (cache-first strategy)
@@ -158,38 +116,7 @@ const handleStaticRequest = async (request) => {
 };
 
 /**
- * Handle API requests (network-first with stale-while-revalidate)
- */
-const handleApiRequest = async (request) => {
-  const cache = await caches.open(API_CACHE_NAME);
-  const cachedResponse = await cache.match(request);
-
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      // Cache the successful response with timestamp
-      const timestampedResponse = await addCacheTimestamp(networkResponse);
-      cache.put(request, timestampedResponse);
-      return networkResponse;
-    }
-    // If network returned an error but we have cache, use it
-    if (cachedResponse && isCacheValid(cachedResponse)) {
-      return cachedResponse;
-    }
-    return networkResponse;
-  } catch (error) {
-    // Network failed, try to serve from cache
-    if (cachedResponse && isCacheValid(cachedResponse)) {
-      // eslint-disable-next-line no-console
-      console.log("[SW] Serving API response from cache:", request.url);
-      return cachedResponse;
-    }
-    throw error;
-  }
-};
-
-/**
- * Fetch event - route requests to appropriate handler
+ * Fetch event - handle same-origin static assets only
  */
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
@@ -204,18 +131,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Handle API requests
-  if (isApiRequest(url)) {
-    event.respondWith(handleApiRequest(event.request));
-    return;
-  }
-
-  // Handle static assets (same origin only)
+  // Only handle same-origin requests (static assets)
+  // Let third-party API requests and external resources (like Google Fonts)
+  // go directly to the network with their own caching headers
   if (url.origin === self.location.origin) {
     event.respondWith(handleStaticRequest(event.request));
-    return;
   }
-
-  // For external resources (like Google Fonts), use network-only
-  // as they have their own caching headers
 });
