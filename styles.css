@@ -1243,6 +1243,23 @@ h1 {
     width: 100%;
   }
 
+  .share-modal-content {
+    gap: 12px;
+  }
+
+  .share-modal-body {
+    gap: 10px;
+  }
+
+  .share-preview {
+    max-height: 200px;
+    padding: 12px 14px;
+  }
+
+  .share-preview pre {
+    font-size: 13px;
+  }
+
   .milestone {
     gap: 14px;
     padding: 16px;
