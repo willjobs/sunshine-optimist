@@ -42,6 +42,7 @@ Sunshine Optimist is a single-page web application that provides upbeat, seasona
 ### Search Interface
 
 **Input Field**:
+
 - Minimum 2 characters required to trigger search
 - 250ms debounce delay before API call
 - Supports filter tokens: `#region`, `#country`, `#admin` to filter by region/country/state
@@ -49,6 +50,7 @@ Sunshine Optimist is a single-page web application that provides upbeat, seasona
 - Pressing Escape closes results panel
 
 **Search Results**:
+
 - Fetches city suggestions from Open-Meteo Geocoding API
 - Returns up to 8 results
 - Groups results into "Matches" (exact name match) and "Nearby" (other results)
@@ -56,11 +58,13 @@ Sunshine Optimist is a single-page web application that provides upbeat, seasona
 - Displays each result with format: `City, State/Region, Country`
 
 **Filter Behavior**:
+
 - Filter tokens (e.g., `paris #france`) filter results by matching country or region codes
 - If filters exclude all results, shows unfiltered results with a hint message
 - Filter hint: "No matches for [tokens]. Showing broader results."
 
 **Local vs Worldwide Toggle**:
+
 - Default: Prefers local results (same country as user)
 - If user has geolocation: Shows "nearby" results first
 - Toggle button appears when both local and worldwide results exist
@@ -75,6 +79,7 @@ Sunshine Optimist is a single-page web application that provides upbeat, seasona
 ### Keyboard Navigation
 
 **In Search Field**:
+
 - Arrow Down: Move to first result or next result
 - Arrow Up: Move to previous result
 - Home: Jump to first result
@@ -84,6 +89,7 @@ Sunshine Optimist is a single-page web application that provides upbeat, seasona
 - Tab: Navigation follows standard browser behavior
 
 **In Results List**:
+
 - Each result is keyboard focusable
 - Arrow keys move between results
 - Enter or Space: Select result
@@ -100,11 +106,13 @@ Sunshine Optimist is a single-page web application that provides upbeat, seasona
 ### Geolocation Button
 
 **States**:
+
 - Enabled: Location pin icon, label "Use my location"
 - Disabled: Grayed out, label "Location unavailable" (if geolocation not supported)
 - Loading: Disabled during geolocation request, label "Locating..."
 
 **Behavior**:
+
 - Click requests browser geolocation permission
 - 5-second timeout for geolocation request
 - On success: Reverse geocodes and auto-selects current location
@@ -114,6 +122,7 @@ Sunshine Optimist is a single-page web application that provides upbeat, seasona
 ### Location Selection
 
 When a location is selected:
+
 1. Input field updates to show: `City, State, Country` or `City, Country`
 2. Stores location in localStorage as "last active"
 3. Adds to recent locations list (max 5, most recent first)
@@ -124,6 +133,7 @@ When a location is selected:
 8. Updates all UI elements with new data
 
 **Current Location Handling**:
+
 - Initially shows as "Current Location"
 - Performs reverse geocoding in background via BigDataCloud API
 - Updates display to actual place name when resolved
@@ -135,11 +145,13 @@ When a location is selected:
 ### Date Picker
 
 **Default Behavior**:
+
 - Defaults to today in the selected location's timezone (not user's timezone)
 - Always interprets dates in the location's timezone
 - Shows "Today" button when viewing today's date
 
 **Interaction Methods**:
+
 1. **Clicking Calendar Popup**: Immediate selection and update
 2. **Keyboard Input**:
    - Typing triggers commit after 1.2-second delay
@@ -149,6 +161,7 @@ When a location is selected:
 3. **Arrow Keys**: Immediate selection when using date picker arrows
 
 **Commit Behavior**:
+
 - On commit: Cancels any pending timeout
 - Validates the date is parseable
 - Stores custom date in state
@@ -160,10 +173,12 @@ When a location is selected:
 ### Today Button
 
 **Visibility**:
+
 - Visible when viewing any custom (non-today) date
 - Hidden when viewing today
 
 **Click Behavior**:
+
 1. Resets to live/today mode (`useLiveDate: true`)
 2. Clears custom date from state
 3. Sets date picker to current date in location's timezone
@@ -182,6 +197,7 @@ When a location is selected:
 ### Calculation Flow
 
 When location or date changes:
+
 1. Creates astronomy context for the location (latitude/longitude)
 2. Calculates sun events (sunrise, sunset, daylight duration) for:
    - Today
@@ -201,11 +217,13 @@ When location or date changes:
 ### Async Operations
 
 **Why Async**:
+
 - Full-year scans (365+ calculations) can block UI
 - Astronomy Engine is computationally intensive
 - Operations yield to main thread in chunks to avoid jank
 
 **Async Functions**:
+
 - `getYearlySunExtremesAsync()`: Scans entire year for extremes
 - `getAverageWinterDaylightAsync()`: Calculates winter daylight average
 - Uses `Promise` and `setTimeout` to yield between chunks
@@ -213,6 +231,7 @@ When location or date changes:
 ### Display Elements
 
 **Sunset Stat**:
+
 - **Main Value**: Today's sunset time (e.g., "5:34 PM")
 - **Delta 1**: Minutes later/earlier than earliest sunset of the year
   - Shows absolute difference
@@ -225,6 +244,7 @@ When location or date changes:
   - Tooltip shows: comparison sunset time and date
 
 **Daylight Stat**:
+
 - **Main Value**: Today's daylight duration (e.g., "9h 23m")
 - **Delta 1**: Minutes longer/shorter than shortest day of the year
   - Shows absolute difference
@@ -236,12 +256,14 @@ When location or date changes:
   - Tooltip shows: comparison daylight and date
 
 **Comparison Mode Selection**:
+
 - Preference: Use 1-month comparison
 - Fallback: Use 1-week comparison if any month delta is negative
 - Hidden: Both comparison rows hidden if negative changes detected in week view
 - Prevents showing discouraging declining statistics
 
 **Delta Tooltips**:
+
 - Appear on hover/focus of reference text (e.g., "earliest sunset")
 - Show specific time/duration and date for comparison point
 - Accessible via keyboard focus
@@ -252,6 +274,7 @@ When location or date changes:
 ### Message Selection
 
 **Input Data**:
+
 - Current date and location
 - Month (1-12)
 - Hemisphere (north/south based on latitude)
@@ -259,6 +282,7 @@ When location or date changes:
 - Upcoming milestones list
 
 **Selection Algorithm**:
+
 1. Filter messages by adjusted month (hemisphere-aware)
    - Northern hemisphere: months as-is
    - Southern hemisphere: months +6 modulo 12 (seasons flipped)
@@ -273,12 +297,14 @@ When location or date changes:
 6. Replace data placeholders like `{next_milestone_title}` with actual values
 
 **Placeholder Formats**:
+
 - `{## minutes}`: "X minutes" or "X hours Y minutes"
 - `{## days}`: "X days" or "X day"
 - `{## weeks}`: "X weeks" or "X week"
 - `{##%}`: "X%" (rounded percentage)
 
 **Message Structure**:
+
 ```javascript
 {
   headline: "You've gained {## minutes} of daylight since the winter solstice.",
@@ -294,6 +320,7 @@ When location or date changes:
 ### Display Behavior
 
 **Normal Case** (messages available):
+
 1. Randomly select one of the valid messages as the first
 2. Start rotation timer (12 seconds per message)
 3. Rotate through valid messages sequentially
@@ -301,6 +328,7 @@ When location or date changes:
 5. Loop back to first message after showing all
 
 **Fallback Cases**:
+
 1. **No Valid Messages**: Shows default headline and lede
    - Headline: "Daylight insights for [Location]"
    - Lede: Milestone-based if available, otherwise generic
@@ -308,6 +336,7 @@ When location or date changes:
 3. **Polar Night** (0 hours daylight): "Polar night—no direct sunlight today."
 
 **Milestone Override**:
+
 - If a milestone occurs today (e.g., "Shortest day", "First 6pm sunset")
 - Stops message rotation
 - Displays milestone's `todayHeadline` and `todayLede`
@@ -316,6 +345,7 @@ When location or date changes:
 ### Rotation Behavior
 
 **Timing**:
+
 - First message: Shows immediately (no delay)
 - Subsequent messages: 12-second intervals
 - Rotation continues indefinitely
@@ -323,12 +353,14 @@ When location or date changes:
 - Resumes if milestone override is removed (date/location change)
 
 **Animation**:
+
 - Fade out: 400ms
 - Fade in: 400ms
 - Uses CSS transitions via class toggling
 - Swap ID mechanism prevents race conditions on rapid updates
 
 **Special Handling**:
+
 - Text prefixes removed: "Only less than" becomes "Less than"
 - Milestone title formatting for countdowns: "gained..." becomes "you've gained..."
 - Lede fallback to next milestone countdown if message has no lede
@@ -378,6 +410,7 @@ When location or date changes:
 ### Milestone Card Display
 
 **Layout**:
+
 ```
 Coming up
 [Milestone Title]
@@ -386,12 +419,14 @@ Coming up
 ```
 
 **Visibility**:
+
 - Always visible (unless no milestones exist, which is rare)
 - Shows first upcoming milestone by default
 - Click arrow to cycle through upcoming milestones
 - Milestone index wraps around (after last, returns to first)
 
 **Formatting**:
+
 - **Title**: Milestone title in sentence case
 - **Date**: Long format (e.g., "Monday, March 20, 2025")
 - **Days Away**:
@@ -400,6 +435,7 @@ Coming up
   - "In X weeks" (if more than 13 days, rounds to weeks)
 
 **Sorting**:
+
 - Sorted by days away (ascending)
 - Ties broken alphabetically by title
 - Only includes milestones with positive days away (future dates)
@@ -408,10 +444,12 @@ Coming up
 ### Today's Milestone Behavior
 
 **Detection**:
+
 - Checks if any milestone's date matches today
 - Uses date comparison in location's timezone
 
 **When Milestone is Today**:
+
 1. **Message Override**:
    - Stops optimistic message rotation
    - Displays milestone's `todayHeadline` as main headline
@@ -434,6 +472,7 @@ Coming up
    - If no future milestones, carousel shows placeholder
 
 **Confetti Deduplication**:
+
 - Uses milestone ID + date as cache key
 - Prevents confetti on location/date change if already celebrated
 - Clears celebration on date change to allow celebration on new date
@@ -443,6 +482,7 @@ Coming up
 ### Share Modal
 
 **Opening**:
+
 - Click "Share Your Sunlight" button
 - Captures current state snapshot (headline, lede, data)
 - Opens modal dialog (HTML `<dialog>` element)
@@ -450,6 +490,7 @@ Coming up
 - Generates share preview automatically
 
 **Modes**:
+
 1. **Text Mode** (default):
    - Shows formatted text preview
    - Displays "Copy to clipboard" button
@@ -463,6 +504,7 @@ Coming up
    - Uses HTML5 Canvas API for rendering
 
 **Toggle Between Modes**:
+
 - Buttons at top: "Text" | "Image"
 - Active mode highlighted
 - Switches preview area and action buttons
@@ -471,6 +513,7 @@ Coming up
 ### Text Share Format
 
 **Layout**:
+
 ```
 ☀️ [Location] — [Date]
 
@@ -486,6 +529,7 @@ SunshineOptimist.com
 ```
 
 **Progress Bar**:
+
 - Only shown in specific months/situations:
   - **Max Mode** (months 1-5): Shows percentage of maximum daylight
     - Example: `▓▓▓▓▓▓▓▓▓░ 85% of maximum daylight`
@@ -496,6 +540,7 @@ SunshineOptimist.com
 - Percentage rounded to nearest integer
 
 **Dynamic Content**:
+
 - **Location**: Respects privacy mode
 - **Date**: Long format in user's locale
 - **Headline**: From current optimistic message or milestone
@@ -508,6 +553,7 @@ SunshineOptimist.com
 **Dimensions**: 1080px × 1920px (Instagram Story size)
 
 **Visual Design**:
+
 - **Background**: Warm gradient (orange/coral tones)
   - Top: `#E8664C`
   - Middle: `#E07A4A`
@@ -516,6 +562,7 @@ SunshineOptimist.com
 - **Font**: Merriweather (bold, serif)
 
 **Content**:
+
 ```
 ☀️[Location]☀️
 
@@ -525,6 +572,7 @@ from SunshineOptimist.com
 ```
 
 **Layout**:
+
 - Location line: 72px font, centered vertically
 - Headline: 84px font, word-wrapped to fit width
 - Footer: 36px font, semi-transparent
@@ -533,22 +581,26 @@ from SunshineOptimist.com
 - Vertically centered as a group
 
 **Font Loading**:
+
 - Waits for `document.fonts.ready` before rendering
 - Ensures Merriweather font is loaded for consistent rendering
 
 ### Privacy Mode
 
 **Toggle**:
+
 - Checkbox: "Share as 'My Location'"
 - State saved to localStorage
 - Persists across sessions
 
 **When Enabled**:
+
 - Location displays as "My Location" (instead of actual city name)
 - Applies to both text and image share formats
 - Does not affect the main app display
 
 **When Disabled**:
+
 - Location displays actual city name
 - Format: `City, State, Country` or `City, Country`
 - "Current Location" resolves to actual place name via reverse geocoding
@@ -556,6 +608,7 @@ from SunshineOptimist.com
 ### Copy to Clipboard
 
 **Behavior**:
+
 1. Generates share text if not already cached
 2. Uses `navigator.clipboard.writeText()`
 3. On success: Button label flashes "Copied!" for 1.2 seconds
@@ -563,28 +616,33 @@ from SunshineOptimist.com
 5. Returns to original label after flash
 
 **Browser Compatibility**:
+
 - Checks for `navigator.clipboard.writeText` support
 - Gracefully fails if unsupported (returns false, no flash)
 
 ### Social Share Buttons
 
 **Instagram**:
+
 - Copies text to clipboard
 - Opens Instagram.com in new tab
 - User must paste manually (Instagram doesn't support URL parameters)
 
 **Facebook**:
+
 - Opens Facebook Share dialog with:
   - URL: `https://sunshineoptimist.com`
   - Quote: Share text
 - Opens in new window with `noopener,noreferrer`
 
 **X (Twitter)**:
+
 - Opens Tweet compose with pre-filled text
 - URL: `https://twitter.com/intent/tweet?text=[encoded]`
 - Opens in new window
 
 **Bluesky**:
+
 - Opens Bluesky compose with pre-filled text
 - URL: `https://bsky.app/intent/compose?text=[encoded]`
 - Opens in new window
@@ -592,6 +650,7 @@ from SunshineOptimist.com
 ### Download Image
 
 **Behavior**:
+
 1. Converts canvas to PNG blob
 2. Creates temporary object URL
 3. Triggers download with filename: `sunshine-optimist-story.png`
@@ -599,17 +658,20 @@ from SunshineOptimist.com
 5. On failure: Console warning (no user-facing error)
 
 **File Format**:
+
 - PNG (maximum quality, 1.0 compression)
 - Full resolution (1080x1920px)
 
 ### Closing Modal
 
 **Methods**:
+
 1. Click "Close" button
 2. Click backdrop (outside modal)
 3. Press Escape key
 
 **Cleanup**:
+
 - Clears modal snapshot state
 - Resets to "Text" mode
 - Closes dialog element
@@ -620,6 +682,7 @@ from SunshineOptimist.com
 ### Installation
 
 **Manifest**:
+
 - Name: "Sunshine Optimist"
 - Short Name: "Sunshine"
 - Display: Standalone (no browser UI)
@@ -629,11 +692,13 @@ from SunshineOptimist.com
 - Icon: SVG favicon (scalable, works as maskable icon)
 
 **Installation Criteria**:
+
 - Meets PWA criteria: HTTPS, manifest, service worker
 - Browser may show "Add to Home Screen" prompt
 - Can be installed on mobile/desktop
 
 **Installed Behavior**:
+
 - Opens as standalone app (no browser chrome)
 - Uses theme color for system UI
 - Portrait orientation locked on mobile
@@ -665,12 +730,14 @@ from SunshineOptimist.com
    - Relies on their own caching headers
 
 **Cache Versioning**:
+
 - Cache name: `sunshine-optimist-static-v1` and `sunshine-optimist-api-v1`
 - On version bump: Old caches automatically deleted
 - Activates immediately via `skipWaiting()`
 - Takes control via `clients.claim()`
 
 **Offline Behavior**:
+
 - Static assets available offline
 - Last-selected location and date work offline
 - Recent API results cached for 24 hours
@@ -680,17 +747,20 @@ from SunshineOptimist.com
 ### Storage
 
 **localStorage Keys**:
+
 - `sunshine-optimist:recent-locations`: Array of last 5 locations
 - `sunshine-optimist:last-location`: Last selected location object
 - `sunshine-optimist:share-privacy`: Boolean for privacy toggle
 
 **Data Persisted**:
+
 - Recent locations (max 5)
 - Last active location
 - Share privacy preference
 - Does NOT persist: Custom date, message rotation state, milestone index
 
 **Data Format**:
+
 - JSON serialization
 - Graceful handling of parse errors (returns default/empty)
 - Console warnings for invalid data
@@ -700,27 +770,32 @@ from SunshineOptimist.com
 ### Keyboard Navigation
 
 **All Interactive Elements**:
+
 - Fully keyboard accessible
 - Standard tab order
 - Visible focus indicators
 - Focus trapping in modals
 
 **Location Search**:
+
 - Arrow keys navigate suggestions
 - Enter/Space select
 - Escape closes
 - Home/End jump to first/last
 
 **Date Picker**:
+
 - Native HTML date input (browser-provided accessibility)
 - Enter commits selection
 - Tab navigation works
 
 **Milestone Toggle**:
+
 - Space/Enter activate
 - Cycles through milestones
 
 **Share Modal**:
+
 - Escape closes
 - Tab order: mode buttons → privacy toggle → preview → action buttons → close
 - Focus returns to trigger on close
@@ -728,6 +803,7 @@ from SunshineOptimist.com
 ### Screen Readers
 
 **ARIA Labels**:
+
 - Location search: `role="combobox"`, `aria-autocomplete="list"`, `aria-expanded`, `aria-controls`
 - Results list: `role="listbox"`, `aria-label="City suggestions"`
 - Result options: `role="option"`, `aria-selected`
@@ -735,6 +811,7 @@ from SunshineOptimist.com
 - Modal: `aria-labelledby` for title
 
 **Semantic HTML**:
+
 - `<header>`, `<section>`, `<dialog>` for structure
 - `<button>` for all clickable actions
 - `<label>` for form inputs
@@ -742,6 +819,7 @@ from SunshineOptimist.com
 - Proper heading hierarchy
 
 **Hidden Elements**:
+
 - Decorative icons: `aria-hidden="true"`
 - Confetti: `aria-hidden="true"`
 - Tooltips update content on associated elements
@@ -749,16 +827,19 @@ from SunshineOptimist.com
 ### Visual Accessibility
 
 **Color Contrast**:
+
 - Text on backgrounds meets WCAG AA standards
 - Primary text: Dark on light background
 - Button states have sufficient contrast
 
 **Focus Indicators**:
+
 - Visible focus rings on all interactive elements
 - Increased size/color on focus
 - Never suppressed
 
 **Text Sizing**:
+
 - Relative units (rem/em) for text
 - Scales with browser text size settings
 - No text smaller than 14px base
@@ -768,34 +849,40 @@ from SunshineOptimist.com
 ### Location Errors
 
 **Geolocation Denied**:
+
 - Silent failure
 - Falls back to default location
 - Button returns to enabled state
 - User can manually search for city
 
 **Geolocation Timeout**:
+
 - 5-second timeout
 - Falls back to default location
 - No error message shown
 
 **Reverse Geocoding Failure**:
+
 - Falls back to "Current Location" label
 - Sets `reverseGeocodeFailed: true` flag
 - Location still functional for calculations
 - Does not retry automatically
 
 **City Search API Failure**:
+
 - Shows error message: "Could not fetch city suggestions. Check your connection and try again."
 - Displays "Retry search" button
 - Aborts pending requests on new input
 - Clears results on error
 
 **Empty Search Results**:
+
 - Shows message: "No matches yet."
 - Offers toggle to worldwide results if applicable
 - Recent locations still accessible
 
 **Invalid Search Input**:
+
 - Less than 2 characters: Shows recent locations
 - Invalid characters: Passed to API (API handles sanitization)
 - Filter tokens with no matches: Shows unfiltered results
@@ -803,17 +890,20 @@ from SunshineOptimist.com
 ### Date Errors
 
 **Invalid Date Input**:
+
 - Browser validation prevents invalid dates
 - Out-of-range dates handled by browser
 - Malformed input: Falls back to today
 
 **Date Picker Browser Differences**:
+
 - Format varies by browser/locale
 - Native date picker UI differs
 - Always uses `type="date"` HTML input
 - Value always in YYYY-MM-DD format internally
 
 **Timezone Edge Cases**:
+
 - Dates always in location's timezone
 - Handles DST transitions correctly
 - Leap years supported
@@ -822,6 +912,7 @@ from SunshineOptimist.com
 ### Calculation Errors
 
 **Polar Regions**:
+
 - **Polar Day** (24-hour daylight):
   - Headline: "Polar day—24-hour daylight!"
   - Stats may show "—" for sunset
@@ -832,11 +923,13 @@ from SunshineOptimist.com
   - Milestones may not apply
 
 **Missing Data**:
+
 - If astronomy calculation fails: Shows "—" placeholder
 - If delta cannot be calculated: Hides comparison row
 - If no valid messages: Shows fallback headline and lede
 
 **Extreme Dates**:
+
 - Supports dates far in past/future
 - Year range limited by JavaScript Date limits (approx. ±275,000 years)
 - Astronomy Engine handles dates within reasonable human range
@@ -844,11 +937,13 @@ from SunshineOptimist.com
 ### Storage Errors
 
 **localStorage Unavailable**:
+
 - Private browsing mode: localStorage may throw errors
 - Quota exceeded: Old entries cleared automatically
 - Graceful fallback: App works without persistence
 
 **Corrupted Data**:
+
 - JSON parse errors: Console warning, returns default
 - Invalid location objects: Ignored, falls back to default
 - Malformed recent locations: Cleared and reset
@@ -856,17 +951,20 @@ from SunshineOptimist.com
 ### Network Errors
 
 **API Unavailable**:
+
 - Geocoding API down: Shows error, offers retry
 - Reverse geocoding down: Falls back to "Current Location"
 - Service worker serves cached API responses if available
 
 **Slow Network**:
+
 - Debouncing prevents redundant requests
 - Request deduplication for reverse geocoding
 - Loading states shown during requests
 - Timeout handling for geolocation (5s)
 
 **Offline Mode**:
+
 - Static app shell cached and available
 - Last location and calculations work
 - New searches fail gracefully
@@ -877,6 +975,7 @@ from SunshineOptimist.com
 ### Lazy Loading
 
 **Astronomy Calculations**:
+
 - Astronomy Engine loaded on page load (required immediately)
 - Full-year scans done asynchronously to avoid blocking
 - Results cached by astronomy utils layer
@@ -884,18 +983,21 @@ from SunshineOptimist.com
 ### Caching
 
 **Astronomy Cache**:
+
 - Sun events cached by date parts key
 - Yearly extremes cached by year and approximate daylight
 - Seasonal dates cached by year
 - Cache invalidated on location change
 
 **Reverse Geocoding Cache**:
+
 - Results cached by coordinate key (lat,lon to 4 decimals)
 - Single in-flight request per cache key
 - Duplicate requests await same promise
 - Cache cleared on location change or coordinate update
 
 **Service Worker Cache**:
+
 - Static assets cached on install
 - API responses cached for 24 hours with timestamp
 - Stale-while-revalidate for API calls
@@ -916,12 +1018,14 @@ from SunshineOptimist.com
 ### DOM Updates
 
 **Efficient Rendering**:
+
 - Direct DOM updates via helper functions (no virtual DOM)
 - Batch updates where possible
 - CSS transitions for animations (GPU-accelerated)
 - Tooltips created once, content updated
 
 **Async Rendering**:
+
 - Canvas generation for story images uses async/await
 - Font loading waits for fonts.ready
 - Confetti animation uses requestAnimationFrame
@@ -931,6 +1035,7 @@ from SunshineOptimist.com
 ### Minimum Requirements
 
 **JavaScript**:
+
 - ES Modules (import/export)
 - Async/await
 - Optional chaining (`?.`)
@@ -938,6 +1043,7 @@ from SunshineOptimist.com
 - Modern browsers: Chrome 80+, Firefox 74+, Safari 13.1+, Edge 80+
 
 **Web APIs**:
+
 - Fetch API
 - Navigator.geolocation
 - Navigator.permissions
@@ -947,6 +1053,7 @@ from SunshineOptimist.com
 - Clipboard API (graceful degradation)
 
 **CSS**:
+
 - CSS Grid
 - CSS Custom Properties (variables)
 - CSS Transitions
@@ -964,6 +1071,7 @@ from SunshineOptimist.com
 
 **Unit Tests**: 63 tests across 17 files (Vitest)
 **E2E Tests**: 6 test files (Playwright)
+
 - App loading and initialization
 - Date selection and timezone handling
 - Default location loading
@@ -976,12 +1084,14 @@ from SunshineOptimist.com
 ### Console Logging
 
 **Automatic Logs**:
+
 - Service worker: Cache operations, activation
 - Location selection: "Selected city: [name]" with coordinates
 - Storage errors: JSON parse failures
 - Optimistic messages: Full list on page load, location/date change
 
 **Log Format**:
+
 ```
 Optimistic messages for [Location] on [Date]:
 ┌───────┬─────────────────────────────────────────┐
@@ -1019,6 +1129,7 @@ Optimistic messages for [Location] on [Date]:
    - Uses `console.table()` if available
 
 **Usage**:
+
 ```javascript
 // In browser console:
 SunshineOptimistDebug.printOptimisticMessages();
