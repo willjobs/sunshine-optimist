@@ -1235,4 +1235,28 @@ h1 {
   .share-actions-buttons {
     width: 100%;
   }
+
+  .milestone {
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .milestone-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .milestone-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .milestone-headline {
+    font-size: 20px;
+  }
+
+  .milestone-date {
+    flex-direction: column;
+    gap: 2px;
+  }
 }
