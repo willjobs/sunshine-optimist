@@ -443,7 +443,7 @@ body {
 h1 {
   margin: 0 0 14px;
   font-family: var(--serif);
-  font-size: clamp(24px, 2.8vw + 4.8px, 36px);
+  font-size: clamp(26px, 2.8vw + 4.8px, 36px);
   line-height: 1.12;
   color: #c46e13;
   font-weight: 600;
