@@ -33,12 +33,6 @@ test.describe("Mobile Usability Audit", () => {
 
         // Wait for the page to be fully loaded
         await page.waitForLoadState("networkidle");
-
-        // Take a full page screenshot
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-01-initial-load.png`,
-          fullPage: true,
-        });
       });
 
       test("02 - Location input focused state", async ({ page }) => {
@@ -48,11 +42,6 @@ test.describe("Mobile Usability Audit", () => {
         // Focus on the location input
         const cityInput = page.locator("#city-input");
         await cityInput.click();
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-02-location-input-focused.png`,
-          fullPage: true,
-        });
       });
 
       test("03 - Location search results", async ({ page }) => {
@@ -92,11 +81,6 @@ test.describe("Mobile Usability Audit", () => {
         const cityInput = page.locator("#city-input");
         await cityInput.fill("New");
         await page.waitForTimeout(600); // Wait for debounce
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-03-location-results.png`,
-          fullPage: true,
-        });
       });
 
       test("04 - Main content with stats", async ({ page }) => {
@@ -106,11 +90,6 @@ test.describe("Mobile Usability Audit", () => {
         // Focus on the main content card
         const card = page.locator(".card");
         await card.scrollIntoViewIfNeeded();
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-04-main-content-stats.png`,
-          fullPage: true,
-        });
       });
 
       test("05 - Sunset and Daylight stats detailed view", async ({ page }) => {
@@ -120,11 +99,6 @@ test.describe("Mobile Usability Audit", () => {
         // Scroll to stats section
         const statRow = page.locator(".stat-row");
         await statRow.scrollIntoViewIfNeeded();
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-05-stats-section.png`,
-          fullPage: false,
-        });
       });
 
       test("06 - Milestone section", async ({ page }) => {
@@ -133,11 +107,6 @@ test.describe("Mobile Usability Audit", () => {
 
         const milestone = page.locator(".milestone");
         await milestone.scrollIntoViewIfNeeded();
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-06-milestone-section.png`,
-          fullPage: false,
-        });
       });
 
       test("07 - Share button and footer area", async ({ page }) => {
@@ -146,11 +115,6 @@ test.describe("Mobile Usability Audit", () => {
 
         const shareSection = page.locator(".share");
         await shareSection.scrollIntoViewIfNeeded();
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-07-share-section.png`,
-          fullPage: true,
-        });
       });
 
       test("08 - Share modal opened", async ({ page }) => {
@@ -164,11 +128,6 @@ test.describe("Mobile Usability Audit", () => {
         // Wait for modal to be visible
         const modal = page.locator("#share-modal");
         await expect(modal).toBeVisible();
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-08-share-modal.png`,
-          fullPage: false,
-        });
       });
 
       test("09 - Share modal text preview", async ({ page }) => {
@@ -184,11 +143,6 @@ test.describe("Mobile Usability Audit", () => {
         // Ensure we're on text mode
         const textButton = page.locator('[data-share-mode="text"]');
         await textButton.click();
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-09-share-modal-text.png`,
-          fullPage: false,
-        });
       });
 
       test("10 - Share modal image mode", async ({ page }) => {
@@ -205,11 +159,6 @@ test.describe("Mobile Usability Audit", () => {
         const imageButton = page.locator('[data-share-mode="story"]');
         await imageButton.click();
         await page.waitForTimeout(500); // Wait for canvas to render
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-10-share-modal-image.png`,
-          fullPage: false,
-        });
       });
 
       test("11 - Date picker interaction", async ({ page }) => {
@@ -219,11 +168,6 @@ test.describe("Mobile Usability Audit", () => {
         // Click on date input
         const dateInput = page.locator("#date-input");
         await dateInput.click();
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-11-date-picker.png`,
-          fullPage: true,
-        });
       });
 
       test("12 - Touch target sizes - interactive elements", async ({ page }) => {
@@ -239,11 +183,6 @@ test.describe("Mobile Usability Audit", () => {
             }
           `,
         });
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-12-touch-targets.png`,
-          fullPage: true,
-        });
       });
 
       test("13 - Text readability assessment", async ({ page }) => {
@@ -258,11 +197,6 @@ test.describe("Mobile Usability Audit", () => {
             }
           `,
         });
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-13-text-readability.png`,
-          fullPage: true,
-        });
       });
 
       test("14 - Landscape orientation", async ({ page }) => {
@@ -274,11 +208,6 @@ test.describe("Mobile Usability Audit", () => {
 
         await page.goto("/");
         await page.waitForLoadState("networkidle");
-
-        await page.screenshot({
-          path: `audit-screenshots/${viewport.name.replace(/\s+/g, "-")}-14-landscape.png`,
-          fullPage: true,
-        });
       });
     });
   }
@@ -290,10 +219,5 @@ test.describe("Mobile Usability Audit", () => {
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-
-    await page.screenshot({
-      path: "audit-screenshots/comparison-small-device.png",
-      fullPage: true,
-    });
   });
 });
