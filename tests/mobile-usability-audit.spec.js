@@ -68,7 +68,7 @@ test.describe("Mobile Usability Audit", () => {
               results: [
                 {
                   formatted: "New York, NY, USA",
-                  geometry: { lat: 40.7128, lng: -74.0060 },
+                  geometry: { lat: 40.7128, lng: -74.006 },
                   components: {
                     city: "New York",
                     state: "New York",
