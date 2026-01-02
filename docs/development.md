@@ -10,6 +10,17 @@ python3 -m http.server
 
 Then open `http://localhost:8000`.
 
+### Install Git Hooks
+
+The project uses a pre-commit hook to automatically update the service worker cache version, ensuring users always get fresh CSS and JavaScript after deployments. To install it:
+
+```bash
+chmod +x scripts/git-hooks/pre-commit
+cp scripts/git-hooks/pre-commit .git/hooks/pre-commit
+```
+
+This hook will automatically update `sw.js` before each commit with a version like `v80-cfd1937` (commit count + short hash).
+
 ## Code Quality
 
 ### Linting
