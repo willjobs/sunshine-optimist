@@ -443,7 +443,7 @@ body {
 h1 {
   margin: 0 0 14px;
   font-family: var(--serif);
-  font-size: clamp(26px, 2.8vw + 4.8px, 36px);
+  font-size: clamp(24px, 2.8vw + 4.8px, 36px);
   line-height: 1.12;
   color: #c46e13;
   font-weight: 600;
@@ -656,7 +656,7 @@ h1 {
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 18px;
   padding-top: 22px;
   border-top: 1px solid var(--divider);
@@ -721,7 +721,7 @@ h1 {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 16px;
-  padding: 10px 14px;
+  padding: 10px 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   align-self: stretch;
   text-align: left;
@@ -748,14 +748,14 @@ h1 {
 }
 
 .delta-emphasis {
-  font-size: clamp(13px, 1.4vw, 15px);
+  font-size: clamp(11px, 1.4vw, 13px);
   font-weight: 700;
   color: #d8861c;
   letter-spacing: 0;
 }
 
 .delta-text {
-  font-size: clamp(13px, 1.2vw, 14px);
+  font-size: clamp(11px, 1.2vw, 12.5px);
   color: #5b4f45;
   letter-spacing: 0;
 }
@@ -774,13 +774,6 @@ h1 {
   text-decoration-thickness: 1px;
   text-decoration-color: rgba(107, 95, 85, 0.55);
   text-underline-offset: 3px;
-  padding: 6px 2px;
-  margin: -6px -2px;
-  border-radius: 4px;
-}
-
-.delta-reference.has-tooltip:active {
-  background: rgba(200, 111, 21, 0.1);
 }
 
 .delta-reference.has-tooltip:hover,
@@ -1216,6 +1209,32 @@ h1 {
 
   .stat {
     padding-right: 0;
+  }
+
+  h1 {
+    font-size: clamp(26px, 2.8vw + 4.8px, 36px);
+  }
+
+  .stat-deltas {
+    padding: 10px 14px;
+  }
+
+  .delta-emphasis {
+    font-size: clamp(13px, 1.4vw, 15px);
+  }
+
+  .delta-text {
+    font-size: clamp(13px, 1.2vw, 14px);
+  }
+
+  .delta-reference.has-tooltip {
+    padding: 6px 2px;
+    margin: -6px -2px;
+    border-radius: 4px;
+  }
+
+  .delta-reference.has-tooltip:active {
+    background: rgba(200, 111, 21, 0.1);
   }
 
   #city-input {
