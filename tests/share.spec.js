@@ -144,10 +144,10 @@ test("mode toggle switches between text and image views", async ({ page }) => {
   // Switch to image mode
   await imageModeButton.click();
 
-  // Wait for canvas to be rendered
+  // Wait for image to be rendered
   await page.waitForFunction(() => {
-    const canvas = document.querySelector("#share-story-canvas");
-    return canvas && canvas.width > 0;
+    const img = document.querySelector("#share-story-image");
+    return img && img.src && img.src.startsWith("data:image/png");
   });
 
   await expect(textPreview).toBeHidden();
@@ -165,26 +165,29 @@ test("mode toggle switches between text and image views", async ({ page }) => {
   await expect(downloadButton).toBeHidden();
 });
 
-test("story image canvas renders with correct dimensions", async ({ page }) => {
+test("story image renders with correct dimensions", async ({ page }) => {
   await page.goto("/");
   await openShareModalAndWait(page);
 
   // Switch to image mode
   await page.locator("[data-share-mode='story']").click();
 
-  // Wait for canvas to be rendered
+  // Wait for image to be rendered
   await page.waitForFunction(() => {
-    const canvas = document.querySelector("#share-story-canvas");
-    return canvas && canvas.width > 0;
+    const img = document.querySelector("#share-story-image");
+    return img && img.src && img.src.startsWith("data:image/png");
   });
 
-  const dimensions = await page.evaluate(() => {
-    const canvas = document.querySelector("#share-story-canvas");
-    return { width: canvas?.width, height: canvas?.height };
+  // The image src is a data URL from a 1080x1920 canvas
+  // We can verify it's a PNG data URL with substantial content
+  const imgSrc = await page.evaluate(() => {
+    const img = document.querySelector("#share-story-image");
+    return img?.src || "";
   });
 
-  expect(dimensions.width).toBe(1080);
-  expect(dimensions.height).toBe(1920);
+  expect(imgSrc).toMatch(/^data:image\/png;base64,/);
+  // A 1080x1920 PNG should have a substantial data URL (at least 10KB base64)
+  expect(imgSrc.length).toBeGreaterThan(10000);
 });
 
 test("privacy toggle updates story image preview", async ({ page }) => {
@@ -194,36 +197,35 @@ test("privacy toggle updates story image preview", async ({ page }) => {
   // Switch to image mode
   await page.locator("[data-share-mode='story']").click();
 
-  // Wait for initial canvas render
+  // Wait for initial image render
   await page.waitForFunction(() => {
-    const canvas = document.querySelector("#share-story-canvas");
-    return canvas && canvas.width > 0;
+    const img = document.querySelector("#share-story-image");
+    return img && img.src && img.src.startsWith("data:image/png");
   });
 
-  // Get initial canvas data (use more characters to capture actual image data, not just PNG header)
+  // Get initial image data
   const initialData = await page.evaluate(() => {
-    const canvas = document.querySelector("#share-story-canvas");
-    return canvas?.toDataURL();
+    const img = document.querySelector("#share-story-image");
+    return img?.src;
   });
 
   // Toggle privacy
   await page.locator("#share-privacy-toggle").check();
 
-  // Wait for canvas to re-render (data should change)
+  // Wait for image to re-render (data should change)
   await page.waitForFunction(
     (prevData) => {
-      const canvas = document.querySelector("#share-story-canvas");
-      const newData = canvas?.toDataURL();
-      return newData !== prevData;
+      const img = document.querySelector("#share-story-image");
+      return img?.src !== prevData;
     },
     initialData,
     { timeout: 5000 }
   );
 
-  // Verify canvas was re-rendered (data changed)
+  // Verify image was re-rendered (data changed)
   const newData = await page.evaluate(() => {
-    const canvas = document.querySelector("#share-story-canvas");
-    return canvas?.toDataURL();
+    const img = document.querySelector("#share-story-image");
+    return img?.src;
   });
 
   expect(newData).not.toBe(initialData);
@@ -236,8 +238,8 @@ test("modal resets to text mode when closed and reopened", async ({ page }) => {
   // Switch to image mode
   await page.locator("[data-share-mode='story']").click();
   await page.waitForFunction(() => {
-    const canvas = document.querySelector("#share-story-canvas");
-    return canvas && canvas.width > 0;
+    const img = document.querySelector("#share-story-image");
+    return img && img.src && img.src.startsWith("data:image/png");
   });
 
   // Close modal

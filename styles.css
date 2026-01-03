@@ -1107,7 +1107,8 @@ h1 {
   display: none;
 }
 
-.share-story-preview canvas {
+.share-story-preview img {
+  -webkit-touch-callout: default;
   max-width: 200px;
   width: 100%;
   height: auto;

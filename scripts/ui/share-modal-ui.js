@@ -33,6 +33,16 @@ import { generateStoryCanvas } from "./story-image-ui.js";
 const CURRENT_LOCATION_LABEL = "Current Location";
 
 /**
+ * Store the last generated canvas for download functionality
+ */
+let lastGeneratedCanvas = null;
+
+/**
+ * Get the last generated canvas for download
+ */
+export const getLastGeneratedCanvas = () => lastGeneratedCanvas;
+
+/**
  * Share mode state - "text" or "story"
  */
 let shareMode = "text";
@@ -410,10 +420,10 @@ export const flashActionLabel = (button, message) => {
 };
 
 /**
- * Refresh story preview canvas
+ * Refresh story preview image
  */
-export const refreshStoryPreview = async (canvas, headline, _lede, languageCode) => {
-  if (!canvas) {
+export const refreshStoryPreview = async (imgElement, headline, _lede, languageCode) => {
+  if (!imgElement) {
     return;
   }
   const snapshot = getModalSnapshot() || getShareSnapshot();
@@ -425,10 +435,9 @@ export const refreshStoryPreview = async (canvas, headline, _lede, languageCode)
 
   const generatedCanvas = await generateStoryCanvas(headlineText, locationLabel);
 
-  // Copy generated canvas content to the preview canvas
-  canvas.width = generatedCanvas.width;
-  canvas.height = generatedCanvas.height;
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(generatedCanvas, 0, 0);
+  // Store the canvas for download functionality
+  lastGeneratedCanvas = generatedCanvas;
+
+  // Convert canvas to data URL and set as img src for native long-press save
+  imgElement.src = generatedCanvas.toDataURL("image/png");
 };

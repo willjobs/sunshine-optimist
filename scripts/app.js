@@ -38,6 +38,7 @@ import {
   getShareMode,
   setShareMode,
   refreshStoryPreview,
+  getLastGeneratedCanvas,
 } from "./ui/share-modal-ui.js";
 import { downloadStoryImage } from "./ui/story-image-ui.js";
 
@@ -100,7 +101,7 @@ const dom = {
   shareModeButtons: document.querySelectorAll(".share-mode-button[data-share-mode]"),
   shareTextPreview: document.getElementById("share-text-preview"),
   shareStoryPreview: document.getElementById("share-story-preview"),
-  shareStoryCanvas: document.getElementById("share-story-canvas"),
+  shareStoryImage: document.getElementById("share-story-image"),
   shareDownloadButton: document.getElementById("share-download-button"),
   shareTextActions: document.querySelector(".share-actions-group"),
   shareCopyButton: document.querySelector(".share-copy-button"),
@@ -149,7 +150,7 @@ const {
   shareModeButtons,
   shareTextPreview,
   shareStoryPreview,
-  shareStoryCanvas,
+  shareStoryImage,
   shareDownloadButton,
   shareTextActions,
   shareCopyButton,
@@ -428,14 +429,8 @@ if (sharePrivacyToggle) {
     setSharePrivacyEnabled(sharePrivacyToggle.checked);
     saveSharePrivacyPreference(sharePrivacyToggle.checked);
     if (shareModal?.open || shareModal?.hasAttribute("open")) {
-      if (getShareMode() === "story" && shareStoryCanvas) {
-        await refreshStoryPreview(
-          shareStoryCanvas,
-          headline,
-          lede,
-          languageCode,
-          FALLBACK_TIMEZONE
-        );
+      if (getShareMode() === "story" && shareStoryImage) {
+        await refreshStoryPreview(shareStoryImage, headline, lede, languageCode, FALLBACK_TIMEZONE);
       } else {
         refreshSharePreview(
           sharePreview,
@@ -595,14 +590,8 @@ if (shareModeButtons.length) {
       }
 
       // Refresh the appropriate preview when switching modes
-      if (isStoryMode && shareStoryCanvas) {
-        await refreshStoryPreview(
-          shareStoryCanvas,
-          headline,
-          lede,
-          languageCode,
-          FALLBACK_TIMEZONE
-        );
+      if (isStoryMode && shareStoryImage) {
+        await refreshStoryPreview(shareStoryImage, headline, lede, languageCode, FALLBACK_TIMEZONE);
       } else {
         refreshSharePreview(
           sharePreview,
@@ -620,9 +609,10 @@ if (shareModeButtons.length) {
 // Download button handler
 if (shareDownloadButton) {
   shareDownloadButton.addEventListener("click", async () => {
-    if (!shareStoryCanvas) return;
+    const canvas = getLastGeneratedCanvas();
+    if (!canvas) return;
     try {
-      await downloadStoryImage(shareStoryCanvas);
+      await downloadStoryImage(canvas);
     } catch (error) {
       console.warn("Story download failed:", error);
     }
