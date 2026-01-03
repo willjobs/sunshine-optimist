@@ -933,60 +933,11 @@ h1 {
 .share-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 12px;
   flex-wrap: wrap;
   font-weight: 600;
   color: #6b4b23;
-}
-
-.share-actions-group {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.share-actions-label {
-  font-size: 14px;
-  color: #6b4b23;
-}
-
-.share-actions-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.share-copy-button {
-  border: 1px solid rgba(184, 104, 12, 0.6);
-  background: linear-gradient(135deg, #f2a042, #d27a1b);
-  color: #fff8f0;
-  font-weight: 600;
-  padding: 10px 16px;
-  border-radius: 14px;
-  cursor: pointer;
-  transition:
-    transform 140ms ease,
-    box-shadow 140ms ease,
-    background 140ms ease;
-  box-shadow: 0 8px 14px rgba(164, 88, 0, 0.12);
-}
-
-.share-copy-button:hover {
-  background: linear-gradient(135deg, #f2a74f, #d87f1f);
-  transform: translateY(-1px);
-  box-shadow: 0 12px 18px rgba(164, 88, 0, 0.18);
-}
-
-.share-copy-button:focus-visible {
-  outline: 2px solid #d9b079;
-  outline-offset: 2px;
-}
-
-.share-copy-button.is-flash {
-  background: linear-gradient(135deg, #87c657, #4a9a2c);
-  border-color: rgba(74, 154, 44, 0.6);
-  color: #f8fff2;
 }
 
 .share-icon-button {
@@ -1005,6 +956,10 @@ h1 {
     box-shadow 140ms ease,
     background 140ms ease;
   box-shadow: 0 8px 14px rgba(164, 88, 0, 0.12);
+}
+
+.share-icon-button[hidden] {
+  display: none;
 }
 
 .share-icon-button svg {
@@ -1027,6 +982,36 @@ h1 {
   box-shadow:
     0 0 0 3px rgba(74, 154, 44, 0.28),
     0 12px 18px rgba(164, 88, 0, 0.18);
+}
+
+.share-copy-button {
+  background: linear-gradient(135deg, #f2a042, #d27a1b);
+  border-color: rgba(184, 104, 12, 0.6);
+  color: #fff8f0;
+}
+
+.share-copy-button.is-flash {
+  background: linear-gradient(135deg, #87c657, #4a9a2c);
+  border-color: rgba(74, 154, 44, 0.6);
+  color: #f8fff2;
+}
+
+.share-download-button {
+  background: linear-gradient(135deg, #f2a042, #d27a1b);
+  border-color: rgba(184, 104, 12, 0.6);
+  color: #fff8f0;
+}
+
+.share-copy-feedback {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4a9a2c;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.share-copy-feedback.is-visible {
+  opacity: 1;
 }
 
 .share-icon-button[data-share="instagram"] {
@@ -1114,32 +1099,6 @@ h1 {
   height: auto;
   border-radius: 10px;
   box-shadow: 0 6px 16px rgba(100, 60, 20, 0.2);
-}
-
-.share-download-button {
-  border: 1px solid rgba(184, 104, 12, 0.6);
-  background: linear-gradient(135deg, #f2a042, #d27a1b);
-  color: #fff8f0;
-  font-weight: 600;
-  padding: 10px 16px;
-  border-radius: 14px;
-  cursor: pointer;
-  transition:
-    transform 140ms ease,
-    box-shadow 140ms ease,
-    background 140ms ease;
-  box-shadow: 0 8px 14px rgba(164, 88, 0, 0.12);
-}
-
-.share-download-button:hover {
-  background: linear-gradient(135deg, #f2a74f, #d87f1f);
-  transform: translateY(-1px);
-  box-shadow: 0 12px 18px rgba(164, 88, 0, 0.18);
-}
-
-.share-download-button:focus-visible {
-  outline: 2px solid #d9b079;
-  outline-offset: 2px;
 }
 
 .cta {
@@ -1253,14 +1212,6 @@ h1 {
   .share-actions {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .share-actions-group {
-    margin-left: 0;
-  }
-
-  .share-actions-buttons {
-    width: 100%;
   }
 
   .share-modal-content {

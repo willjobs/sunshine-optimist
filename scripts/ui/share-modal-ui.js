@@ -393,17 +393,23 @@ export const openShareLink = (url) => {
 /**
  * Flash action button label temporarily
  */
-export const flashActionLabel = (button, message) => {
+export const flashActionLabel = (button, message, feedbackElement) => {
   if (!button) {
     return;
   }
-  if (button.classList.contains("share-copy-button")) {
-    const previousText = button.textContent;
-    setText(button, message);
+  if (feedbackElement && button.classList.contains("share-copy-button")) {
+    if (message) {
+      setText(feedbackElement, message);
+    }
+    feedbackElement.hidden = false;
+    feedbackElement.classList.add("is-visible");
     button.classList.add("is-flash");
     setTimeout(() => {
-      setText(button, previousText);
+      feedbackElement.classList.remove("is-visible");
       button.classList.remove("is-flash");
+      setTimeout(() => {
+        feedbackElement.hidden = true;
+      }, 200);
     }, 1200);
     return;
   }

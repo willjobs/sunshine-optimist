@@ -95,16 +95,14 @@ const dom = {
   shareModalClose: document.getElementById("share-modal-close"),
   sharePreview: document.getElementById("share-preview"),
   sharePrivacyToggle: document.getElementById("share-privacy-toggle"),
-  shareActionButtons: document.querySelectorAll(
-    ".share-icon-button[data-share], .share-copy-button[data-share]"
-  ),
+  shareActionButtons: document.querySelectorAll(".share-icon-button[data-share]"),
   shareModeButtons: document.querySelectorAll(".share-mode-button[data-share-mode]"),
   shareTextPreview: document.getElementById("share-text-preview"),
   shareStoryPreview: document.getElementById("share-story-preview"),
   shareStoryImage: document.getElementById("share-story-image"),
   shareDownloadButton: document.getElementById("share-download-button"),
-  shareTextActions: document.querySelector(".share-actions-group"),
   shareCopyButton: document.querySelector(".share-copy-button"),
+  shareCopyFeedback: document.getElementById("share-copy-feedback"),
   headline: document.getElementById("headline"),
   lede: document.getElementById("lede"),
   cityInput: document.getElementById("city-input"),
@@ -152,8 +150,8 @@ const {
   shareStoryPreview,
   shareStoryImage,
   shareDownloadButton,
-  shareTextActions,
   shareCopyButton,
+  shareCopyFeedback,
   headline,
   lede,
   cityInput,
@@ -453,8 +451,11 @@ const resetShareModalUI = () => {
   if (shareTextPreview) shareTextPreview.hidden = false;
   if (shareStoryPreview) shareStoryPreview.hidden = true;
   if (shareCopyButton) shareCopyButton.hidden = false;
-  if (shareTextActions) shareTextActions.hidden = false;
   if (shareDownloadButton) shareDownloadButton.hidden = true;
+  if (shareCopyFeedback) {
+    shareCopyFeedback.hidden = true;
+    shareCopyFeedback.classList.remove("is-visible");
+  }
 };
 
 if (shareModalClose) {
@@ -492,7 +493,9 @@ if (shareActionButtons.length) {
             languageCode,
             FALLBACK_TIMEZONE
           );
-          if (success) flashActionLabel(button, "Copied!");
+          if (success) {
+            flashActionLabel(button, "Copied to clipboard!", shareCopyFeedback);
+          }
           return;
         }
         if (action === "instagram") {
@@ -582,11 +585,12 @@ if (shareModeButtons.length) {
       if (shareCopyButton) {
         shareCopyButton.hidden = isStoryMode;
       }
-      if (shareTextActions) {
-        shareTextActions.hidden = isStoryMode;
-      }
       if (shareDownloadButton) {
         shareDownloadButton.hidden = !isStoryMode;
+      }
+      if (shareCopyFeedback && isStoryMode) {
+        shareCopyFeedback.hidden = true;
+        shareCopyFeedback.classList.remove("is-visible");
       }
 
       // Refresh the appropriate preview when switching modes

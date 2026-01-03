@@ -42,17 +42,26 @@ describe("share-modal-ui", () => {
     expect(noneLine).toBe("");
   });
 
-  it("flashes button labels and restores text", () => {
+  it("flashes copy feedback and hides it again", () => {
     vi.useFakeTimers();
     const button = document.createElement("button");
     button.className = "share-copy-button";
-    button.textContent = "Copy to clipboard";
+    const feedback = document.createElement("span");
+    feedback.className = "share-copy-feedback";
+    feedback.hidden = true;
 
-    flashActionLabel(button, "Copied!");
-    expect(button.textContent).toBe("Copied!");
+    flashActionLabel(button, "Copied to clipboard!", feedback);
+    expect(feedback.hidden).toBe(false);
+    expect(feedback.classList.contains("is-visible")).toBe(true);
+    expect(button.classList.contains("is-flash")).toBe(true);
+    expect(feedback.textContent).toBe("Copied to clipboard!");
 
     vi.advanceTimersByTime(1200);
-    expect(button.textContent).toBe("Copy to clipboard");
+    expect(feedback.classList.contains("is-visible")).toBe(false);
+    expect(button.classList.contains("is-flash")).toBe(false);
+
+    vi.advanceTimersByTime(200);
+    expect(feedback.hidden).toBe(true);
     vi.useRealTimers();
   });
 
