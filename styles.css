@@ -457,6 +457,85 @@ h1 {
   color: #36302a;
 }
 
+.optimistic-message {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 44px 2px;
+  touch-action: pan-y;
+}
+
+.optimistic-message .lede {
+  margin-bottom: 8px;
+}
+
+.optimistic-nav {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: rgba(154, 82, 0, 0.65);
+  opacity: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.optimistic-nav svg {
+  width: 18px;
+  height: 18px;
+}
+
+.optimistic-nav-prev {
+  left: 0;
+}
+
+.optimistic-nav-next {
+  right: 0;
+}
+
+.optimistic-message.is-optimistic-multi .optimistic-nav:hover,
+.optimistic-message.is-optimistic-multi .optimistic-nav:focus-visible {
+  opacity: 0.45;
+}
+
+.optimistic-message.is-optimistic-multi .optimistic-nav:active {
+  opacity: 0.7;
+  transform: scale(0.98);
+}
+
+.optimistic-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  min-height: 10px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.optimistic-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(200, 111, 21, 0.25);
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.optimistic-dot.is-active {
+  background: rgba(200, 111, 21, 0.85);
+  transform: scale(1.2);
+}
+
 #headline.is-optimistic-out,
 #lede.is-optimistic-out {
   animation: optimistic-slide-out 0.32s cubic-bezier(0.4, 0, 0.9, 0.6);
@@ -1199,6 +1278,19 @@ h1 {
   .card {
     padding: 32px 28px 30px;
     border-radius: 22px;
+  }
+
+  .optimistic-message {
+    padding: 0 32px 2px;
+  }
+
+  .optimistic-nav {
+    width: 34px;
+  }
+
+  .optimistic-nav svg {
+    width: 16px;
+    height: 16px;
   }
 
   .stat-row {

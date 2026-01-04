@@ -14,6 +14,15 @@ const buildNodes = () => {
   return { headline, lede };
 };
 
+const buildControls = () => {
+  const container = document.createElement("div");
+  const dots = document.createElement("div");
+  const prevButton = document.createElement("button");
+  const nextButton = document.createElement("button");
+  container.append(prevButton, nextButton, dots);
+  return { container, dots, prevButton, nextButton };
+};
+
 beforeEach(() => {
   setOptimisticOptions([]);
   setOptimisticIndex(0);
@@ -47,6 +56,29 @@ describe("message-ui", () => {
     vi.advanceTimersByTime(15000 + 400);
     expect(headline.textContent).toBe("Second headline");
     expect(lede.textContent).toBe("Second lede");
+    randomSpy.mockRestore();
+  });
+
+  it("advances via nav buttons and updates dots", () => {
+    vi.useFakeTimers();
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    const { headline, lede } = buildNodes();
+    const controls = buildControls();
+    const messages = [
+      { headline: "First headline", lede: "First lede" },
+      { headline: "Second headline", lede: "Second lede" },
+    ];
+    startOptimisticRotation(headline, lede, messages, controls);
+    const dots = controls.dots.querySelectorAll(".optimistic-dot");
+    expect(dots).toHaveLength(2);
+    expect(dots[0].classList.contains("is-active")).toBe(true);
+
+    controls.nextButton.click();
+    expect(getOptimisticIndex()).toBe(1);
+    vi.advanceTimersByTime(400);
+    expect(headline.textContent).toBe("Second headline");
+    const updatedDots = controls.dots.querySelectorAll(".optimistic-dot");
+    expect(updatedDots[1].classList.contains("is-active")).toBe(true);
     randomSpy.mockRestore();
   });
 

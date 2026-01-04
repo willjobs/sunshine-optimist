@@ -731,6 +731,12 @@ export const updateDaylightForLocation = async ({
     timeZone,
     formatters.formatTimeFromMinutes
   );
+  const optimisticControls = {
+    container: dom.optimisticMessage,
+    dots: dom.optimisticDots,
+    prevButton: dom.optimisticPrev,
+    nextButton: dom.optimisticNext,
+  };
 
   // 5. Build and display optimistic message (async to yield during winter daylight average)
   const { messageData, daylightGainToday } = await buildMessageData(
@@ -748,6 +754,7 @@ export const updateDaylightForLocation = async ({
     hemisphere,
     headline: dom.headline,
     lede: dom.lede,
+    controls: optimisticControls,
     getActiveDateParts,
     formatLongDateFromParts: formatters.formatLongDateFromParts,
     fallbackTimeZone,
@@ -756,7 +763,7 @@ export const updateDaylightForLocation = async ({
 
   // 6. Handle today's milestone (overrides optimistic message)
   if (todayMilestone) {
-    stopOptimisticRotation(dom.headline, dom.lede);
+    stopOptimisticRotation(dom.headline, dom.lede, optimisticControls);
     const todayCopy = getMilestoneTodayCopy(todayMilestone);
     if (todayCopy) {
       setOptimisticCopy(dom.headline, dom.lede, todayCopy, { animate: false });

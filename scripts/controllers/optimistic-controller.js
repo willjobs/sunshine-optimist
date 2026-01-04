@@ -56,6 +56,7 @@ export const logOptimisticMessages = (
  * @param {string} params.hemisphere - "north" or "south"
  * @param {HTMLElement} params.headline - Headline DOM element
  * @param {HTMLElement} params.lede - Lede DOM element
+ * @param {Object} params.controls - Optimistic message navigation controls
  * @param {Function} params.getActiveDateParts - Function to get active date parts
  * @param {Function} params.formatLongDateFromParts - Function to format date parts
  * @param {string} params.fallbackTimeZone - Fallback timezone
@@ -67,6 +68,7 @@ export const updateOptimisticMessage = ({
   hemisphere,
   headline,
   lede,
+  controls,
   getActiveDateParts,
   formatLongDateFromParts,
   fallbackTimeZone,
@@ -89,7 +91,7 @@ export const updateOptimisticMessage = ({
       displayedOptions: [OPTIMISTIC_POLAR_COPY],
       reason: "polar",
     });
-    startOptimisticRotation(headline, lede, [OPTIMISTIC_POLAR_COPY]);
+    startOptimisticRotation(headline, lede, [OPTIMISTIC_POLAR_COPY], controls);
     logMessages();
     return;
   }
@@ -102,7 +104,7 @@ export const updateOptimisticMessage = ({
       displayedOptions: [OPTIMISTIC_FALLBACK_COPY],
       reason: "fallback",
     });
-    startOptimisticRotation(headline, lede, [OPTIMISTIC_FALLBACK_COPY]);
+    startOptimisticRotation(headline, lede, [OPTIMISTIC_FALLBACK_COPY], controls);
     logMessages();
     return;
   }
@@ -111,6 +113,6 @@ export const updateOptimisticMessage = ({
     displayedOptions: options,
     reason: "ok",
   });
-  startOptimisticRotation(headline, lede, options);
+  startOptimisticRotation(headline, lede, options, controls);
   logMessages();
 };
