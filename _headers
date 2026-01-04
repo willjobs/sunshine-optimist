@@ -1,2 +1,11 @@
 /sw.js
   Cache-Control: max-age=0, must-revalidate
+
+/index.html
+  Cache-Control: max-age=0, must-revalidate
+
+/styles.css
+  Cache-Control: max-age=0, must-revalidate
+
+/scripts/*
+  Cache-Control: max-age=0, must-revalidate

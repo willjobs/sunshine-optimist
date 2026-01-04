@@ -1,17 +1,21 @@
 #!/bin/bash
-# Auto-update service worker cache version before commit
+# Auto-update cache version in service worker and index.html before commit
 
 # Generate version from git commit count + short hash (e.g., "v42-a1b2c3d")
 VERSION="v$(git rev-list --count HEAD)-$(git rev-parse --short HEAD)"
 
 # Update sw.js with new version
 sed -i.bak "s/const CACHE_VERSION = \".*\"/const CACHE_VERSION = \"$VERSION\"/" sw.js
-
-# Remove backup file
 rm -f sw.js.bak
 
-# Stage the updated sw.js if it was modified
-if git diff --name-only sw.js | grep -q sw.js; then
-  git add sw.js
-  echo "✓ Updated service worker cache version to $VERSION"
-fi
+# Update index.html query strings
+sed -i.bak -E "s/\?v=v[0-9]+-[a-f0-9]+/?v=$VERSION/g" index.html
+rm -f index.html.bak
+
+# Stage updated files
+for file in sw.js index.html; do
+  if git diff --name-only "$file" | grep -q "$file"; then
+    git add "$file"
+    echo "✓ Updated $file to $VERSION"
+  fi
+done
