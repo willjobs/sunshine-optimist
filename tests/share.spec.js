@@ -107,6 +107,43 @@ test("copy button writes to clipboard and flashes feedback", async ({ page }) =>
   expect(clipboardText).toContain("SunshineOptimist.com");
 });
 
+test("copy feedback appears visible and positioned correctly", async ({ page }) => {
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  const copyButton = page.getByRole("button", { name: "Copy to clipboard" });
+  const feedback = page.locator("#share-copy-feedback");
+
+  // Feedback should be hidden initially
+  await expect(feedback).toBeHidden();
+
+  // Click copy button
+  await copyButton.click();
+
+  // Feedback should become visible with is-visible class
+  await expect(feedback).toHaveClass(/is-visible/);
+  await expect(feedback).toContainText("Copied to clipboard!");
+
+  // Verify feedback is positioned to the right of the button and visible in viewport
+  const feedbackBox = await feedback.boundingBox();
+  const buttonBox = await copyButton.boundingBox();
+
+  expect(feedbackBox).not.toBeNull();
+  expect(buttonBox).not.toBeNull();
+
+  // Feedback should be to the right of the button
+  expect(feedbackBox.x).toBeGreaterThan(buttonBox.x + buttonBox.width - 10);
+
+  // Feedback should be vertically centered with button (within tolerance)
+  const buttonCenterY = buttonBox.y + buttonBox.height / 2;
+  const feedbackCenterY = feedbackBox.y + feedbackBox.height / 2;
+  expect(Math.abs(feedbackCenterY - buttonCenterY)).toBeLessThan(10);
+
+  // Feedback should disappear after the flash duration (~1200ms + transition)
+  await page.waitForTimeout(1500);
+  await expect(feedback).not.toHaveClass(/is-visible/);
+});
+
 test("share links open with encoded text", async ({ page }) => {
   await page.goto("/");
   await openShareModalAndWait(page);
@@ -188,6 +225,52 @@ test("story image renders with correct dimensions", async ({ page }) => {
   expect(imgSrc).toMatch(/^data:image\/png;base64,/);
   // A 1080x1920 PNG should have a substantial data URL (at least 10KB base64)
   expect(imgSrc.length).toBeGreaterThan(10000);
+});
+
+test("download feedback appears visible and positioned correctly", async ({ page }) => {
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  // Switch to image mode
+  await page.locator("[data-share-mode='story']").click();
+
+  // Wait for image to be rendered
+  await page.waitForFunction(() => {
+    const img = document.querySelector("#share-story-image");
+    return img && img.src && img.src.startsWith("data:image/png");
+  });
+
+  const downloadButton = page.locator("#share-download-button");
+  const feedback = page.locator("#share-download-feedback");
+
+  // Feedback should be hidden initially
+  await expect(feedback).toBeHidden();
+
+  // Click download button
+  await downloadButton.click();
+
+  // Feedback should become visible with is-visible class
+  await expect(feedback).toHaveClass(/is-visible/);
+  await expect(feedback).toContainText("Image downloaded!");
+
+  // Verify feedback is positioned to the right of the button and visible in viewport
+  const feedbackBox = await feedback.boundingBox();
+  const buttonBox = await downloadButton.boundingBox();
+
+  expect(feedbackBox).not.toBeNull();
+  expect(buttonBox).not.toBeNull();
+
+  // Feedback should be to the right of the button
+  expect(feedbackBox.x).toBeGreaterThan(buttonBox.x + buttonBox.width - 10);
+
+  // Feedback should be vertically centered with button (within tolerance)
+  const buttonCenterY = buttonBox.y + buttonBox.height / 2;
+  const feedbackCenterY = feedbackBox.y + feedbackBox.height / 2;
+  expect(Math.abs(feedbackCenterY - buttonCenterY)).toBeLessThan(10);
+
+  // Feedback should disappear after the flash duration (~1200ms + transition)
+  await page.waitForTimeout(1500);
+  await expect(feedback).not.toHaveClass(/is-visible/);
 });
 
 test("privacy toggle updates story image preview", async ({ page }) => {

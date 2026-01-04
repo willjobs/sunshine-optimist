@@ -100,7 +100,9 @@ const dom = {
   shareTextPreview: document.getElementById("share-text-preview"),
   shareStoryPreview: document.getElementById("share-story-preview"),
   shareStoryImage: document.getElementById("share-story-image"),
+  shareDownloadWrapper: document.querySelector(".share-download-wrapper"),
   shareDownloadButton: document.getElementById("share-download-button"),
+  shareDownloadFeedback: document.getElementById("share-download-feedback"),
   shareCopyButton: document.querySelector(".share-copy-button"),
   shareCopyFeedback: document.getElementById("share-copy-feedback"),
   headline: document.getElementById("headline"),
@@ -149,7 +151,9 @@ const {
   shareTextPreview,
   shareStoryPreview,
   shareStoryImage,
+  shareDownloadWrapper,
   shareDownloadButton,
+  shareDownloadFeedback,
   shareCopyButton,
   shareCopyFeedback,
   headline,
@@ -451,10 +455,14 @@ const resetShareModalUI = () => {
   if (shareTextPreview) shareTextPreview.hidden = false;
   if (shareStoryPreview) shareStoryPreview.hidden = true;
   if (shareCopyButton) shareCopyButton.hidden = false;
-  if (shareDownloadButton) shareDownloadButton.hidden = true;
+  if (shareDownloadWrapper) shareDownloadWrapper.hidden = true;
   if (shareCopyFeedback) {
     shareCopyFeedback.hidden = true;
     shareCopyFeedback.classList.remove("is-visible");
+  }
+  if (shareDownloadFeedback) {
+    shareDownloadFeedback.hidden = true;
+    shareDownloadFeedback.classList.remove("is-visible");
   }
 };
 
@@ -585,12 +593,16 @@ if (shareModeButtons.length) {
       if (shareCopyButton) {
         shareCopyButton.hidden = isStoryMode;
       }
-      if (shareDownloadButton) {
-        shareDownloadButton.hidden = !isStoryMode;
+      if (shareDownloadWrapper) {
+        shareDownloadWrapper.hidden = !isStoryMode;
       }
       if (shareCopyFeedback && isStoryMode) {
         shareCopyFeedback.hidden = true;
         shareCopyFeedback.classList.remove("is-visible");
+      }
+      if (shareDownloadFeedback && !isStoryMode) {
+        shareDownloadFeedback.hidden = true;
+        shareDownloadFeedback.classList.remove("is-visible");
       }
 
       // Refresh the appropriate preview when switching modes
@@ -617,6 +629,7 @@ if (shareDownloadButton) {
     if (!canvas) return;
     try {
       await downloadStoryImage(canvas);
+      flashActionLabel(shareDownloadButton, "Image downloaded!", shareDownloadFeedback);
     } catch (error) {
       console.warn("Story download failed:", error);
     }

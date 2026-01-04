@@ -397,7 +397,11 @@ export const flashActionLabel = (button, message, feedbackElement) => {
   if (!button) {
     return;
   }
-  if (feedbackElement && button.classList.contains("share-copy-button")) {
+  const hasFeedbackElement =
+    feedbackElement &&
+    (button.classList.contains("share-copy-button") ||
+      button.classList.contains("share-download-button"));
+  if (hasFeedbackElement) {
     if (message) {
       setText(feedbackElement, message);
     }
