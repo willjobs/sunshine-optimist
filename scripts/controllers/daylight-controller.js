@@ -693,29 +693,8 @@ export const buildUpcomingMilestones = (
 };
 
 /**
- * Update quick stats (sunset time and daylight duration) immediately.
- * Called before the full year scan to provide instant feedback.
- */
-const updateQuickStatsUI = (dom, todayEvents, todayDaylight, timeZone, formatters) => {
-  // Sunset time (immediate)
-  if (todayEvents.sunset) {
-    setText(dom.sunsetTimeValue, formatters.formatTime(todayEvents.sunset.date, timeZone));
-  }
-  // Daylight duration (immediate)
-  if (todayDaylight !== null) {
-    setText(dom.daylightDurationValue, formatDuration(todayDaylight));
-  }
-  // Mark delta rows as loading
-  dom.sunsetEarliestRow?.classList.add("is-loading");
-  dom.sunsetComparisonRow?.classList.add("is-loading");
-  dom.daylightShortestRow?.classList.add("is-loading");
-  dom.daylightComparisonRow?.classList.add("is-loading");
-};
-
-/**
  * Main function to update daylight information for a location.
  * Uses async operations to avoid blocking the main thread during heavy calculations.
- * Supports progressive rendering via onPhaseComplete callback.
  */
 export const updateDaylightForLocation = async ({
   location,
@@ -725,7 +704,6 @@ export const updateDaylightForLocation = async ({
   updateOptimisticMessage,
   formatters,
   fallbackTimeZone,
-  onPhaseComplete,
 }) => {
   if (!window.Astronomy || !location) return;
 
@@ -735,29 +713,16 @@ export const updateDaylightForLocation = async ({
   const todayParts = getActiveDateParts(timeZone);
   syncDatePicker(timeZone);
 
-  // PHASE 1: Quick calculations (immediate) - show today's stats before year scan
-  const todayEvents = astronomy.getSunEvents(todayParts);
-  const todayDaylight = astronomy.getDaylightMinutesForDateParts(todayParts);
-  updateQuickStatsUI(dom, todayEvents, todayDaylight, timeZone, formatters);
-  onPhaseComplete?.("quick-stats");
-
-  // PHASE 2: Calculate all sun metrics (async to yield to main thread during full-year scan)
+  // 1. Calculate all sun metrics (async to yield to main thread during full-year scan)
   const metrics = await calculateSunMetrics(astronomy, todayParts, timeZone);
 
-  // Calculate deltas and comparison mode
+  // 2. Calculate deltas and comparison mode
   const deltas = calculateDeltas(metrics);
 
-  // Update stats display (overwrites quick stats with full data including deltas)
+  // 3. Update stats display
   updateStatsUI(dom, metrics, deltas, timeZone, formatters);
 
-  // Remove loading state from delta rows
-  dom.sunsetEarliestRow?.classList.remove("is-loading");
-  dom.sunsetComparisonRow?.classList.remove("is-loading");
-  dom.daylightShortestRow?.classList.remove("is-loading");
-  dom.daylightComparisonRow?.classList.remove("is-loading");
-  onPhaseComplete?.("year-scan");
-
-  // PHASE 3: Build milestones (needed for optimistic message fallback ledes)
+  // 4. Build milestones (needed for optimistic message fallback ledes)
   const { todayMilestone, upcoming } = buildUpcomingMilestones(
     astronomy,
     todayParts,
@@ -821,7 +786,7 @@ export const updateDaylightForLocation = async ({
     formatters.formatLongDateFromParts
   );
 
-  // Update share snapshot
+  // 7. Update share snapshot
   const { yearlyExtremes } = metrics;
   updateShareSnapshot({
     location,
@@ -835,7 +800,4 @@ export const updateDaylightForLocation = async ({
     hemisphere,
     fractionOfLossCompleted: deltas.fractionOfLossCompleted,
   });
-
-  // Signal all phases complete
-  onPhaseComplete?.("complete");
 };
