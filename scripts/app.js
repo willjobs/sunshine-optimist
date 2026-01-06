@@ -90,6 +90,7 @@ const { formatLongDateFromParts, formatShortDateFromParts, formatTime, formatTim
 // DOM Elements
 // ============================================================================
 const dom = {
+  card: document.querySelector(".card"),
   shareButton: document.getElementById("share"),
   shareModal: document.getElementById("share-modal"),
   shareModalClose: document.getElementById("share-modal-close"),
@@ -195,6 +196,9 @@ const formatters = {
 
 // Wrapper function for updating daylight that provides all dependencies
 const handleDaylightUpdate = (location) => {
+  // Show loading state (skeleton)
+  dom.card?.classList.remove("is-loaded");
+
   updateDaylightForLocation({
     location,
     dom,
@@ -203,6 +207,12 @@ const handleDaylightUpdate = (location) => {
     updateOptimisticMessage,
     formatters,
     fallbackTimeZone: FALLBACK_TIMEZONE,
+    onPhaseComplete: (phase) => {
+      if (phase === "complete") {
+        // Hide skeleton when all calculations are done
+        dom.card?.classList.add("is-loaded");
+      }
+    },
   });
 };
 
