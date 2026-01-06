@@ -85,6 +85,13 @@ const clearOptimisticRotation = () => {
   }
 };
 
+const clearHeadlineLoadingState = (headline) => {
+  if (!headline) {
+    return;
+  }
+  headline.removeAttribute("data-loading");
+};
+
 /**
  * Reset animation classes on message elements
  */
@@ -108,6 +115,7 @@ const setOptimisticCopyImmediate = (headline, lede, copy) => {
   }
   resetOptimisticAnimation(headline, lede);
   setText(headline, copy.headline);
+  clearHeadlineLoadingState(headline);
   setText(lede, copy.lede);
 };
 
@@ -140,6 +148,7 @@ const animateOptimisticSwap = (headline, lede, copy) => {
       return;
     }
     setText(headline, copy.headline);
+    clearHeadlineLoadingState(headline);
     setText(lede, copy.lede);
     [headline, lede].forEach((node) => {
       if (!node) {
