@@ -5,7 +5,6 @@ import {
   installFontMocks,
   installPermissionsMock,
 } from "./helpers/mock-network.js";
-import { waitForLoadingOverlayToFinish } from "./helpers/ui.js";
 
 test("default location loads when no stored location is available", async ({ page }) => {
   await installFontMocks(page);
@@ -16,7 +15,6 @@ test("default location loads when no stored location is available", async ({ pag
   });
 
   await page.goto("/");
-  await waitForLoadingOverlayToFinish(page);
 
   const cityInput = page.getByRole("combobox", { name: "City" });
   await expect(cityInput).toHaveValue("Boston, MA");

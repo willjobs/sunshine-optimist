@@ -7,7 +7,6 @@ import {
   installPermissionsMock,
   setStoredLocation,
 } from "./helpers/mock-network.js";
-import { waitForLoadingOverlayToFinish } from "./helpers/ui.js";
 
 test.beforeEach(async ({ page }) => {
   await installFontMocks(page);
@@ -18,7 +17,6 @@ test.beforeEach(async ({ page }) => {
 
 test("milestone toggle cycles upcoming milestones", async ({ page }) => {
   await page.goto("/");
-  await waitForLoadingOverlayToFinish(page);
 
   const toggle = page.locator("#milestone-toggle");
   await expect(toggle).toBeEnabled();
@@ -34,7 +32,6 @@ test("milestone toggle cycles upcoming milestones", async ({ page }) => {
 
 test("delta tooltip opens with keyboard and closes on escape", async ({ page }) => {
   await page.goto("/");
-  await waitForLoadingOverlayToFinish(page);
 
   const tooltipTarget = page.locator("#sunset-earliest-reference");
   await expect(tooltipTarget).toHaveAttribute("data-tooltip", /.+/);

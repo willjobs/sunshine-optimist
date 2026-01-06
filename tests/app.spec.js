@@ -7,7 +7,6 @@ import {
   installPermissionsMock,
   setStoredLocation,
 } from "./helpers/mock-network.js";
-import { waitForLoadingOverlayToFinish } from "./helpers/ui.js";
 
 test.beforeEach(async ({ page }) => {
   await installFontMocks(page);
@@ -18,7 +17,6 @@ test.beforeEach(async ({ page }) => {
 
 test("app loads with baseline content and stats", async ({ page }) => {
   await page.goto("/");
-  await waitForLoadingOverlayToFinish(page);
 
   await expect(page).toHaveTitle("Sunshine Optimist");
   await expect(page.getByText("Sunshine Optimist")).toBeVisible();

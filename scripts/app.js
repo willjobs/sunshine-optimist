@@ -90,7 +90,7 @@ const { formatLongDateFromParts, formatShortDateFromParts, formatTime, formatTim
 // DOM Elements
 // ============================================================================
 const dom = {
-  loadingOverlay: document.getElementById("loading-overlay"),
+  card: document.querySelector(".card"),
   shareButton: document.getElementById("share"),
   shareModal: document.getElementById("share-modal"),
   shareModalClose: document.getElementById("share-modal-close"),
@@ -161,7 +161,6 @@ const {
   shareDownloadFeedback,
   shareCopyButton,
   shareCopyFeedback,
-  loadingOverlay,
   headline,
   lede,
   cityInput,
@@ -195,104 +194,10 @@ const formatters = {
   formatTimeFromMinutes,
 };
 
-let daylightRequestId = 0;
-const OVERLAY_MIN_VISIBLE_MS = 250;
-const MAX_DAYLIGHT_CACHE_KEYS = 20;
-const daylightCache = new Map();
-let overlayVisible = Boolean(loadingOverlay?.classList.contains("is-visible"));
-let overlayShownAt = overlayVisible ? performance.now() : 0;
-let overlayHideTimeoutId = null;
-
-const buildDaylightCacheKey = (location, timeZone, dateParts) => {
-  if (!location || !dateParts) return "";
-  const elevation = location.elevation || 0;
-  return `${location.latitude},${location.longitude},${elevation}:${timeZone}:${dateParts.year}-${dateParts.month}-${dateParts.day}`;
-};
-
-const hasDaylightCacheKey = (cacheKey) => Boolean(cacheKey && daylightCache.has(cacheKey));
-
-const storeDaylightCacheKey = (cacheKey) => {
-  if (!cacheKey) return;
-  if (daylightCache.has(cacheKey)) {
-    daylightCache.delete(cacheKey);
-  }
-  daylightCache.set(cacheKey, Date.now());
-  if (daylightCache.size > MAX_DAYLIGHT_CACHE_KEYS) {
-    const oldestKey = daylightCache.keys().next().value;
-    daylightCache.delete(oldestKey);
-  }
-};
-
-const applyLoadingOverlayState = (isVisible) => {
-  if (!loadingOverlay) return;
-  loadingOverlay.classList.toggle("is-visible", isVisible);
-  loadingOverlay.setAttribute("aria-hidden", isVisible ? "false" : "true");
-};
-
-const showLoadingOverlay = () => {
-  if (!loadingOverlay) return;
-  if (overlayHideTimeoutId) {
-    clearTimeout(overlayHideTimeoutId);
-    overlayHideTimeoutId = null;
-  }
-  overlayVisible = true;
-  overlayShownAt = performance.now();
-  applyLoadingOverlayState(true);
-};
-
-const hideLoadingOverlay = ({ immediate = false } = {}) => {
-  if (!loadingOverlay) return;
-  if (overlayHideTimeoutId) {
-    clearTimeout(overlayHideTimeoutId);
-    overlayHideTimeoutId = null;
-  }
-  if (immediate) {
-    overlayVisible = false;
-    overlayShownAt = 0;
-    applyLoadingOverlayState(false);
-    return;
-  }
-  const elapsed = overlayShownAt ? performance.now() - overlayShownAt : OVERLAY_MIN_VISIBLE_MS;
-  const remaining = Math.max(OVERLAY_MIN_VISIBLE_MS - elapsed, 0);
-  if (remaining === 0) {
-    overlayVisible = false;
-    overlayShownAt = 0;
-    applyLoadingOverlayState(false);
-    return;
-  }
-  overlayHideTimeoutId = window.setTimeout(() => {
-    overlayVisible = false;
-    overlayShownAt = 0;
-    overlayHideTimeoutId = null;
-    applyLoadingOverlayState(false);
-  }, remaining);
-};
-
-const setLoadingOverlay = (isVisible, options = {}) => {
-  if (isVisible) {
-    showLoadingOverlay();
-  } else if (overlayVisible || options.immediate) {
-    hideLoadingOverlay(options);
-  } else {
-    applyLoadingOverlayState(false);
-  }
-};
-
 // Wrapper function for updating daylight that provides all dependencies
 const handleDaylightUpdate = (location) => {
-  const requestId = ++daylightRequestId;
-  if (!location) {
-    if (requestId === daylightRequestId) setLoadingOverlay(false, { immediate: true });
-    return;
-  }
-  const timeZone = location.timezone || FALLBACK_TIMEZONE;
-  const activeDateParts = getActiveDateParts(timeZone);
-  const cacheKey = buildDaylightCacheKey(location, timeZone, activeDateParts);
-  if (hasDaylightCacheKey(cacheKey)) {
-    setLoadingOverlay(false, { immediate: true });
-  } else {
-    setLoadingOverlay(true);
-  }
+  // Show loading state (skeleton)
+  dom.card?.classList.remove("is-loaded");
 
   updateDaylightForLocation({
     location,
@@ -302,15 +207,13 @@ const handleDaylightUpdate = (location) => {
     updateOptimisticMessage,
     formatters,
     fallbackTimeZone: FALLBACK_TIMEZONE,
-  })
-    .then(() => {
-      storeDaylightCacheKey(cacheKey);
-    })
-    .finally(() => {
-      if (requestId === daylightRequestId) {
-        setLoadingOverlay(false);
+    onPhaseComplete: (phase) => {
+      if (phase === "complete") {
+        // Hide skeleton when all calculations are done
+        dom.card?.classList.add("is-loaded");
       }
-    });
+    },
+  });
 };
 
 // Wire up callbacks between controllers
