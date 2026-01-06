@@ -7,6 +7,7 @@ import {
   installPermissionsMock,
   setStoredLocation,
 } from "./helpers/mock-network.js";
+import { waitForLoadingOverlayToFinish } from "./helpers/ui.js";
 
 test.beforeEach(async ({ page }) => {
   await installFontMocks(page);
@@ -17,6 +18,7 @@ test.beforeEach(async ({ page }) => {
 
 test("date input commits custom date and reset returns to live date", async ({ page }) => {
   await page.goto("/");
+  await waitForLoadingOverlayToFinish(page);
 
   const dateInput = page.locator("#date-input");
   const datePicker = page.locator(".date-picker");

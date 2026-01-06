@@ -14,6 +14,7 @@ import {
   installPermissionsMock,
   setStoredLocation,
 } from "./helpers/mock-network.js";
+import { waitForLoadingOverlayToFinish } from "./helpers/ui.js";
 
 // Run location tests serially to avoid Firefox race conditions
 test.describe.configure({ mode: "serial" });
@@ -33,6 +34,11 @@ const setupPage = async (page, { geocodeFixtures } = {}) => {
   await setStoredLocation(page, BOSTON);
 };
 
+const gotoAndWaitForReady = async (page) => {
+  await page.goto("/");
+  await waitForLoadingOverlayToFinish(page);
+};
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.clear();
@@ -47,7 +53,7 @@ test.afterEach(async ({ page }) => {
 
 test("city search renders results and selection updates input", async ({ page }) => {
   await setupPage(page);
-  await page.goto("/");
+  await gotoAndWaitForReady(page);
 
   const cityInput = page.getByRole("combobox", { name: "City" });
   await cityInput.fill("Paris");
@@ -70,7 +76,7 @@ test("keyboard navigation updates active option", async ({ page }) => {
       boston: [BOSTON],
     },
   });
-  await page.goto("/");
+  await gotoAndWaitForReady(page);
 
   const cityInput = page.getByRole("combobox", { name: "City" });
   await cityInput.fill("San");
@@ -89,7 +95,7 @@ test("keyboard navigation updates active option", async ({ page }) => {
 
 test("clear button shows recent locations", async ({ page }) => {
   await setupPage(page);
-  await page.goto("/");
+  await gotoAndWaitForReady(page);
 
   const cityInput = page.getByRole("combobox", { name: "City" });
   await cityInput.fill("Paris");
@@ -117,7 +123,7 @@ test("toggle shows worldwide results when local is preferred", async ({ page }) 
       boston: [BOSTON],
     },
   });
-  await page.goto("/");
+  await gotoAndWaitForReady(page);
 
   const cityInput = page.getByRole("combobox", { name: "City" });
   await cityInput.fill("Paris");
@@ -155,7 +161,7 @@ test("geolocation selection resolves to a place name", async ({ page }) => {
     }
   );
 
-  await page.goto("/");
+  await gotoAndWaitForReady(page);
 
   const geolocateButton = page.getByRole("button", { name: "Use my location" });
   await geolocateButton.click();

@@ -9,6 +9,7 @@ import {
   installWindowOpenMock,
   setStoredLocation,
 } from "./helpers/mock-network.js";
+import { waitForLoadingOverlayToFinish } from "./helpers/ui.js";
 
 // Run share tests serially to avoid Firefox race conditions
 test.describe.configure({ mode: "serial" });
@@ -20,6 +21,7 @@ test.describe.configure({ mode: "serial" });
 const openShareModalAndWait = async (page) => {
   // Wait for page to be fully loaded and interactive
   await page.waitForLoadState("networkidle");
+  await waitForLoadingOverlayToFinish(page);
 
   const shareButton = page.getByRole("button", { name: /Share Your Sunlight/i });
   // Ensure button is ready and stable before clicking
