@@ -5,7 +5,7 @@
  * Uses a cache-first strategy for static assets.
  */
 
-const CACHE_VERSION = "v108-3b5371d";
+const CACHE_VERSION = "v109-0734bb7";
 const STATIC_CACHE_NAME = `sunshine-optimist-static-${CACHE_VERSION}`;
 
 // Static assets to cache on install
