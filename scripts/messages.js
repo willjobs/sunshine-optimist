@@ -32,6 +32,16 @@ const removeOnlyBeforeLessThan = (text) => {
     .replace(/\bonly\s+less than\b/g, "less than");
 };
 
+// Patterns that read better with a definite article in countdown copy.
+const COUNTDOWN_ARTICLE_PATTERNS = [
+  /^(first|earliest|shortest|longest|next)\b/i,
+  /^(spring|summer|fall|autumn|winter)\s+(equinox|solstice)\b/i,
+];
+
+const needsCountdownArticle = (title) =>
+  COUNTDOWN_ARTICLE_PATTERNS.some((pattern) => pattern.test(title));
+
+// Normalize milestone titles so countdowns read grammatically (e.g., "until the shortest day").
 const formatMilestoneCountdownTitle = (title) => {
   if (!title) {
     return "";
@@ -42,6 +52,12 @@ const formatMilestoneCountdownTitle = (title) => {
   }
   if (/^gained\b/i.test(trimmed)) {
     return `you've ${lowerCaseFirstLetter(trimmed)}`;
+  }
+  if (/^(the|a|an)\b/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (needsCountdownArticle(trimmed)) {
+    return `the ${lowerCaseFirstLetter(trimmed)}`;
   }
   return trimmed;
 };

@@ -46,7 +46,7 @@ describe("messages", () => {
     );
 
     expect(messageWithNullLede).toBeDefined();
-    expect(messageWithNullLede.lede).toBe("Only 15 days until spring equinox!");
+    expect(messageWithNullLede.lede).toBe("Only 15 days until the spring equinox!");
   });
 
   it("uses singular 'day' for 1 day until milestone", () => {
@@ -62,7 +62,7 @@ describe("messages", () => {
     );
 
     expect(messageWithNullLede).toBeDefined();
-    expect(messageWithNullLede.lede).toBe("Only 1 day until shortest day!");
+    expect(messageWithNullLede.lede).toBe("Only 1 day until the shortest day!");
   });
 
   it("keeps original lede when not empty", () => {
@@ -104,10 +104,12 @@ describe("messages", () => {
     ];
 
     const options = getOptimisticMessageOptions(data, 3, "north", upcomingMilestones);
-    const milestoneHeadline = options.find((opt) => opt.headline.includes("until spring equinox"));
+    const milestoneHeadline = options.find((opt) =>
+      opt.headline.includes("until the spring equinox")
+    );
 
     expect(milestoneHeadline).toBeDefined();
-    expect(milestoneHeadline.headline).toBe("Only 10 days until spring equinox!");
+    expect(milestoneHeadline.headline).toBe("Only 10 days until the spring equinox!");
     expect(milestoneHeadline.lede).toBe("You're almost there :)");
   });
 
@@ -125,10 +127,27 @@ describe("messages", () => {
     const upcomingMilestones = [{ title: "Summer solstice", offsetDays: 1 }];
 
     const options = getOptimisticMessageOptions(data, 6, "north", upcomingMilestones);
-    const milestoneHeadline = options.find((opt) => opt.headline.includes("until summer solstice"));
+    const milestoneHeadline = options.find((opt) =>
+      opt.headline.includes("until the summer solstice")
+    );
 
     expect(milestoneHeadline).toBeDefined();
-    expect(milestoneHeadline.headline).toBe("Only 1 day until summer solstice!");
+    expect(milestoneHeadline.headline).toBe("Only 1 day until the summer solstice!");
+  });
+
+  it("adds a definite article for 'first' milestone titles", () => {
+    const data = {};
+    const upcomingMilestones = [{ title: "First day with 10+ hours of daylight", offsetDays: 2 }];
+
+    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
+    const milestoneHeadline = options.find((opt) =>
+      opt.headline.includes("until the first day with 10+ hours of daylight")
+    );
+
+    expect(milestoneHeadline).toBeDefined();
+    expect(milestoneHeadline.headline).toBe(
+      "Only 2 days until the first day with 10+ hours of daylight!"
+    );
   });
 
   it("rewrites daylight gain milestone titles for countdown headlines", () => {
