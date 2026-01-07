@@ -29,6 +29,7 @@ import { getAdjustedMonth } from "../utils/date-utils.js";
 import { fetchReverseGeocodeLocation } from "../services/reverse-geocode-service.js";
 import { clampValue } from "../utils/utils.js";
 import { generateStoryCanvas } from "./story-image-ui.js";
+import { shareText, shareCanvasAsImage } from "../utils/web-share-utils.js";
 
 const CURRENT_LOCATION_LABEL = "Current Location";
 
@@ -440,4 +441,34 @@ export const refreshStoryPreview = async (imgElement, headline, _lede, languageC
 
   // Convert canvas to data URL and set as img src for native long-press save
   imgElement.src = generatedCanvas.toDataURL("image/png");
+};
+
+/**
+ * Share text using Web Share API
+ */
+export const webShareText = async (
+  headline,
+  lede,
+  getActiveDateParts,
+  languageCode,
+  fallbackTimeZone
+) => {
+  const text = await ensureShareText(
+    headline,
+    lede,
+    getActiveDateParts,
+    languageCode,
+    fallbackTimeZone
+  );
+  return await shareText(text, "Sunshine Optimist");
+};
+
+/**
+ * Share story image using Web Share API
+ */
+export const webShareStoryImage = async (canvas) => {
+  if (!canvas) {
+    return false;
+  }
+  return await shareCanvasAsImage(canvas, "sunshine-optimist-story.png");
 };

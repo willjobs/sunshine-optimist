@@ -323,3 +323,217 @@ test("modal resets to text mode when closed and reopened", async ({ page }) => {
   await expect(storyPreview).toBeHidden();
   await expect(textModeButton).toHaveClass(/is-active/);
 });
+
+// ============================================================================
+// Web Share API Tests
+// ============================================================================
+
+test("Web Share UI shows social buttons when API is available", async ({ page }) => {
+  // Mock Web Share API availability AND mobile device
+  await page.addInitScript(() => {
+    window.navigator.share = async () => Promise.resolve();
+    window.navigator.canShare = () => true;
+    // Mock mobile user agent
+    Object.defineProperty(window.navigator, "userAgent", {
+      value: "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
+      configurable: true,
+    });
+  });
+
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  // Verify social buttons are visible
+  const instagramButton = page.locator('[data-share="instagram"]');
+  const facebookButton = page.locator('[data-share="facebook"]');
+  const xButton = page.locator('[data-share="x"]');
+  const blueskyButton = page.locator('[data-share="bluesky"]');
+
+  await expect(instagramButton).toBeVisible();
+  await expect(facebookButton).toBeVisible();
+  await expect(xButton).toBeVisible();
+  await expect(blueskyButton).toBeVisible();
+
+  // Verify copy/download buttons are icon-only
+  const copyButton = page.locator(".share-copy-button");
+
+  await expect(copyButton).toHaveClass(/is-icon-only/);
+  // Download button not visible in text mode, but should have class when visible in story mode
+});
+
+test("Web Share UI hides social buttons when API is not available", async ({
+  page,
+  browserName,
+}) => {
+  // Skip this test on browsers that have Web Share API (Mobile Safari, webkit)
+  // These browsers will always show social buttons, so this test doesn't apply
+  if (browserName === "webkit") {
+    // WebKit/Safari have Web Share API so social buttons will be visible
+    // Just open and close modal to keep test structure clean for afterEach
+    await page.goto("/");
+    return;
+  }
+
+  // No mocking - Web Share API not available by default in test environment
+
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  // Verify social buttons are hidden
+  const instagramButton = page.locator('[data-share="instagram"]');
+  const facebookButton = page.locator('[data-share="facebook"]');
+  const xButton = page.locator('[data-share="x"]');
+  const blueskyButton = page.locator('[data-share="bluesky"]');
+
+  await expect(instagramButton).toBeHidden();
+  await expect(facebookButton).toBeHidden();
+  await expect(xButton).toBeHidden();
+  await expect(blueskyButton).toBeHidden();
+
+  // Verify copy/download buttons do not have icon-only class
+  const copyButton = page.locator(".share-copy-button");
+  await expect(copyButton).not.toHaveClass(/is-icon-only/);
+});
+
+test("social buttons trigger Web Share API in text mode", async ({ page }) => {
+  // Mock Web Share API and capture calls
+  await page.addInitScript(() => {
+    window.__shareCallCount = 0;
+    window.__lastShareData = null;
+    window.navigator.share = async (data) => {
+      window.__lastShareData = data;
+      window.__shareCallCount = (window.__shareCallCount || 0) + 1;
+      return Promise.resolve();
+    };
+    window.navigator.canShare = () => true;
+    // Mock mobile user agent
+    Object.defineProperty(window.navigator, "userAgent", {
+      value: "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
+      configurable: true,
+    });
+  });
+
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  // Click Instagram button
+  const instagramButton = page.locator('[data-share="instagram"]');
+  await instagramButton.click();
+
+  // Wait for share to be called
+  await page.waitForFunction(() => window.__shareCallCount > 0);
+
+  // Verify share was called with text
+  const shareData = await page.evaluate(() => window.__lastShareData);
+  expect(shareData).toHaveProperty("text");
+  expect(shareData.text).toContain("SunshineOptimist.com");
+  expect(shareData.title).toBe("Sunshine Optimist");
+});
+
+test("social buttons trigger Web Share API with image in story mode", async ({ page }) => {
+  // Mock Web Share API and capture calls
+  await page.addInitScript(() => {
+    window.__shareCallCount = 0;
+    window.__lastShareData = null;
+    window.navigator.share = async (data) => {
+      window.__lastShareData = {
+        hasFiles: !!data.files,
+        fileCount: data.files ? data.files.length : 0,
+        fileType: data.files && data.files[0] ? data.files[0].type : null,
+        fileName: data.files && data.files[0] ? data.files[0].name : null,
+        title: data.title,
+      };
+      window.__shareCallCount = (window.__shareCallCount || 0) + 1;
+      return Promise.resolve();
+    };
+    window.navigator.canShare = () => true;
+    // Mock mobile user agent
+    Object.defineProperty(window.navigator, "userAgent", {
+      value: "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
+      configurable: true,
+    });
+  });
+
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  // Switch to story mode
+  await page.locator('[data-share-mode="story"]').click();
+  await page.waitForFunction(() => {
+    const img = document.querySelector("#share-story-image");
+    return img && img.src && img.src.startsWith("data:image/png");
+  });
+
+  // Click Instagram button
+  const instagramButton = page.locator('[data-share="instagram"]');
+  await instagramButton.click();
+
+  // Wait for share to be called (longer timeout for canvas conversion)
+  await page.waitForFunction(() => window.__shareCallCount > 0, { timeout: 15000 });
+
+  // Verify share was called with files
+  const shareData = await page.evaluate(() => window.__lastShareData);
+  expect(shareData.hasFiles).toBe(true);
+  expect(shareData.fileCount).toBe(1);
+  expect(shareData.fileType).toBe("image/png");
+  expect(shareData.fileName).toBe("sunshine-optimist-story.png");
+});
+
+test("social buttons show feedback when share succeeds", async ({ page }) => {
+  // Mock Web Share API
+  await page.addInitScript(() => {
+    window.navigator.share = async () => Promise.resolve();
+    window.navigator.canShare = () => true;
+    // Mock mobile user agent
+    Object.defineProperty(window.navigator, "userAgent", {
+      value: "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
+      configurable: true,
+    });
+  });
+
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  // Click Facebook button
+  const facebookButton = page.locator('[data-share="facebook"]');
+  await facebookButton.click();
+
+  // Wait for share API to be called
+  await page.waitForTimeout(500);
+
+  // Feedback should flash briefly (we can't easily test the ephemeral flash,
+  // but we can verify no errors occurred and button is still clickable)
+  await expect(facebookButton).toBeEnabled();
+});
+
+test("social buttons handle share cancellation gracefully", async ({ page }) => {
+  // Mock Web Share API to simulate user cancellation (AbortError)
+  await page.addInitScript(() => {
+    window.navigator.share = async () => {
+      const error = new Error("User cancelled");
+      error.name = "AbortError";
+      throw error;
+    };
+    window.navigator.canShare = () => true;
+    // Mock mobile user agent
+    Object.defineProperty(window.navigator, "userAgent", {
+      value: "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
+      configurable: true,
+    });
+  });
+
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  // Click X button
+  const xButton = page.locator('[data-share="x"]');
+  await xButton.click();
+
+  // Wait a moment for any potential error handling
+  await page.waitForTimeout(500);
+
+  // Modal should still be open and functional
+  const modal = page.locator("#share-modal");
+  await expect(modal).toBeVisible();
+  await expect(xButton).toBeEnabled();
+});

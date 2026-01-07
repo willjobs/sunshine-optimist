@@ -32,6 +32,7 @@ scripts/
 │   ├── date-utils.js         # Date/time utilities with cached formatters
 │   ├── location-utils.js     # Location formatting and filtering
 │   ├── dom-utils.js          # Basic DOM helpers
+│   ├── web-share-utils.js    # Web Share API detection and utilities
 │   └── utils.js              # General utilities
 ├── messages.js               # Optimistic message templates
 └── milestones.js             # Milestone definitions
@@ -58,6 +59,7 @@ manifest.webmanifest          # PWA manifest for app installation
 | `utils/date-utils.js`                  | Date/time manipulation with cached formatters            |
 | `utils/location-utils.js`              | Location parsing and formatting                          |
 | `utils/dom-utils.js`                   | Basic DOM helpers                                        |
+| `utils/web-share-utils.js`             | Web Share API detection and mobile device detection      |
 | `utils/utils.js`                       | General utilities                                        |
 | `messages.js`                          | Message template definitions                             |
 | `milestones.js`                        | Milestone definitions                                    |
@@ -71,8 +73,8 @@ All application state is centralized in `scripts/state/app-state.js`:
 - **Location state**: Search results, active location, user coordinates, recent locations, filter tokens
 - **Date state**: Live vs custom date, commit timeout, last keydown timestamp
 - **Milestone state**: Upcoming milestones, current index, timezone, last celebrated key, confetti timeout
-- **Optimistic message state**: Rotation interval, current index, swap ID and timeout
-- **Share state**: Snapshot, modal snapshot, privacy preference, cached share text
+- **Optimistic message state**: Rotation interval, current index, swap ID and timeout, manual navigation controls
+- **Share state**: Snapshot, modal snapshot, privacy preference, cached share text, Web Share UI mode
 - **Reverse geocode state**: Cache, cache key, in-flight promise
 - **Debug state**: Valid/displayed options, data, month, hemisphere, reason, last update timestamp
 
@@ -119,12 +121,14 @@ State is accessed and modified through exported getter/setter functions. The mod
   - Privacy mode available to share as "My Location" instead of actual city name
   - Copy to clipboard via Clipboard API
   - Social share links for Instagram (copy), Facebook, X/Twitter, and Bluesky
+  - On mobile devices with Web Share API support, uses native sharing instead of social buttons
 - **Image mode**: Generates 1080x1920px Instagram Story image using Canvas API
-  - Warm gradient background with headline and location
+  - Yellow-orange-red gradient background with headline and location
   - Waits for web fonts to load before rendering
-  - Download as PNG via blob URL
+  - Download as PNG via blob URL or native share on supported mobile devices
 - Share state captured in snapshot when modal opens, ensuring consistency
 - Reverse geocoding for "Current Location" happens asynchronously to resolve to real place name
+- Web Share API integration provides native mobile sharing experience when available
 
 ## Controller Communication
 
@@ -134,7 +138,7 @@ Controllers communicate via callback registration (e.g., `setLocationChangeCallb
 
 ### Service Worker Caching Strategy
 
-The service worker ([sw.js](../sw.js)) implements different caching strategies for different resource types:
+The service worker ([sw.js](../sw.js)) implements a cache-first strategy for static assets:
 
 **Static Assets** (cache-first):
 
@@ -143,16 +147,17 @@ The service worker ([sw.js](../sw.js)) implements different caching strategies f
 - All app modules
 - Cached on service worker install
 - Network fallback with offline support
-- Cache version: `sunshine-optimist-static-v1`
+- Cache version auto-updated by git pre-commit hook (e.g., `v104-093e845`)
 
-**API Requests** (network-first with stale-while-revalidate):
+**API Requests**:
 
-- Open-Meteo Geocoding API
-- BigDataCloud Reverse Geocoding API
-- Tries network first, updates cache on success
-- Falls back to cached response (max 24 hours old) on network failure
-- Adds custom timestamp header for cache validation
-- Cache version: `sunshine-optimist-api-v1`
+- APIs:
+  - Open-Meteo Geocoding API
+  - BigDataCloud Reverse Geocoding API
+- No service worker caching for API requests
+- All API calls go directly to the network
+- Allows for fresh data on every request
+- Service worker only caches same-origin static resources
 
 **External Resources** (network-only):
 
@@ -165,14 +170,15 @@ The service worker ([sw.js](../sw.js)) implements different caching strategies f
 - `install`: Precaches all static assets
 - `activate`: Deletes old cache versions, takes control immediately via `skipWaiting()` and `clients.claim()`
 - Old caches cleaned up automatically on version change
+- Cache version format: `sunshine-optimist-static-v{commit-count}-{short-hash}`
 
 ### Offline Support
 
 - Complete app functionality available offline with last-used data
 - Static assets served from cache
-- Recent API responses available for 24 hours
 - Navigation requests fall back to cached `index.html`
 - Location calculations work entirely client-side (no network required)
+- New city searches and reverse geocoding require network connection
 
 ### Installability
 
@@ -243,7 +249,7 @@ Web app manifest ([manifest.webmanifest](../manifest.webmanifest)) provides:
 
 ### Unit Tests (Vitest)
 
-63 tests across 17 test files covering:
+Test files covering:
 
 - Date utilities and timezone handling
 - Message selection logic and placeholders
@@ -251,8 +257,9 @@ Web app manifest ([manifest.webmanifest](../manifest.webmanifest)) provides:
 - Location utilities (parsing, filtering, formatting)
 - Formatters (duration, deltas, tooltips, share text)
 - Service layer (geocoding, reverse geocoding, storage)
-- UI components (messages, milestones, tooltips, confetti, share modal)
-- Controllers (date, daylight)
+- UI components (messages, milestones, tooltips, confetti, share modal, story image)
+- Controllers (date, daylight, location, optimistic)
+- Web Share API utilities and mobile detection
 
 ### End-to-End Tests (Playwright)
 

@@ -1105,6 +1105,26 @@ h1 {
     0 8px 14px rgba(164, 88, 0, 0.15);
 }
 
+/* Icon-only mode for copy/download buttons when social buttons are visible */
+.share-icon-button.is-icon-only {
+  width: 44px;
+  padding: 0;
+}
+
+.share-icon-button.is-icon-only .share-button-text {
+  display: none;
+}
+
+/* Social media button base styles */
+.share-social-button {
+  width: 44px;
+  padding: 0;
+}
+
+.share-social-button[hidden] {
+  display: none;
+}
+
 .share-copy-feedback,
 .share-download-feedback {
   position: absolute;

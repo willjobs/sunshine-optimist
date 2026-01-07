@@ -2,16 +2,17 @@
 
 A single-page web app that turns sunrise and sunset calculations into upbeat, seasonal insights about daylight for any city.
 
-The goal is to battle the dread or sadness people feel as the days get shorter, or during those winter months when days are getting longer but still feel so short.
+The goal is to combat seasonal sadness by highlighting positive aspects of daylight changes, especially during darker months when days are getting longer but still feel short.
 
 ## Features
 
-- **City search** with typeahead, geolocation bias, local/worldwide toggles, and recent locations
-- **Date picker** to explore daylight insights for any day
-- **Dynamic messaging** — seasonal, hemisphere-aware headlines that rotate when multiple apply
-- **Stats panel** — today's sunset and daylight duration with comparisons to extremes
-- **Milestone carousel** — upcoming events like half-hour sunsets, solstices, and daylight-gain milestones (with confetti!)
-- **Share modal** — preview, privacy toggle, copy-to-clipboard, and social links
+- **City search** with typeahead, geolocation, local/worldwide toggles, and recent locations
+- **Date picker** to explore daylight insights for any day in any timezone
+- **Dynamic messaging** — seasonal, hemisphere-aware headlines that rotate automatically and with manual navigation
+- **Stats panel** — sunset time and daylight duration with comparisons to yearly extremes
+- **Milestone carousel** — upcoming events like half-hour sunsets, solstices, and daylight-gain milestones (with a special effect on milestone days :))
+- **Share modal** — text and image modes with privacy toggle, copy-to-clipboard, and social sharing
+- **Progressive Web App** — installable, works offline, with service worker caching
 
 ## Quick Start
 
@@ -23,30 +24,49 @@ python3 -m http.server
 
 Then open `http://localhost:8000`.
 
-## Project Layout
+For development with tests and linting, install dependencies:
+
+```bash
+npm install
+npm run lint        # Check code quality
+npm run test:unit   # Run unit tests
+npm test            # Run end-to-end tests
+```
+
+## Project Structure
 
 ```
 index.html              # UI structure
 styles.css              # All styling
+sw.js                   # Service worker for PWA/offline support
+manifest.webmanifest    # PWA manifest
 scripts/
 ├── app.js              # Main orchestrator
-├── controllers/        # Domain logic (date, location, daylight, messages)
+├── controllers/        # Business logic (date, location, daylight, messages)
 ├── state/              # Centralized state management
-├── services/           # API calls (geocoding, reverse geocode, storage)
-├── ui/                 # UI components (messages, milestones, share, tooltips)
-├── formatters/         # Display formatting
-├── utils/              # Utilities (astronomy, date, location, dom)
-├── messages.js         # Optimistic message catalog
+├── services/           # External APIs (geocoding, reverse geocode, storage)
+├── ui/                 # UI components (messages, milestones, share, confetti, tooltips)
+├── formatters/         # Display formatting utilities
+├── utils/              # Core utilities (astronomy, date, location, DOM, web share)
+├── messages.js         # Optimistic message templates
 └── milestones.js       # Milestone definitions
 ```
 
+## Technology
+
+- Pure ES modules, no build step or bundler
+- No frameworks or libraries (vanilla JavaScript)
+- Modern Web APIs: Geolocation, Canvas, Clipboard, Web Share, Service Workers
+- Tested with Playwright (E2E) and Vitest (unit tests)
+
 ## Data Sources
 
+- [Astronomy Engine](https://github.com/cosinekitty/astronomy) — solar calculations (vendored)
 - [Open-Meteo Geocoding API](https://open-meteo.com/) — city search
-- [BigDataCloud](https://www.bigdatacloud.com/) — reverse geocoding for current location
-- [Astronomy Engine](https://github.com/cosinekitty/astronomy) — solar calculations
+- [BigDataCloud](https://www.bigdatacloud.com/) — reverse geocoding
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) — detailed module structure and data flows
+- [Architecture](docs/architecture.md) — module structure, data flows, and performance
 - [Development Guide](docs/development.md) — contributing, debugging, and testing
+- [Behavior Specification](docs/behavior.md) — complete app behavior and edge cases
