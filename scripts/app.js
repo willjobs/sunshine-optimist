@@ -21,7 +21,6 @@ import {
   setLastFilterTokensRaw,
   isSharePrivacyEnabled,
   setSharePrivacyEnabled,
-  setWebShareUIMode,
 } from "./state/app-state.js";
 import {
   loadSharePrivacyPreference,
@@ -39,11 +38,8 @@ import {
   setShareMode,
   refreshStoryPreview,
   getLastGeneratedCanvas,
-  webShareText,
-  webShareStoryImage,
 } from "./ui/share-modal-ui.js";
 import { downloadStoryImage } from "./ui/story-image-ui.js";
-import { isWebShareAvailableForSocial } from "./utils/web-share-utils.js";
 
 // Controllers
 import {
@@ -108,7 +104,6 @@ const dom = {
   shareDownloadFeedback: document.getElementById("share-download-feedback"),
   shareCopyButton: document.querySelector(".share-copy-button"),
   shareCopyFeedback: document.getElementById("share-copy-feedback"),
-  shareSocialButtons: document.querySelectorAll(".share-social-button"),
   optimisticMessage: document.getElementById("optimistic-message"),
   optimisticDots: document.getElementById("optimistic-dots"),
   optimisticPrev: document.getElementById("optimistic-prev"),
@@ -164,7 +159,6 @@ const {
   shareDownloadFeedback,
   shareCopyButton,
   shareCopyFeedback,
-  shareSocialButtons,
   headline,
   lede,
   cityInput,
@@ -456,43 +450,6 @@ if (sharePrivacyToggle) {
   });
 }
 
-// ============================================================================
-// Web Share API Detection and UI Setup
-// ============================================================================
-
-/**
- * Detect Web Share API and configure UI accordingly
- */
-const initializeWebShareUI = () => {
-  const hasWebShare = isWebShareAvailableForSocial();
-
-  if (hasWebShare) {
-    setWebShareUIMode("mobile");
-
-    // Show social buttons
-    if (shareSocialButtons) {
-      shareSocialButtons.forEach((button) => {
-        button.hidden = false;
-      });
-    }
-
-    // Make copy/download buttons icon-only
-    if (shareCopyButton) {
-      shareCopyButton.classList.add("is-icon-only");
-    }
-    if (shareDownloadButton) {
-      shareDownloadButton.classList.add("is-icon-only");
-    }
-  } else {
-    setWebShareUIMode("desktop");
-    // Social buttons remain hidden (default state)
-    // Copy/download buttons remain with text (default state)
-  }
-};
-
-// Initialize Web Share UI on load
-initializeWebShareUI();
-
 // Reset share modal UI to default text mode
 const resetShareModalUI = () => {
   shareModeButtons.forEach((btn) => {
@@ -539,7 +496,6 @@ if (shareActionButtons.length) {
       const action = button.dataset.share;
       if (!action) return;
       try {
-        // Copy to clipboard
         if (action === "copy") {
           const success = await copyShareText(
             headline,
@@ -551,34 +507,6 @@ if (shareActionButtons.length) {
           if (success) {
             flashActionLabel(button, "Copied to clipboard!", shareCopyFeedback);
           }
-          return;
-        }
-
-        // Web Share API for social platforms
-        if (["instagram", "facebook", "x", "bluesky"].includes(action)) {
-          if (getShareMode() === "text") {
-            // Text mode - share text
-            const success = await webShareText(
-              headline,
-              lede,
-              (tz) => getActiveDateParts(tz),
-              languageCode,
-              FALLBACK_TIMEZONE
-            );
-            if (success) {
-              flashActionLabel(button, "Shared!");
-            }
-          } else {
-            // Story mode - share image
-            const canvas = getLastGeneratedCanvas();
-            if (canvas) {
-              const success = await webShareStoryImage(canvas);
-              if (success) {
-                flashActionLabel(button, "Shared!");
-              }
-            }
-          }
-          return;
         }
       } catch (error) {
         console.warn("Share action failed:", error);

@@ -322,12 +322,10 @@ When location or date changes:
 **Normal Case** (messages available):
 
 1. Randomly select one of the valid messages as the first
-2. Start rotation timer (15 seconds per message)
+2. Start rotation timer (12 seconds per message)
 3. Rotate through valid messages sequentially
 4. Fade out old message, fade in new message
 5. Loop back to first message after showing all
-6. Manual navigation available via Previous/Next buttons
-7. Dot indicators show message count and current position
 
 **Fallback Cases**:
 
@@ -349,19 +347,10 @@ When location or date changes:
 **Timing**:
 
 - First message: Shows immediately (no delay)
-- Subsequent messages: 15-second intervals
+- Subsequent messages: 12-second intervals
 - Rotation continues indefinitely
 - Pauses when switching to milestone override
 - Resumes if milestone override is removed (date/location change)
-
-**Manual Navigation**:
-
-- Previous/Next buttons for cycling through messages
-- Clicking navigation buttons restarts the rotation timer
-- Dot indicators show total message count and current position
-- Navigation controls hidden when only one message is available
-- Supports swipe/touch gestures via pointer events
-- Respects `prefers-reduced-motion` for animations
 
 **Animation**:
 
@@ -565,10 +554,10 @@ SunshineOptimist.com
 
 **Visual Design**:
 
-- **Background**: Yellow-orange-red gradient
-  - Top: `#FFEB3B` (yellow)
-  - Middle: `#FF9800` (orange)
-  - Bottom: `#FF5722` (red)
+- **Background**: Warm gradient (orange/coral tones)
+  - Top: `#E8664C`
+  - Middle: `#E07A4A`
+  - Bottom: `#E5A84D`
 - **Text Color**: White with subtle shadow
 - **Font**: Merriweather (bold, serif)
 
@@ -632,17 +621,6 @@ from SunshineOptimist.com
 - Gracefully fails if unsupported (returns false, no flash)
 
 ### Social Share Buttons
-
-**Mobile Devices with Web Share API Support**:
-
-- Detects mobile device (user agent, touch, screen width)
-- Checks for Web Share API support (`navigator.share`)
-- Shows "Share" button instead of individual social buttons
-- Uses native sharing via `navigator.share()` with share text
-- For images, can share files via `navigator.share({ files: [...] })`
-- Provides native mobile sharing experience across all apps
-
-**Desktop and Unsupported Mobile Devices**:
 
 **Instagram**:
 
@@ -737,12 +715,14 @@ from SunshineOptimist.com
    - On cache miss: Fetch from network and cache
    - On network failure: Return cached version
    - On navigation failure: Return cached index.html (offline page)
-   - Only caches same-origin requests
 
-2. **API Requests**:
-   - No service worker caching
-   - All API calls go directly to network
-   - Allows for fresh data on every request
+2. **API Requests** (network-first with stale-while-revalidate):
+   - Geocoding API (Open-Meteo)
+   - Reverse geocoding API (BigDataCloud)
+   - Try network first
+   - On success: Update cache with timestamp
+   - On failure: Serve from cache if available and valid
+   - Cache expires after 24 hours
 
 3. **External Resources** (network-only):
    - Google Fonts
@@ -751,8 +731,7 @@ from SunshineOptimist.com
 
 **Cache Versioning**:
 
-- Cache name: `sunshine-optimist-static-v{commit-count}-{short-hash}` (e.g., `v104-093e845`)
-- Version auto-updated by git pre-commit hook
+- Cache name: `sunshine-optimist-static-v1` and `sunshine-optimist-api-v1`
 - On version bump: Old caches automatically deleted
 - Activates immediately via `skipWaiting()`
 - Takes control via `clients.claim()`
@@ -761,7 +740,8 @@ from SunshineOptimist.com
 
 - Static assets available offline
 - Last-selected location and date work offline
-- New city searches and reverse geocoding require network connection
+- Recent API results cached for 24 hours
+- New city searches require network connection
 - Graceful degradation: Shows last known state
 
 ### Storage
@@ -1019,13 +999,15 @@ from SunshineOptimist.com
 **Service Worker Cache**:
 
 - Static assets cached on install
-- No API response caching (all API calls go to network)
+- API responses cached for 24 hours with timestamp
+- Stale-while-revalidate for API calls
 
 ### Debouncing
 
 **Search Input**: 250ms debounce on keystrokes
 **Date Input**: 1.2s debounce on typing, immediate on blur/enter
-**Message Rotation**: 15s interval (not debounced)
+**Milestone Rotation**: 12s interval (not debounced)
+**Message Rotation**: 12s interval (not debounced)
 
 ### Request Deduplication
 
@@ -1087,13 +1069,7 @@ from SunshineOptimist.com
 
 ### Testing
 
-**Unit Tests**: test files (Vitest)
-
-- Date utilities, message selection, state management
-- Location utilities, formatters, services
-- UI components, controllers
-- Web Share API utilities
-
+**Unit Tests**: 63 tests across 17 files (Vitest)
 **E2E Tests**: 6 test files (Playwright)
 
 - App loading and initialization
@@ -1101,7 +1077,7 @@ from SunshineOptimist.com
 - Default location loading
 - Milestone tooltips
 - Location search and selection
-- Share modal functionality (text and image modes)
+- Share modal functionality
 
 ## Debug Tools
 

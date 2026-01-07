@@ -76,7 +76,6 @@ const shareState = {
   modalSnapshot: null,
   privacyEnabled: false,
   text: "",
-  webShareUIMode: "desktop", // 'desktop' | 'mobile'
 };
 
 // ============================================================================
@@ -339,11 +338,6 @@ export const setSharePrivacyEnabled = (enabled) => {
 export const getShareText = () => shareState.text;
 export const setShareText = (text) => {
   shareState.text = text;
-};
-
-export const getWebShareUIMode = () => shareState.webShareUIMode;
-export const setWebShareUIMode = (mode) => {
-  shareState.webShareUIMode = mode === "mobile" ? "mobile" : "desktop";
 };
 
 // ============================================================================

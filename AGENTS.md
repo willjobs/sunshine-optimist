@@ -38,8 +38,8 @@ For detailed architecture, see [docs/architecture.md](docs/architecture.md).
 
 This project uses **ESLint** for linting and **Prettier** for code formatting.
 
-- Linter enforces strict equality (`===`/`!==`), no unused variables, import extensions, and code quality rules
-- Prettier enforces consistent formatting (2-space indentation, double quotes, semicolons)
+- Linter enforces strict equality (`===`/`!==`), no unused variables, and other code quality rules
+- Prettier enforces consistent formatting (2-space indentation, single quotes, no semicolons)
 - See [eslint.config.js](eslint.config.js) and [.prettierrc.json](.prettierrc.json) for configuration
 
 ## Important Conventions

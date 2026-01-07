@@ -19,7 +19,7 @@ chmod +x scripts/git-hooks/pre-commit
 cp scripts/git-hooks/pre-commit .git/hooks/pre-commit
 ```
 
-This hook will automatically update `sw.js` and `index.html` before each commit with a version like `v104-093e845` (commit count + short hash), ensuring users always get fresh assets after deployments.
+This hook will automatically update `sw.js` before each commit with a version like `v80-cfd1937` (commit count + short hash).
 
 ## Code Quality
 
