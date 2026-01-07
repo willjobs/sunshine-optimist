@@ -208,7 +208,7 @@ describe("messages", () => {
       days_until_max_daily_gain: 50,
     };
 
-    const options = getOptimisticMessageOptions(data, 1, "north");
+    const options = getOptimisticMessageOptions(data, 2, "north");
     const message = options.find((opt) => opt.headline.includes("largest daily increase"));
 
     expect(message).toBeDefined();
