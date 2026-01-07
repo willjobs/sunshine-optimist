@@ -5,7 +5,7 @@
  * Uses a cache-first strategy for static assets.
  */
 
-const CACHE_VERSION = "v105-b157805";
+const CACHE_VERSION = "v107-ff19081";
 const STATIC_CACHE_NAME = `sunshine-optimist-static-${CACHE_VERSION}`;
 
 // Static assets to cache on install
@@ -14,6 +14,7 @@ const STATIC_ASSETS = [
   "/index.html",
   "/styles.css",
   "/favicon.svg",
+  "/manifest.webmanifest",
   "/astronomy-engine/astronomy.browser.min.js",
   "/scripts/app.js",
   "/scripts/messages.js",
@@ -31,12 +32,14 @@ const STATIC_ASSETS = [
   "/scripts/ui/message-ui.js",
   "/scripts/ui/milestone-ui.js",
   "/scripts/ui/share-modal-ui.js",
+  "/scripts/ui/story-image-ui.js",
   "/scripts/ui/tooltip-ui.js",
   "/scripts/utils/astronomy-utils.js",
   "/scripts/utils/date-utils.js",
   "/scripts/utils/dom-utils.js",
   "/scripts/utils/location-utils.js",
   "/scripts/utils/utils.js",
+  "/scripts/utils/web-share-utils.js",
 ];
 
 /**
