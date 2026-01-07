@@ -1031,8 +1031,9 @@ h1 {
 }
 
 .share-icon-button {
-  width: 44px;
   height: 44px;
+  padding: 0 16px;
+  gap: 8px;
   border-radius: 14px;
   border: 1px solid rgba(200, 111, 21, 0.35);
   background: #fff8ed;
@@ -1040,6 +1041,7 @@ h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     transform 140ms ease,
@@ -1055,6 +1057,7 @@ h1 {
 .share-icon-button svg {
   width: 20px;
   height: 20px;
+  flex-shrink: 0;
 }
 
 .share-icon-button:hover {

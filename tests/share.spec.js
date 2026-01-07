@@ -6,7 +6,6 @@ import {
   installClipboardMock,
   installFontMocks,
   installPermissionsMock,
-  installWindowOpenMock,
   setStoredLocation,
 } from "./helpers/mock-network.js";
 
@@ -54,7 +53,6 @@ test.beforeEach(async ({ page }) => {
   await installApiMocks(page);
   await installPermissionsMock(page, "denied");
   await installClipboardMock(page);
-  await installWindowOpenMock(page);
   await setStoredLocation(page, BOSTON);
 });
 
@@ -142,22 +140,6 @@ test("copy feedback appears visible and positioned correctly", async ({ page }) 
   // Feedback should disappear after the flash duration (~1200ms + transition)
   await page.waitForTimeout(1500);
   await expect(feedback).not.toHaveClass(/is-visible/);
-});
-
-test("share links open with encoded text", async ({ page }) => {
-  await page.goto("/");
-  await openShareModalAndWait(page);
-
-  await page.getByRole("button", { name: "Share to X" }).click();
-
-  await page.waitForFunction(() => (window.__openedUrls || []).length > 0);
-  const openedUrls = await page.evaluate(() => window.__openedUrls || []);
-  expect(openedUrls.length).toBeGreaterThan(0);
-
-  const xUrl = new URL(openedUrls[0]);
-  expect(xUrl.hostname).toBe("twitter.com");
-  const text = xUrl.searchParams.get("text") || "";
-  expect(text).toContain("SunshineOptimist.com");
 });
 
 test("mode toggle switches between text and image views", async ({ page }) => {

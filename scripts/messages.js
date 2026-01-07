@@ -93,15 +93,14 @@ export const OPTIMISTIC_MESSAGES = [
   {
     headline: "Today's sunset is {## minutes} later than it was one month ago.",
     lede: "The days are definitely getting longer!",
-    months: [1, 2, 3, 4, 5],
+    months: [2, 3, 4, 5],
     data_needs: ["sunset_today", "sunset_one_month_ago"],
     additional_requirements: "sunset_one_month_ago < sunset_today",
     getValue: ({ sunset_today, sunset_one_month_ago }) =>
       getDelta(sunset_today, sunset_one_month_ago),
   },
   {
-    headline:
-      "By the end of this month, days will be {## minutes} longer than the winter solstice.",
+    headline: "By the end of this month, days will be {## minutes} longer than the winter solstice.",
     lede: "Woohoo!",
     months: [1, 2, 3, 4],
     data_needs: ["daylight_minimum", "daylight_at_end_of_month"],
@@ -233,7 +232,7 @@ export const OPTIMISTIC_MESSAGES = [
   {
     headline: "The largest daily increase in daylight is only {## days} away.",
     lede: "Hang in there!",
-    months: [1, 2, 3],
+    months: [2, 3],
     data_needs: ["days_until_max_daily_gain"],
     additional_requirements: "days_until_max_daily_gain > 0",
     getValue: ({ days_until_max_daily_gain }) => getPositiveNumber(days_until_max_daily_gain),
@@ -241,7 +240,7 @@ export const OPTIMISTIC_MESSAGES = [
   {
     headline: "Only {## days} until the longest day of the year.",
     lede: "Summer is almost here!",
-    months: [4, 5, 6],
+    months: [5, 6],
     data_needs: ["days_until_summer_solstice"],
     additional_requirements: "days_until_summer_solstice > 0",
     getValue: ({ days_until_summer_solstice }) => getPositiveNumber(days_until_summer_solstice),
