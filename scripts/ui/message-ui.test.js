@@ -44,7 +44,7 @@ describe("message-ui", () => {
 
   it("rotates through multiple messages", () => {
     vi.useFakeTimers();
-    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.75);
     const { headline, lede } = buildNodes();
     const messages = [
       { headline: "First headline", lede: "First lede" },
@@ -61,7 +61,7 @@ describe("message-ui", () => {
 
   it("advances via nav buttons and updates dots", () => {
     vi.useFakeTimers();
-    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.75);
     const { headline, lede } = buildNodes();
     const controls = buildControls();
     const messages = [

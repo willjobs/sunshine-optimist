@@ -23,6 +23,15 @@ const OPTIMISTIC_OUT_DURATION_MS = 320;
 const OPTIMISTIC_SWIPE_THRESHOLD_PX = 48;
 const OPTIMISTIC_SWIPE_RESTRAINT_PX = 64;
 
+const shuffleOptimisticMessages = (messages) => {
+  const shuffled = [...messages];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+};
+
 const normalizeOptimisticControls = (controls = {}) => ({
   container: controls.container || null,
   dots: controls.dots || null,
@@ -456,7 +465,7 @@ export const stopOptimisticRotation = (headline, lede, controls) => {
 export const startOptimisticRotation = (headline, lede, messages, controls) => {
   stopOptimisticRotation(headline, lede, controls);
   bindOptimisticNavigation(headline, lede, controls);
-  const options = Array.isArray(messages) ? messages : [];
+  const options = Array.isArray(messages) ? shuffleOptimisticMessages(messages) : [];
   setOptimisticOptions(options);
 
   if (!options.length) {
@@ -464,8 +473,7 @@ export const startOptimisticRotation = (headline, lede, messages, controls) => {
     return;
   }
 
-  const startIndex = Math.floor(Math.random() * options.length);
-  applyOptimisticIndex(headline, lede, startIndex, {
+  applyOptimisticIndex(headline, lede, 0, {
     animate: false,
     controls: optimisticNavState.controls,
   });
