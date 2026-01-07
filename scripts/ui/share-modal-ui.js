@@ -381,16 +381,6 @@ export const copyShareText = async (
 };
 
 /**
- * Open share link in new window
- */
-export const openShareLink = (url) => {
-  if (!url) {
-    return;
-  }
-  window.open(url, "_blank", "noopener,noreferrer");
-};
-
-/**
  * Flash action button label temporarily
  */
 export const flashActionLabel = (button, message, feedbackElement) => {

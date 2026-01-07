@@ -33,7 +33,6 @@ import {
   closeShareModal,
   refreshSharePreview,
   copyShareText,
-  openShareLink,
   flashActionLabel,
   getShareMode,
   setShareMode,
@@ -508,44 +507,6 @@ if (shareActionButtons.length) {
           if (success) {
             flashActionLabel(button, "Copied to clipboard!", shareCopyFeedback);
           }
-          return;
-        }
-        if (action === "instagram") {
-          const success = await copyShareText(
-            headline,
-            lede,
-            (tz) => getActiveDateParts(tz),
-            languageCode,
-            FALLBACK_TIMEZONE
-          );
-          if (success) flashActionLabel(button, "Copied!");
-          openShareLink("https://www.instagram.com/");
-          return;
-        }
-        const { ensureShareText } = await import("./ui/share-modal-ui.js");
-        const text = await ensureShareText(
-          headline,
-          lede,
-          (tz) => getActiveDateParts(tz),
-          languageCode,
-          FALLBACK_TIMEZONE
-        );
-        const encodedText = encodeURIComponent(text);
-        if (action === "facebook") {
-          const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-            "https://sunshineoptimist.com"
-          )}&quote=${encodedText}`;
-          openShareLink(url);
-          return;
-        }
-        if (action === "x") {
-          const url = `https://twitter.com/intent/tweet?text=${encodedText}`;
-          openShareLink(url);
-          return;
-        }
-        if (action === "bluesky") {
-          const url = `https://bsky.app/intent/compose?text=${encodedText}`;
-          openShareLink(url);
         }
       } catch (error) {
         console.warn("Share action failed:", error);
