@@ -33,10 +33,10 @@ const wrapText = (ctx, text, maxWidth) => {
  * Draw the warm gradient background
  */
 const drawGradient = (ctx, width, height) => {
-  const gradient = ctx.createLinearGradient(0, 0, width * 0.3, height);
-  gradient.addColorStop(0, "#E8664C");
-  gradient.addColorStop(0.5, "#E07A4A");
-  gradient.addColorStop(1, "#E5A84D");
+  const gradient = ctx.createLinearGradient(0, height, width, 0);
+  gradient.addColorStop(0, "#FFEB3B");
+  gradient.addColorStop(0.5, "#FF9800");
+  gradient.addColorStop(1, "#FF5722");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
 };
