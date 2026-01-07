@@ -37,7 +37,7 @@ scripts/
 └── milestones.js             # Milestone definitions
 
 sw.js                         # Service worker for offline support and caching
-manifest.json                 # PWA manifest for app installation
+manifest.webmanifest          # PWA manifest for app installation
 ```
 
 ## Module Responsibilities
@@ -62,7 +62,7 @@ manifest.json                 # PWA manifest for app installation
 | `messages.js`                          | Message template definitions                             |
 | `milestones.js`                        | Milestone definitions                                    |
 | `sw.js`                                | Service worker for offline support and API caching       |
-| `manifest.json`                        | PWA manifest for installability                          |
+| `manifest.webmanifest`                 | PWA manifest for installability                          |
 
 ## State Management
 
@@ -176,7 +176,7 @@ The service worker ([sw.js](../sw.js)) implements different caching strategies f
 
 ### Installability
 
-Web app manifest ([manifest.json](../manifest.json)) provides:
+Web app manifest ([manifest.webmanifest](../manifest.webmanifest)) provides:
 
 - App name: "Sunshine Optimist"
 - Standalone display mode (no browser UI)

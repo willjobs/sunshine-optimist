@@ -100,7 +100,8 @@ export const OPTIMISTIC_MESSAGES = [
       getDelta(sunset_today, sunset_one_month_ago),
   },
   {
-    headline: "By the end of this month, days will be {## minutes} longer than the winter solstice.",
+    headline:
+      "By the end of this month, days will be {## minutes} longer than the winter solstice.",
     lede: "Woohoo!",
     months: [1, 2, 3, 4],
     data_needs: ["daylight_minimum", "daylight_at_end_of_month"],
