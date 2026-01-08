@@ -64,7 +64,7 @@ export const canShareStoryImage = () => {
   try {
     const testFile = new File(["share"], "sunshine-optimist-story.png", { type: "image/png" });
     return navigator.canShare({ files: [testFile] });
-  } catch (error) {
+  } catch {
     return false;
   }
 };

@@ -99,7 +99,7 @@ const dom = {
   sharePreview: document.getElementById("share-preview"),
   sharePrivacyToggle: document.getElementById("share-privacy-toggle"),
   shareActionButtons: document.querySelectorAll(".share-icon-button[data-share]"),
-  shareWebWrappers: document.querySelectorAll(".share-web-wrapper[data-share-mode]"),
+  shareWebWrappers: document.querySelectorAll(".share-web-wrapper[data-share-target]"),
   shareModeButtons: document.querySelectorAll(".share-mode-button[data-share-mode]"),
   shareTextPreview: document.getElementById("share-text-preview"),
   shareStoryPreview: document.getElementById("share-story-preview"),
@@ -463,7 +463,7 @@ const updateShareWebButtonsVisibility = () => {
   const activeMode = getShareMode();
   const canShare = canUseWebShare();
   shareWebWrappers.forEach((wrapper) => {
-    const mode = wrapper.dataset.shareMode;
+    const mode = wrapper.dataset.shareTarget;
     let shouldShow = canShare && mode === activeMode;
     if (shouldShow && mode === "story") {
       shouldShow = canShareStoryImage();
