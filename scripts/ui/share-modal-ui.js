@@ -31,6 +31,43 @@ import { clampValue } from "../utils/utils.js";
 import { generateStoryCanvas } from "./story-image-ui.js";
 
 const CURRENT_LOCATION_LABEL = "Current Location";
+const DEFAULT_SHARE_TITLE = "Sunshine Optimist";
+const MOBILE_SHARE_QUERY = "(max-width: 640px)";
+
+const isMobileShareViewport = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  if (typeof window.matchMedia === "function") {
+    return window.matchMedia(MOBILE_SHARE_QUERY).matches;
+  }
+  return window.innerWidth <= 640;
+};
+
+export const canUseWebShare = () => {
+  if (typeof navigator === "undefined" || typeof navigator.share !== "function") {
+    return false;
+  }
+  return isMobileShareViewport();
+};
+
+export const canShareStoryImage = () => {
+  if (!canUseWebShare()) {
+    return false;
+  }
+  if (typeof navigator.canShare !== "function") {
+    return true;
+  }
+  if (typeof File !== "function") {
+    return false;
+  }
+  try {
+    const testFile = new File(["share"], "sunshine-optimist-story.png", { type: "image/png" });
+    return navigator.canShare({ files: [testFile] });
+  } catch (error) {
+    return false;
+  }
+};
 
 /**
  * Store the last generated canvas for download functionality
@@ -378,6 +415,73 @@ export const copyShareText = async (
   }
   await navigator.clipboard.writeText(text);
   return true;
+};
+
+const shareWithNavigator = async (shareData) => {
+  if (!canUseWebShare()) {
+    return false;
+  }
+  try {
+    await navigator.share(shareData);
+    return true;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      return false;
+    }
+    throw error;
+  }
+};
+
+const canvasToShareFile = (canvas, fileName) => {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("Unable to create share image"));
+          return;
+        }
+        resolve(new File([blob], fileName, { type: blob.type || "image/png" }));
+      },
+      "image/png",
+      1
+    );
+  });
+};
+
+export const shareTextWithWebShare = async (
+  headline,
+  lede,
+  getActiveDateParts,
+  languageCode,
+  fallbackTimeZone
+) => {
+  const text = await ensureShareText(
+    headline,
+    lede,
+    getActiveDateParts,
+    languageCode,
+    fallbackTimeZone
+  );
+  if (!text) {
+    return false;
+  }
+  return shareWithNavigator({ title: DEFAULT_SHARE_TITLE, text });
+};
+
+export const shareStoryWithWebShare = async (title = DEFAULT_SHARE_TITLE) => {
+  if (!canShareStoryImage()) {
+    return false;
+  }
+  const canvas = getLastGeneratedCanvas();
+  if (!canvas) {
+    return false;
+  }
+  const file = await canvasToShareFile(canvas, "sunshine-optimist-story.png");
+  const shareData = { title, files: [file] };
+  if (typeof navigator.canShare === "function" && !navigator.canShare(shareData)) {
+    return false;
+  }
+  return shareWithNavigator(shareData);
 };
 
 /**

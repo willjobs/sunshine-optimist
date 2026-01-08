@@ -33,11 +33,15 @@ import {
   closeShareModal,
   refreshSharePreview,
   copyShareText,
+  shareTextWithWebShare,
+  shareStoryWithWebShare,
   flashActionLabel,
   getShareMode,
   setShareMode,
   refreshStoryPreview,
   getLastGeneratedCanvas,
+  canUseWebShare,
+  canShareStoryImage,
 } from "./ui/share-modal-ui.js";
 import { downloadStoryImage } from "./ui/story-image-ui.js";
 
@@ -95,6 +99,7 @@ const dom = {
   sharePreview: document.getElementById("share-preview"),
   sharePrivacyToggle: document.getElementById("share-privacy-toggle"),
   shareActionButtons: document.querySelectorAll(".share-icon-button[data-share]"),
+  shareWebWrappers: document.querySelectorAll(".share-web-wrapper[data-share-mode]"),
   shareModeButtons: document.querySelectorAll(".share-mode-button[data-share-mode]"),
   shareTextPreview: document.getElementById("share-text-preview"),
   shareStoryPreview: document.getElementById("share-story-preview"),
@@ -150,6 +155,7 @@ const {
   sharePreview,
   sharePrivacyToggle,
   shareActionButtons,
+  shareWebWrappers,
   shareModeButtons,
   shareTextPreview,
   shareStoryPreview,
@@ -450,6 +456,25 @@ if (sharePrivacyToggle) {
   });
 }
 
+const updateShareWebButtonsVisibility = () => {
+  if (!shareWebWrappers.length) {
+    return;
+  }
+  const activeMode = getShareMode();
+  const canShare = canUseWebShare();
+  shareWebWrappers.forEach((wrapper) => {
+    const mode = wrapper.dataset.shareMode;
+    let shouldShow = canShare && mode === activeMode;
+    if (shouldShow && mode === "story") {
+      shouldShow = canShareStoryImage();
+    }
+    wrapper.hidden = !shouldShow;
+  });
+};
+
+updateShareWebButtonsVisibility();
+window.addEventListener("resize", updateShareWebButtonsVisibility);
+
 // Reset share modal UI to default text mode
 const resetShareModalUI = () => {
   shareModeButtons.forEach((btn) => {
@@ -467,6 +492,7 @@ const resetShareModalUI = () => {
     shareDownloadFeedback.hidden = true;
     shareDownloadFeedback.classList.remove("is-visible");
   }
+  updateShareWebButtonsVisibility();
 };
 
 if (shareModalClose) {
@@ -507,6 +533,29 @@ if (shareActionButtons.length) {
           if (success) {
             flashActionLabel(button, "Copied to clipboard!", shareCopyFeedback);
           }
+          return;
+        }
+        if (action === "web-text") {
+          await shareTextWithWebShare(
+            headline,
+            lede,
+            (tz) => getActiveDateParts(tz),
+            languageCode,
+            FALLBACK_TIMEZONE
+          );
+          return;
+        }
+        if (action === "web-story") {
+          if (!getLastGeneratedCanvas() && shareStoryImage) {
+            await refreshStoryPreview(
+              shareStoryImage,
+              headline,
+              lede,
+              languageCode,
+              FALLBACK_TIMEZONE
+            );
+          }
+          await shareStoryWithWebShare();
         }
       } catch (error) {
         console.warn("Share action failed:", error);
@@ -569,6 +618,7 @@ if (shareModeButtons.length) {
         shareDownloadFeedback.hidden = true;
         shareDownloadFeedback.classList.remove("is-visible");
       }
+      updateShareWebButtonsVisibility();
 
       // Refresh the appropriate preview when switching modes
       if (isStoryMode && shareStoryImage) {
