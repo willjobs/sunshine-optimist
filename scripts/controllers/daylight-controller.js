@@ -159,9 +159,32 @@ export const calculateDeltas = (metrics) => {
 };
 
 /**
+ * Format daylight duration for display, including polar states.
+ */
+const formatDaylightForDisplay = (todayDaylight, polarState) => {
+  if (polarState === "polar-day") {
+    return "24 hours";
+  }
+  if (polarState === "polar-night") {
+    return "0 hours";
+  }
+  if (todayDaylight === null) {
+    return "—";
+  }
+  return formatDuration(todayDaylight);
+};
+
+/**
  * Update the stats display UI with formatted delta values and tooltips.
  */
-export const updateStatsUI = (dom, metrics, deltas, timeZone, formatters) => {
+export const updateStatsUI = (
+  dom,
+  metrics,
+  deltas,
+  timeZone,
+  formatters,
+  polarState = "normal"
+) => {
   const {
     todayEvents,
     weekEvents,
@@ -211,7 +234,7 @@ export const updateStatsUI = (dom, metrics, deltas, timeZone, formatters) => {
 
   // Update delta values
   setText(dom.sunsetEarliestDeltaValue, sunsetEarliestText);
-  setText(dom.daylightDurationValue, todayDaylight === null ? "—" : formatDuration(todayDaylight));
+  setText(dom.daylightDurationValue, formatDaylightForDisplay(todayDaylight, polarState));
   setText(dom.daylightShortestDeltaValue, daylightShortestText);
 
   // Toggle row visibility
@@ -516,7 +539,8 @@ export const buildUpcomingMilestones = (
   metrics,
   hemisphere,
   timeZone,
-  formatTimeFromMinutes
+  formatTimeFromMinutes,
+  polarState = "normal"
 ) => {
   const { todaySunsetMinutes, yearlyExtremes } = metrics;
   const { earliestSunsetDateParts, shortestDayDateParts, longestDayDateParts } = yearlyExtremes;
@@ -543,6 +567,33 @@ export const buildUpcomingMilestones = (
     hemisphere,
     "winter"
   );
+
+  // Add polar-specific milestones
+  if (polarState === "polar-night") {
+    const firstSunrise = astronomy.findFirstSunrise(todayParts);
+    addMilestone(
+      buildMilestone({
+        id: "first-sunrise",
+        title: "First sunrise",
+        dateParts: firstSunrise?.dateParts,
+        todayHeadline: "The sun rises again today!",
+        todayLede: "Welcome back, sunshine.",
+      })
+    );
+  }
+
+  if (polarState === "polar-day") {
+    const firstSunset = astronomy.findFirstSunset(todayParts);
+    addMilestone(
+      buildMilestone({
+        id: "first-sunset",
+        title: "First sunset",
+        dateParts: firstSunset?.dateParts,
+        todayHeadline: "The first sunset in a while!",
+        todayLede: "Night is returning.",
+      })
+    );
+  }
 
   const sunsetThresholdMatches = SUNSET_THRESHOLD_MILESTONES.map((milestoneConfig) => ({
     ...milestoneConfig,
@@ -605,7 +656,7 @@ export const buildUpcomingMilestones = (
   addMilestone(
     buildMilestone({
       id: "spring-equinox",
-      title: "spring equinox",
+      title: "Spring equinox",
       dateParts: astronomy.getNextSeasonDateParts(todayParts, hemisphere, "spring"),
       todayHeadline: "It's the spring equinox today.",
       todayLede: null,
@@ -719,17 +770,21 @@ export const updateDaylightForLocation = async ({
   // 2. Calculate deltas and comparison mode
   const deltas = calculateDeltas(metrics);
 
-  // 3. Update stats display
-  updateStatsUI(dom, metrics, deltas, timeZone, formatters);
+  // 3. Determine polar state for the current day
+  const polarState = astronomy.getPolarState(todayParts);
 
-  // 4. Build milestones (needed for optimistic message fallback ledes)
+  // 4. Update stats display (with polar state for correct daylight display)
+  updateStatsUI(dom, metrics, deltas, timeZone, formatters, polarState);
+
+  // 5. Build milestones (with polar state for first sunrise/sunset milestones)
   const { todayMilestone, upcoming } = buildUpcomingMilestones(
     astronomy,
     todayParts,
     metrics,
     hemisphere,
     timeZone,
-    formatters.formatTimeFromMinutes
+    formatters.formatTimeFromMinutes,
+    polarState
   );
   const optimisticControls = {
     container: dom.optimisticMessage,
@@ -738,7 +793,14 @@ export const updateDaylightForLocation = async ({
     nextButton: dom.optimisticNext,
   };
 
-  // 5. Build and display optimistic message (async to yield during winter daylight average)
+  // 6. Calculate days until first sunrise (for polar night message)
+  let daysUntilFirstSunrise = null;
+  if (polarState === "polar-night") {
+    const firstSunrise = astronomy.findFirstSunrise(todayParts);
+    daysUntilFirstSunrise = firstSunrise?.offsetDays || null;
+  }
+
+  // 7. Build and display optimistic message (async to yield during winter daylight average)
   const { messageData, daylightGainToday } = await buildMessageData(
     astronomy,
     todayParts,
@@ -759,9 +821,11 @@ export const updateDaylightForLocation = async ({
     formatLongDateFromParts: formatters.formatLongDateFromParts,
     fallbackTimeZone,
     upcomingMilestones: upcoming,
+    polarState,
+    daysUntilFirstSunrise,
   });
 
-  // 6. Handle today's milestone (overrides optimistic message)
+  // 8. Handle today's milestone (overrides optimistic message)
   if (todayMilestone) {
     stopOptimisticRotation(dom.headline, dom.lede, optimisticControls);
     const todayCopy = getMilestoneTodayCopy(todayMilestone);
@@ -786,7 +850,7 @@ export const updateDaylightForLocation = async ({
     formatters.formatLongDateFromParts
   );
 
-  // 7. Update share snapshot
+  // 9. Update share snapshot
   const { yearlyExtremes } = metrics;
   updateShareSnapshot({
     location,

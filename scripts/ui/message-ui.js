@@ -3,6 +3,7 @@
  */
 
 import { setText } from "../utils/dom-utils.js";
+import { formatDaysValue } from "../formatters/formatters.js";
 import {
   getOptimisticOptions,
   setOptimisticOptions,
@@ -56,6 +57,18 @@ export const OPTIMISTIC_POLAR_COPY = {
   headline: "Sunlight looks different here.",
   lede: "No sunrise or sunset today.",
 };
+
+export const OPTIMISTIC_POLAR_DAY_COPY = {
+  headline: "Enjoy the 24 hours of daylight.",
+  lede: "Remember to wear sunscreen!",
+};
+
+export const createPolarNightCopy = (daysUntilSunrise) => ({
+  headline: Number.isFinite(daysUntilSunrise)
+    ? `Sunlight will return in ${formatDaysValue(daysUntilSunrise)}.`
+    : "The sun will return soon.",
+  lede: "This isn't forever.",
+});
 
 export const OPTIMISTIC_FALLBACK_COPY = {
   headline: "Enjoy the daylight today.",

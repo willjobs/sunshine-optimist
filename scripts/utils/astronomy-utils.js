@@ -88,6 +88,9 @@ export const createAstronomyContext = (location, timeZone) => {
       findFirstSunsetAfter: () => null,
       findFirstDaylightAtLeast: () => null,
       findFirstDaylightGain: () => null,
+      getPolarState: () => "normal",
+      findFirstSunrise: () => null,
+      findFirstSunset: () => null,
     };
   }
 
@@ -640,6 +643,63 @@ export const createAstronomyContext = (location, timeZone) => {
     return null;
   };
 
+  /**
+   * Get the polar state for a given date.
+   * Returns "polar-day" if sun is up all day (midnight sun),
+   * "polar-night" if sun is down all day,
+   * or "normal" if there's a regular sunrise/sunset cycle.
+   */
+  const getPolarState = (dateParts) => {
+    const events = getSunEvents(dateParts);
+    if (events.sunrise || events.sunset) {
+      return "normal";
+    }
+    // No sunrise and no sunset - check sun altitude at noon
+    const noonUtc = zonedTimeToUtc(
+      dateParts.year,
+      dateParts.month,
+      dateParts.day,
+      12,
+      0,
+      0,
+      timeZone
+    );
+    const noonAstro = Astronomy.MakeTime(noonUtc);
+    const equator = Astronomy.Equator("Sun", noonAstro, observer, true, false);
+    const horizon = Astronomy.Horizon(noonAstro, observer, equator.ra, equator.dec, "normal");
+    return horizon.altitude > 0 ? "polar-day" : "polar-night";
+  };
+
+  /**
+   * Find the first day with a sunrise, searching forward from startParts.
+   * Used during polar night to find when sunlight returns.
+   */
+  const findFirstSunrise = (startParts, limitDays = 200) => {
+    for (let offset = 1; offset <= limitDays; offset += 1) {
+      const dateParts = addDaysToDateParts(startParts, offset);
+      const events = getSunEvents(dateParts);
+      if (events.sunrise) {
+        return { dateParts, offsetDays: offset };
+      }
+    }
+    return null;
+  };
+
+  /**
+   * Find the first day with a sunset, searching forward from startParts.
+   * Used during polar day (midnight sun) to find when sunset returns.
+   */
+  const findFirstSunset = (startParts, limitDays = 200) => {
+    for (let offset = 1; offset <= limitDays; offset += 1) {
+      const dateParts = addDaysToDateParts(startParts, offset);
+      const events = getSunEvents(dateParts);
+      if (events.sunset) {
+        return { dateParts, offsetDays: offset };
+      }
+    }
+    return null;
+  };
+
   return {
     getSunEvents,
     getSunsetMinutesForDateParts,
@@ -660,5 +720,8 @@ export const createAstronomyContext = (location, timeZone) => {
     findFirstSunsetAfter,
     findFirstDaylightAtLeast,
     findFirstDaylightGain,
+    getPolarState,
+    findFirstSunrise,
+    findFirstSunset,
   };
 };

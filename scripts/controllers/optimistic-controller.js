@@ -13,6 +13,8 @@ import {
 import {
   startOptimisticRotation,
   OPTIMISTIC_POLAR_COPY,
+  OPTIMISTIC_POLAR_DAY_COPY,
+  createPolarNightCopy,
   OPTIMISTIC_FALLBACK_COPY,
 } from "../ui/message-ui.js";
 import { buildOptimisticLogLine } from "../formatters/formatters.js";
@@ -61,6 +63,8 @@ export const logOptimisticMessages = (
  * @param {Function} params.formatLongDateFromParts - Function to format date parts
  * @param {string} params.fallbackTimeZone - Fallback timezone
  * @param {Array} params.upcomingMilestones - Array of upcoming milestones for fallback ledes
+ * @param {string} params.polarState - "normal", "polar-day", or "polar-night"
+ * @param {number|null} params.daysUntilFirstSunrise - Days until first sunrise (polar night)
  */
 export const updateOptimisticMessage = ({
   data,
@@ -73,6 +77,8 @@ export const updateOptimisticMessage = ({
   formatLongDateFromParts,
   fallbackTimeZone,
   upcomingMilestones = [],
+  polarState = "normal",
+  daysUntilFirstSunrise = null,
 }) => {
   updateDebugState({ data, month, hemisphere });
 
@@ -80,6 +86,32 @@ export const updateOptimisticMessage = ({
     logOptimisticMessages(getActiveDateParts, formatLongDateFromParts, fallbackTimeZone);
   };
 
+  // Handle polar day (24-hour sunlight)
+  if (polarState === "polar-day") {
+    updateDebugState({
+      validOptions: [],
+      displayedOptions: [OPTIMISTIC_POLAR_DAY_COPY],
+      reason: "polar-day",
+    });
+    startOptimisticRotation(headline, lede, [OPTIMISTIC_POLAR_DAY_COPY], controls);
+    logMessages();
+    return;
+  }
+
+  // Handle polar night (no sunlight)
+  if (polarState === "polar-night") {
+    const polarNightCopy = createPolarNightCopy(daysUntilFirstSunrise);
+    updateDebugState({
+      validOptions: [],
+      displayedOptions: [polarNightCopy],
+      reason: "polar-night",
+    });
+    startOptimisticRotation(headline, lede, [polarNightCopy], controls);
+    logMessages();
+    return;
+  }
+
+  // Handle transition days or other polar edge cases
   if (
     data.sunset_today === null ||
     Number.isNaN(data.sunset_today) ||
