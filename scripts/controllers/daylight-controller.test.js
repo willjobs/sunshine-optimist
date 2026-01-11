@@ -82,8 +82,7 @@ const buildAstronomyStub = ({ sunriseDateParts = null, sunsetDateParts = null } 
   findNextSunsetThreshold: () => null,
   findFirstSunrise: () =>
     sunriseDateParts ? { dateParts: sunriseDateParts, offsetDays: 10 } : null,
-  findFirstSunset: () =>
-    sunsetDateParts ? { dateParts: sunsetDateParts, offsetDays: 10 } : null,
+  findFirstSunset: () => (sunsetDateParts ? { dateParts: sunsetDateParts, offsetDays: 10 } : null),
 });
 
 describe("daylight-controller", () => {
