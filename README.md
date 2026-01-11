@@ -1,8 +1,14 @@
 # Sunshine Optimist
 
-A single-page web app that turns sunrise and sunset calculations into upbeat, seasonal insights about daylight for any city.
+This is a static site that provides optimistic takes on the amount of daylight and time of sunset at any time of year, for any place on Earth. All daylight calculations happen in the browser (thanks to [Astronomy Engine](https://github.com/cosinekitty/astronomy)). The goal is to combat the dread or sadness many people feel as the days get shorter and throughout the winter months. A lot of thought was put into how to provide an optimistic framing *throughout* the year, not just the winter.
 
-The goal is to combat the dread or sadness people feel as days get shorter, or during winter months when days are getting longer but still feel short.
+## Background
+
+Like many others, I dreaded the short winter days. Not only that, it always felt like we lost daylight too quickly in the fall, and gained it back way too slowly in the spring. Altogether, that was like half a year of being unhappy with the daylight situation! To deal with these feelings, I became obsessed with staring at tables of sunset times and day lengths to try to find little optimistic "milestones": the first day with a sunset after 5pm, the first day with over an hour more sunlight than the winter solstice, etc
+
+I did that for myself for a while, mentioning it in conversation whenever the topic of short days came up. Eventually, I thought it might be fun to share these insights in occasional posts on social media. I was surprised when **lots** of people sent me messages saying how it helped them survive the winter.
+
+After doing that for a couple years, it occurred to me that I could help a lot more people by making a site where people could get these optimistic messages whenever they need them and no matter where they live. And here we are :)
 
 ## Features
 

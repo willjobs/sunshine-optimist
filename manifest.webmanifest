@@ -1,7 +1,7 @@
 {
   "name": "Sunshine Optimist",
   "short_name": "Sunshine",
-  "description": "Upbeat, seasonal insights about daylight for any city based on sunrise and sunset calculations.",
+  "description": "Optimistic daylight insights for any city, any time of year. Combat the dread of short days with meaningful solar milestones.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#fffbf0",
