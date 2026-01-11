@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   loadRecentLocations,
   saveRecentLocations,
@@ -21,8 +21,10 @@ describe("storage-service", () => {
   });
 
   it("returns empty list for invalid recent locations JSON", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     window.localStorage.setItem("sunshine-optimist:recent-locations", "{bad json}");
     expect(loadRecentLocations()).toEqual([]);
+    vi.restoreAllMocks();
   });
 
   it("saves and loads stored location safely", () => {
@@ -41,8 +43,10 @@ describe("storage-service", () => {
   });
 
   it("handles invalid stored location data", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     window.localStorage.setItem("sunshine-optimist:active-location", '"not object"');
     expect(loadStoredLocation()).toBe(null);
+    vi.restoreAllMocks();
   });
 
   it("persists share privacy preference", () => {

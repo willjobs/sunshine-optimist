@@ -138,11 +138,17 @@ export const createAstronomyContext = (location, timeZone) => {
       // Normal case: search for sunset AFTER sunrise
       sunset = Astronomy.SearchRiseSet("Sun", observer, -1, sunrise.date, 1);
 
-      // Validate sunset is within this calendar day
+      // Validate sunset is within this calendar day or the next day
+      // (sunset can be after midnight in polar regions during transition)
       if (sunset) {
         const sunsetParts = getLocalDateParts(sunset.date, timeZone);
-        if (compareDateParts(sunsetParts, dateParts) !== 0) {
-          sunset = null; // Sunset is tomorrow - polar day transition
+        const tomorrow = addDaysToDateParts(dateParts, 1);
+        // Accept sunset if it's today or tomorrow, reject if further out
+        if (
+          compareDateParts(sunsetParts, dateParts) !== 0 &&
+          compareDateParts(sunsetParts, tomorrow) !== 0
+        ) {
+          sunset = null;
         }
       }
     } else {
