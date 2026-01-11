@@ -568,9 +568,17 @@ export const buildUpcomingMilestones = (
     "winter"
   );
 
-  // Add polar-specific milestones
-  if (polarState === "polar-night") {
-    const firstSunrise = astronomy.findFirstSunrise(todayParts);
+  // Add polar-specific milestones (and include the return day even after polar state flips)
+  const yesterdayParts = addDaysToDateParts(todayParts, -1);
+  const todayEvents = astronomy.getSunEvents(todayParts);
+  const yesterdayEvents = astronomy.getSunEvents(yesterdayParts);
+  const isFirstSunriseToday = Boolean(todayEvents.sunrise) && !yesterdayEvents.sunrise;
+  const isFirstSunsetToday = Boolean(todayEvents.sunset) && !yesterdayEvents.sunset;
+
+  if (polarState === "polar-night" || isFirstSunriseToday) {
+    const firstSunrise = isFirstSunriseToday
+      ? { dateParts: todayParts }
+      : astronomy.findFirstSunrise(todayParts);
     addMilestone(
       buildMilestone({
         id: "first-sunrise",
@@ -582,8 +590,10 @@ export const buildUpcomingMilestones = (
     );
   }
 
-  if (polarState === "polar-day") {
-    const firstSunset = astronomy.findFirstSunset(todayParts);
+  if (polarState === "polar-day" || isFirstSunsetToday) {
+    const firstSunset = isFirstSunsetToday
+      ? { dateParts: todayParts }
+      : astronomy.findFirstSunset(todayParts);
     addMilestone(
       buildMilestone({
         id: "first-sunset",

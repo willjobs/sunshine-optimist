@@ -1,5 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { beforeAll, describe, it, expect } from "vitest";
 import { createAstronomyContext } from "./astronomy-utils.js";
+
+beforeAll(async () => {
+  if (globalThis.Astronomy) {
+    return;
+  }
+  const module = await import("../../astronomy-engine/astronomy.browser.js");
+  if (!globalThis.Astronomy && module?.default) {
+    globalThis.Astronomy = module.default;
+  }
+});
 
 describe("astronomy-utils", () => {
   it("returns fallback values when Astronomy is unavailable", async () => {
@@ -45,10 +55,10 @@ describe("polar region daylight calculations", () => {
     const context = createAstronomyContext(barrow, timeZone);
     const extremes = await context.getYearlySunExtremesAsync(2026, null);
 
-    // Shortest day should be in November or December, not August
+    // Shortest day should land in deep winter (not August)
     // The bug incorrectly picked August 14
     if (extremes.shortestDayDateParts) {
-      expect(extremes.shortestDayDateParts.month).toBeGreaterThanOrEqual(11);
+      expect([11, 12, 1, 2]).toContain(extremes.shortestDayDateParts.month);
     }
   });
 
@@ -94,5 +104,47 @@ describe("polar region daylight calculations", () => {
     // August 15 should have long daylight (reported as 18h 44m = 1124 mins)
     // or null if it's a transition day
     expect(daylight === null || daylight > 600).toBe(true);
+  });
+
+  it("finds sunset threshold milestones after polar night", () => {
+    const context = createAstronomyContext(barrow, timeZone);
+    const winterSolstice = context.getPreviousSeasonDateParts(
+      { year: 2026, month: 1, day: 30 },
+      "north",
+      "winter"
+    );
+    const match = context.findFirstSunsetAfter(winterSolstice, 16 * 60);
+    expect(match).not.toBe(null);
+    const sunsetMinutes = context.getSunsetMinutesForDateParts(match?.dateParts);
+    expect(sunsetMinutes).not.toBe(null);
+    expect(sunsetMinutes).toBeGreaterThanOrEqual(16 * 60);
+  });
+
+  it("finds daylight duration milestones after polar night", () => {
+    const context = createAstronomyContext(barrow, timeZone);
+    const winterSolstice = context.getPreviousSeasonDateParts(
+      { year: 2026, month: 1, day: 30 },
+      "north",
+      "winter"
+    );
+    const match = context.findFirstDaylightAtLeast(winterSolstice, 10 * 60);
+    expect(match).not.toBe(null);
+    const daylight = context.getDaylightMinutesForDateParts(match?.dateParts);
+    expect(daylight).not.toBe(null);
+    expect(daylight).toBeGreaterThanOrEqual(10 * 60);
+  });
+
+  it("finds daylight gain milestones after polar night", () => {
+    const context = createAstronomyContext(barrow, timeZone);
+    const winterSolstice = context.getPreviousSeasonDateParts(
+      { year: 2026, month: 1, day: 30 },
+      "north",
+      "winter"
+    );
+    const match = context.findFirstDaylightGain(winterSolstice, 30);
+    expect(match).not.toBe(null);
+    const daylight = context.getDaylightMinutesForDateParts(match?.dateParts);
+    expect(daylight).not.toBe(null);
+    expect(daylight).toBeGreaterThanOrEqual(30);
   });
 });

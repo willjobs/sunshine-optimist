@@ -14,8 +14,6 @@ const buildStatsDom = () => {
     daylightShortestRow: makeRow(),
     sunsetComparisonRow: makeRow(),
     daylightComparisonRow: makeRow(),
-    sunsetComparisonReference: makeValue(),
-    daylightComparisonReference: makeValue(),
     sunsetComparisonDeltaValue: makeValue(),
     daylightComparisonDeltaValue: makeValue(),
     sunsetEarliestReference: makeValue(),
@@ -58,8 +56,18 @@ const stubFormatters = {
   formatShortDateFromParts: () => "Jan 1",
 };
 
+const isSameDateParts = (left, right) =>
+  Boolean(left && right) &&
+  left.year === right.year &&
+  left.month === right.month &&
+  left.day === right.day;
+
 const buildAstronomyStub = ({ sunriseDateParts = null, sunsetDateParts = null } = {}) => ({
   getPreviousSeasonDateParts: () => ({ year: 2026, month: 12, day: 1 }),
+  getSunEvents: (parts) => ({
+    sunrise: isSameDateParts(parts, sunriseDateParts) ? { date: new Date(0) } : null,
+    sunset: isSameDateParts(parts, sunsetDateParts) ? { date: new Date(0) } : null,
+  }),
   findFirstSunsetAfter: () => null,
   getNextSeasonDateParts: () => null,
   findNextDaylightSavingsStart: () => null,
@@ -217,5 +225,53 @@ describe("daylight-controller", () => {
     );
     expect(upcoming).toHaveLength(1);
     expect(upcoming[0].id).toBe("first-sunset");
+  });
+
+  it("prefers the first sunrise milestone when multiple milestones share the day", () => {
+    const todayParts = { year: 2026, month: 1, day: 15 };
+    const astronomy = buildAstronomyStub({ sunriseDateParts: todayParts });
+    const metrics = {
+      todaySunsetMinutes: null,
+      yearlyExtremes: {
+        earliestSunsetDateParts: null,
+        shortestDayDateParts: todayParts,
+        longestDayDateParts: null,
+      },
+    };
+    const { todayMilestone, upcoming } = buildUpcomingMilestones(
+      astronomy,
+      todayParts,
+      metrics,
+      "north",
+      "UTC",
+      () => "",
+      "normal"
+    );
+    expect(todayMilestone?.id).toBe("first-sunrise");
+    expect(upcoming).toHaveLength(0);
+  });
+
+  it("includes the first sunset milestone on the return day", () => {
+    const todayParts = { year: 2026, month: 7, day: 20 };
+    const astronomy = buildAstronomyStub({ sunsetDateParts: todayParts });
+    const metrics = {
+      todaySunsetMinutes: null,
+      yearlyExtremes: {
+        earliestSunsetDateParts: null,
+        shortestDayDateParts: null,
+        longestDayDateParts: null,
+      },
+    };
+    const { todayMilestone, upcoming } = buildUpcomingMilestones(
+      astronomy,
+      todayParts,
+      metrics,
+      "north",
+      "UTC",
+      () => "",
+      "normal"
+    );
+    expect(todayMilestone?.id).toBe("first-sunset");
+    expect(upcoming).toHaveLength(0);
   });
 });
