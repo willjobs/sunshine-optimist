@@ -107,7 +107,8 @@ export const createAstronomyContext = (location, timeZone) => {
     if (cache.sunEvents.has(key)) {
       return cache.sunEvents.get(key);
     }
-    const startUtc = zonedTimeToUtc(
+
+    const midnightUtc = zonedTimeToUtc(
       dateParts.year,
       dateParts.month,
       dateParts.day,
@@ -116,10 +117,50 @@ export const createAstronomyContext = (location, timeZone) => {
       0,
       timeZone
     );
-    const events = {
-      sunrise: Astronomy.SearchRiseSet("Sun", observer, +1, startUtc, 1),
-      sunset: Astronomy.SearchRiseSet("Sun", observer, -1, startUtc, 1),
-    };
+
+    // Search for first sunrise within the calendar day
+    let sunrise = Astronomy.SearchRiseSet("Sun", observer, +1, midnightUtc, 1);
+
+    // Validate sunrise is within this calendar day
+    if (sunrise) {
+      const sunriseParts = getLocalDateParts(sunrise.date, timeZone);
+      if (compareDateParts(sunriseParts, dateParts) !== 0) {
+        sunrise = null;
+      }
+    }
+
+    let sunset = null;
+
+    if (sunrise) {
+      // Normal case: search for sunset AFTER sunrise
+      sunset = Astronomy.SearchRiseSet("Sun", observer, -1, sunrise.date, 1);
+
+      // Validate sunset is within this calendar day
+      if (sunset) {
+        const sunsetParts = getLocalDateParts(sunset.date, timeZone);
+        if (compareDateParts(sunsetParts, dateParts) !== 0) {
+          sunset = null; // Sunset is tomorrow - polar day transition
+        }
+      }
+    } else {
+      // No sunrise found - could be:
+      // 1. Polar night (sun never rises)
+      // 2. Exiting polar day (sun was up at midnight, sets during day)
+
+      // Try finding a sunset within the day
+      sunset = Astronomy.SearchRiseSet("Sun", observer, -1, midnightUtc, 1);
+      if (sunset) {
+        const sunsetParts = getLocalDateParts(sunset.date, timeZone);
+        if (compareDateParts(sunsetParts, dateParts) !== 0) {
+          sunset = null;
+        }
+      }
+
+      // If we have sunset but no sunrise, sun was up at midnight (polar day exit)
+      // For simplicity, treat as incomplete day with null daylight
+    }
+
+    const events = { sunrise, sunset };
     cache.sunEvents.set(key, events);
     return events;
   };
