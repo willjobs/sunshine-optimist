@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { startOptimisticRotation, stopOptimisticRotation } from "./message-ui.js";
+import {
+  createPolarNightCopy,
+  OPTIMISTIC_POLAR_DAY_COPY,
+  startOptimisticRotation,
+  stopOptimisticRotation,
+} from "./message-ui.js";
 import {
   getOptimisticOptions,
   getOptimisticIndex,
@@ -92,5 +97,26 @@ describe("message-ui", () => {
     stopOptimisticRotation(headline, lede);
     expect(getOptimisticOptions()).toHaveLength(0);
     expect(getOptimisticIndex()).toBe(0);
+  });
+
+  it("provides polar day messaging", () => {
+    expect(OPTIMISTIC_POLAR_DAY_COPY).toEqual({
+      headline: "Enjoy the 24 hours of daylight.",
+      lede: "Remember to wear sunscreen!",
+    });
+  });
+
+  it("builds polar night messaging with a countdown", () => {
+    expect(createPolarNightCopy(3)).toEqual({
+      headline: "Sunlight will return in 3 days.",
+      lede: "This isn't forever.",
+    });
+  });
+
+  it("builds polar night messaging without a countdown", () => {
+    expect(createPolarNightCopy(null)).toEqual({
+      headline: "The sun will return soon.",
+      lede: "This isn't forever.",
+    });
   });
 });
