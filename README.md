@@ -1,6 +1,6 @@
 # Sunshine Optimist
 
-This is a static site that provides optimistic takes on the amount of daylight and time of sunset at any time of year, for any place on Earth. All daylight calculations happen in the browser (thanks to [Astronomy Engine](https://github.com/cosinekitty/astronomy)). The goal is to combat the dread or sadness many people feel as the days get shorter and throughout the winter months. A lot of thought was put into how to provide an optimistic framing *throughout* the year, not just the winter.
+This is a static site that provides optimistic takes on the amount of daylight and time of sunset at any time of year, for any place on Earth. All daylight calculations happen in the browser (thanks to [Astronomy Engine](https://github.com/cosinekitty/astronomy)). The goal is to combat the dread or sadness many people feel as the days get shorter and throughout the winter months. A lot of thought was put into how to provide an optimistic framing _throughout_ the year, not just the winter.
 
 ## Background
 

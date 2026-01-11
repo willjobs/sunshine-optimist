@@ -652,6 +652,46 @@ if (shareDownloadButton) {
 }
 
 // ============================================================================
+// About Modal Setup
+// ============================================================================
+
+const aboutButton = document.getElementById("about-button");
+const aboutModal = document.getElementById("about-modal");
+const aboutModalClose = document.getElementById("about-modal-close");
+
+const openAboutModal = () => {
+  if (aboutModal) {
+    aboutModal.showModal();
+  }
+};
+
+const closeAboutModal = () => {
+  if (aboutModal) {
+    aboutModal.close();
+  }
+};
+
+if (aboutButton) {
+  aboutButton.addEventListener("click", openAboutModal);
+}
+
+if (aboutModalClose) {
+  aboutModalClose.addEventListener("click", closeAboutModal);
+}
+
+if (aboutModal) {
+  aboutModal.addEventListener("click", (event) => {
+    if (event.target === aboutModal) {
+      closeAboutModal();
+    }
+  });
+  aboutModal.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeAboutModal();
+  });
+}
+
+// ============================================================================
 // Debug API
 // ============================================================================
 

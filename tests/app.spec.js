@@ -19,7 +19,7 @@ test("app loads with baseline content and stats", async ({ page }) => {
   await page.goto("/");
 
   await expect(page).toHaveTitle("Sunshine Optimist");
-  await expect(page.getByText("Sunshine Optimist")).toBeVisible();
+  await expect(page.getByText("Sunshine Optimist", { exact: true })).toBeVisible();
 
   const cityInput = page.getByRole("combobox", { name: "City" });
   await expect(cityInput).toBeVisible();

@@ -88,6 +88,12 @@ body {
   gap: 12px;
 }
 
+.date-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .date-picker {
   display: inline-flex;
   align-items: center;
@@ -1394,5 +1400,226 @@ h1 {
   .milestone-date {
     flex-direction: column;
     gap: 2px;
+  }
+}
+
+/* About Button */
+.about-button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  transition:
+    transform 160ms ease,
+    filter 160ms ease;
+  filter: drop-shadow(0 2px 4px rgba(180, 100, 20, 0.4))
+    drop-shadow(0 4px 8px rgba(251, 191, 36, 0.3));
+}
+
+.about-button:hover {
+  transform: scale(1.08) translateY(-1px);
+  filter: drop-shadow(0 3px 6px rgba(180, 100, 20, 0.45))
+    drop-shadow(0 6px 12px rgba(251, 191, 36, 0.35));
+}
+
+.about-button:active {
+  transform: scale(0.96);
+}
+
+.about-button:focus-visible {
+  outline: 2px solid #d9b079;
+  outline-offset: 3px;
+}
+
+.about-button svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* About Modal */
+.about-modal {
+  border: none;
+  padding: 0;
+  background: transparent;
+  width: min(480px, calc(100% - 32px));
+  max-height: calc(100vh - 32px);
+}
+
+.about-modal::backdrop {
+  background: rgba(50, 34, 20, 0.45);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.about-modal[open]::backdrop {
+  opacity: 1;
+}
+
+.about-modal-content {
+  background: var(--card);
+  border-radius: 24px;
+  padding: 24px 26px 28px;
+  border: 1px solid var(--divider);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  animation: about-modal-appear 280ms cubic-bezier(0.22, 0.68, 0.36, 1);
+}
+
+@keyframes about-modal-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-modal-content {
+    animation: none;
+  }
+}
+
+.about-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.about-modal-header h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 22px;
+  color: #9a5200;
+}
+
+.about-modal-close {
+  border: none;
+  background: rgba(240, 222, 200, 0.8);
+  color: #5a3a12;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease;
+  box-shadow: 0 6px 12px rgba(128, 71, 14, 0.16);
+}
+
+.about-modal-close:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 16px rgba(128, 71, 14, 0.2);
+}
+
+.about-modal-close:focus-visible {
+  outline: 2px solid #d9b079;
+  outline-offset: 2px;
+}
+
+.about-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.about-modal-body p {
+  margin: 0;
+}
+
+.about-modal-body ul {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.about-modal-body li {
+  color: #4a403a;
+}
+
+.about-modal-body li::marker {
+  color: #d8861c;
+}
+
+.about-feedback {
+  margin-top: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 232, 199, 0.5);
+  border: 1px solid rgba(216, 134, 28, 0.2);
+}
+
+.about-feedback-label {
+  font-weight: 700;
+  color: #9a5200;
+  margin-bottom: 6px !important;
+}
+
+.about-feedback a {
+  color: var(--accent-strong);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(169, 88, 0, 0.4);
+  text-underline-offset: 2px;
+  transition:
+    color 120ms ease,
+    text-decoration-color 120ms ease;
+}
+
+.about-feedback a:hover {
+  color: #c46e13;
+  text-decoration-color: rgba(196, 110, 19, 0.6);
+}
+
+.about-feedback a:focus-visible {
+  outline: 2px solid #d9b079;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (max-width: 640px) {
+  .about-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .about-modal {
+    width: calc(100% - 24px);
+  }
+
+  .about-modal-content {
+    padding: 20px 18px 24px;
+    gap: 14px;
+  }
+
+  .about-modal-header h2 {
+    font-size: 20px;
+  }
+
+  .about-modal-body {
+    font-size: 14px;
+    gap: 12px;
+  }
+
+  .about-feedback {
+    padding: 12px 14px;
   }
 }
