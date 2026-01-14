@@ -475,15 +475,16 @@ const updateShareWebButtonsVisibility = () => {
 updateShareWebButtonsVisibility();
 window.addEventListener("resize", updateShareWebButtonsVisibility);
 
-// Reset share modal UI to default text mode
+// Reset share modal UI to default image mode
 const resetShareModalUI = () => {
+  setShareMode("story");
   shareModeButtons.forEach((btn) => {
-    btn.classList.toggle("is-active", btn.dataset.shareMode === "text");
+    btn.classList.toggle("is-active", btn.dataset.shareMode === "story");
   });
-  if (shareTextPreview) shareTextPreview.hidden = false;
-  if (shareStoryPreview) shareStoryPreview.hidden = true;
-  if (shareCopyButton) shareCopyButton.hidden = false;
-  if (shareDownloadWrapper) shareDownloadWrapper.hidden = true;
+  if (shareTextPreview) shareTextPreview.hidden = true;
+  if (shareStoryPreview) shareStoryPreview.hidden = false;
+  if (shareCopyButton) shareCopyButton.hidden = true;
+  if (shareDownloadWrapper) shareDownloadWrapper.hidden = false;
   if (shareCopyFeedback) {
     shareCopyFeedback.hidden = true;
     shareCopyFeedback.classList.remove("is-visible");
@@ -565,7 +566,7 @@ if (shareActionButtons.length) {
 }
 
 if (shareButton) {
-  shareButton.addEventListener("click", () => {
+  shareButton.addEventListener("click", async () => {
     openShareModal(
       shareModal,
       sharePreview,
@@ -575,6 +576,9 @@ if (shareButton) {
       languageCode,
       FALLBACK_TIMEZONE
     );
+    if (getShareMode() === "story" && shareStoryImage) {
+      await refreshStoryPreview(shareStoryImage, headline, lede, languageCode, FALLBACK_TIMEZONE);
+    }
   });
 }
 

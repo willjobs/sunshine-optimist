@@ -66,11 +66,6 @@ describe("share-modal-ui", () => {
   });
 
   it("manages share mode state", () => {
-    // Default mode is "text"
-    setShareMode("text");
-    expect(getShareMode()).toBe("text");
-
-    // Switch to story mode
     setShareMode("story");
     expect(getShareMode()).toBe("story");
 
@@ -78,14 +73,18 @@ describe("share-modal-ui", () => {
     setShareMode("text");
     expect(getShareMode()).toBe("text");
 
-    // Invalid mode defaults to text
+    // Switch back to story mode
+    setShareMode("story");
+    expect(getShareMode()).toBe("story");
+
+    // Invalid mode defaults to story
     setShareMode("invalid");
-    expect(getShareMode()).toBe("text");
+    expect(getShareMode()).toBe("story");
 
     setShareMode(null);
-    expect(getShareMode()).toBe("text");
+    expect(getShareMode()).toBe("story");
 
     setShareMode(undefined);
-    expect(getShareMode()).toBe("text");
+    expect(getShareMode()).toBe("story");
   });
 });

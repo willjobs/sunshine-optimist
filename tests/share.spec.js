@@ -65,14 +65,17 @@ test.afterEach(async ({ page }) => {
   }
 });
 
-test("share modal opens, previews text, and closes", async ({ page }) => {
+test("share modal opens to image preview and closes", async ({ page }) => {
   await page.goto("/");
 
   await openShareModalAndWait(page);
 
   const modal = page.locator("#share-modal");
   await expect(modal).toBeVisible();
-  await expect(page.locator("#share-preview")).toHaveText(/SunshineOptimist\.com/);
+  await expect(page.locator("#share-story-preview")).toBeVisible();
+  await expect(page.locator("#share-text-preview")).toBeHidden();
+  await expect(page.locator("#share-download-button")).toBeVisible();
+  await expect(page.locator("[data-share-mode='story']")).toHaveClass(/is-active/);
 
   await page.getByRole("button", { name: "Close share dialog" }).click();
   await expect(modal).not.toBeVisible();
@@ -81,6 +84,9 @@ test("share modal opens, previews text, and closes", async ({ page }) => {
 test("privacy toggle updates share preview and persists", async ({ page }) => {
   await page.goto("/");
   await openShareModalAndWait(page);
+
+  await page.locator("[data-share-mode='text']").click();
+  await expect(page.locator("#share-text-preview")).toBeVisible();
 
   const privacyToggle = page.locator("#share-privacy-toggle");
   await privacyToggle.check();
@@ -97,7 +103,9 @@ test("copy button writes to clipboard and flashes feedback", async ({ page }) =>
   await page.goto("/");
   await openShareModalAndWait(page);
 
+  await page.locator("[data-share-mode='text']").click();
   const copyButton = page.getByRole("button", { name: "Copy to clipboard" });
+  await expect(copyButton).toBeVisible();
   await copyButton.click();
 
   await page.waitForFunction(() => (window.__clipboardText || "").length > 0);
@@ -109,10 +117,12 @@ test("copy feedback appears visible and positioned correctly", async ({ page }) 
   await page.goto("/");
   await openShareModalAndWait(page);
 
+  await page.locator("[data-share-mode='text']").click();
   const copyButton = page.getByRole("button", { name: "Copy to clipboard" });
   const feedback = page.locator("#share-copy-feedback");
 
   // Feedback should be hidden initially
+  await expect(copyButton).toBeVisible();
   await expect(feedback).toBeHidden();
 
   // Click copy button
@@ -153,14 +163,23 @@ test("mode toggle switches between text and image views", async ({ page }) => {
   const textModeButton = page.locator("[data-share-mode='text']");
   const imageModeButton = page.locator("[data-share-mode='story']");
 
-  // Initially in text mode
+  // Initially in image mode
+  await expect(textPreview).toBeHidden();
+  await expect(storyPreview).toBeVisible();
+  await expect(copyButton).toBeHidden();
+  await expect(downloadButton).toBeVisible();
+  await expect(imageModeButton).toHaveClass(/is-active/);
+
+  // Switch to text mode
+  await textModeButton.click();
+
   await expect(textPreview).toBeVisible();
   await expect(storyPreview).toBeHidden();
   await expect(copyButton).toBeVisible();
   await expect(downloadButton).toBeHidden();
   await expect(textModeButton).toHaveClass(/is-active/);
 
-  // Switch to image mode
+  // Switch back to image mode
   await imageModeButton.click();
 
   // Wait for image to be rendered
@@ -174,22 +193,11 @@ test("mode toggle switches between text and image views", async ({ page }) => {
   await expect(copyButton).toBeHidden();
   await expect(downloadButton).toBeVisible();
   await expect(imageModeButton).toHaveClass(/is-active/);
-
-  // Switch back to text mode
-  await textModeButton.click();
-
-  await expect(textPreview).toBeVisible();
-  await expect(storyPreview).toBeHidden();
-  await expect(copyButton).toBeVisible();
-  await expect(downloadButton).toBeHidden();
 });
 
 test("story image renders with correct dimensions", async ({ page }) => {
   await page.goto("/");
   await openShareModalAndWait(page);
-
-  // Switch to image mode
-  await page.locator("[data-share-mode='story']").click();
 
   // Wait for image to be rendered
   await page.waitForFunction(() => {
@@ -212,9 +220,6 @@ test("story image renders with correct dimensions", async ({ page }) => {
 test("download feedback appears visible and positioned correctly", async ({ page }) => {
   await page.goto("/");
   await openShareModalAndWait(page);
-
-  // Switch to image mode
-  await page.locator("[data-share-mode='story']").click();
 
   // Wait for image to be rendered
   await page.waitForFunction(() => {
@@ -259,9 +264,6 @@ test("privacy toggle updates story image preview", async ({ page }) => {
   await page.goto("/");
   await openShareModalAndWait(page);
 
-  // Switch to image mode
-  await page.locator("[data-share-mode='story']").click();
-
   // Wait for initial image render
   await page.waitForFunction(() => {
     const img = document.querySelector("#share-story-image");
@@ -296,16 +298,13 @@ test("privacy toggle updates story image preview", async ({ page }) => {
   expect(newData).not.toBe(initialData);
 });
 
-test("modal resets to text mode when closed and reopened", async ({ page }) => {
+test("modal resets to image mode when closed and reopened", async ({ page }) => {
   await page.goto("/");
   await openShareModalAndWait(page);
 
-  // Switch to image mode
-  await page.locator("[data-share-mode='story']").click();
-  await page.waitForFunction(() => {
-    const img = document.querySelector("#share-story-image");
-    return img && img.src && img.src.startsWith("data:image/png");
-  });
+  // Switch to text mode
+  await page.locator("[data-share-mode='text']").click();
+  await expect(page.locator("#share-text-preview")).toBeVisible();
 
   // Close modal
   await page.getByRole("button", { name: "Close share dialog" }).click();
@@ -314,12 +313,12 @@ test("modal resets to text mode when closed and reopened", async ({ page }) => {
   // Reopen modal
   await openShareModalAndWait(page);
 
-  // Should be back in text mode
+  // Should be back in image mode
   const textPreview = page.locator("#share-text-preview");
   const storyPreview = page.locator("#share-story-preview");
-  const textModeButton = page.locator("[data-share-mode='text']");
+  const imageModeButton = page.locator("[data-share-mode='story']");
 
-  await expect(textPreview).toBeVisible();
-  await expect(storyPreview).toBeHidden();
-  await expect(textModeButton).toHaveClass(/is-active/);
+  await expect(textPreview).toBeHidden();
+  await expect(storyPreview).toBeVisible();
+  await expect(imageModeButton).toHaveClass(/is-active/);
 });

@@ -82,7 +82,7 @@ export const getLastGeneratedCanvas = () => lastGeneratedCanvas;
 /**
  * Share mode state - "text" or "story"
  */
-let shareMode = "text";
+let shareMode = "story";
 
 /**
  * Get current share mode
@@ -93,7 +93,7 @@ export const getShareMode = () => shareMode;
  * Set share mode
  */
 export const setShareMode = (mode) => {
-  shareMode = mode === "story" ? "story" : "text";
+  shareMode = mode === "text" ? "text" : "story";
 };
 
 /**
@@ -360,7 +360,7 @@ export const closeShareModal = (shareModal) => {
     return;
   }
   setModalSnapshot(null);
-  shareMode = "text";
+  shareMode = "story";
   if (typeof shareModal.close === "function") {
     shareModal.close();
   } else {

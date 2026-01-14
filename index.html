@@ -77,7 +77,7 @@
       href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Manrope:wght@400..700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v122-23d021e" />
+    <link rel="stylesheet" href="styles.css?v=v123-a7bbce9" />
   </head>
   <body>
     <div class="confetti" id="confetti" aria-hidden="true"></div>
@@ -436,19 +436,19 @@
           </div>
           <div class="share-modal-body">
             <div class="share-mode-toggle">
-              <button type="button" data-share-mode="text" class="share-mode-button is-active">
-                Text
+              <button type="button" data-share-mode="story" class="share-mode-button is-active">
+                Image
               </button>
-              <button type="button" data-share-mode="story" class="share-mode-button">Image</button>
+              <button type="button" data-share-mode="text" class="share-mode-button">Text</button>
               <label class="share-privacy">
                 <input type="checkbox" id="share-privacy-toggle" />
                 <span>Share as "My Location"</span>
               </label>
             </div>
-            <div class="share-preview" id="share-text-preview" aria-live="polite">
+            <div class="share-preview" id="share-text-preview" aria-live="polite" hidden>
               <pre id="share-preview"></pre>
             </div>
-            <div class="share-story-preview" id="share-story-preview" hidden>
+            <div class="share-story-preview" id="share-story-preview">
               <img id="share-story-image" alt="Your daylight story image" />
             </div>
           </div>
@@ -460,6 +460,7 @@
                 data-share="copy"
                 aria-label="Copy to clipboard"
                 title="Copy to clipboard"
+                hidden
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -504,7 +505,7 @@
                 <span>Share</span>
               </button>
             </div>
-            <div class="share-download-wrapper" hidden>
+            <div class="share-download-wrapper">
               <button
                 class="share-icon-button share-download-button"
                 type="button"
@@ -601,8 +602,8 @@
       </dialog>
     </div>
 
-    <script src="astronomy-engine/astronomy.browser.min.js?v=v122-23d021e"></script>
-    <script type="module" src="scripts/app.js?v=v122-23d021e"></script>
+    <script src="astronomy-engine/astronomy.browser.min.js?v=v123-a7bbce9"></script>
+    <script type="module" src="scripts/app.js?v=v123-a7bbce9"></script>
     <script>
       // Register service worker for offline support
       if ("serviceWorker" in navigator) {
