@@ -86,14 +86,14 @@ export const DAYLIGHT_DURATION_MILESTONES = [
     id: "first-10-hours",
     title: "First day with 10+ hours of daylight",
     minutes: 10 * 60,
-    todayHeadline: "Today has at least 10 hours of daylight.",
+    todayHeadline: "Today has over 10 hours of daylight.",
     todayLede: "Double digits of daylight are here.",
   },
   {
     id: "first-11-hours",
     title: "First day with 11+ hours of daylight",
     minutes: 11 * 60,
-    todayHeadline: "Today has at least 11 hours of daylight.",
+    todayHeadline: "Today has over 11 hours of daylight.",
     todayLede: "Long days are on the horizon.",
   },
 ];
