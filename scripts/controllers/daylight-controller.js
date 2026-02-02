@@ -196,14 +196,17 @@ const formatDaylightForDisplay = (todayDaylight, polarState) => {
 };
 
 /**
- * Format a minute value for the gain badge: "+30 sec", "+2 min", or "+1h 15m".
+ * Format a minute value for the gain badge: "14s" or "1m 13s".
  */
 const formatBadgeMinutes = (minutes) => {
-  if (minutes < 1) {
-    return `${Math.round(minutes * 60)} sec`;
+  const totalSeconds = Math.max(1, Math.round(minutes * 60));
+  const wholeMinutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  if (wholeMinutes < 1) {
+    return `${remainingSeconds}s`;
   }
-  const rounded = Math.round(minutes);
-  return rounded >= 60 ? formatDuration(rounded) : `${rounded} min`;
+  return `${wholeMinutes}m ${remainingSeconds}s`;
 };
 
 /**
@@ -377,7 +380,9 @@ export const updateStatsUI = (
   if (dom.sunsetGainBadge) {
     const sunsetGainToday = deltas.sunsetGainToday;
     const showSunsetBadge = Number.isFinite(sunsetGainToday) && sunsetGainToday > 0;
-    const badgeText = showSunsetBadge ? `+${formatBadgeMinutes(sunsetGainToday)}` : "";
+    const badgeText = showSunsetBadge
+      ? `+${formatBadgeMinutes(sunsetGainToday)} since yesterday`
+      : "";
     setText(dom.sunsetGainBadge, badgeText);
     dom.sunsetGainBadge.classList.toggle("is-hidden", !showSunsetBadge);
   }
@@ -385,7 +390,9 @@ export const updateStatsUI = (
   if (dom.daylightGainBadge) {
     const daylightGainToday = deltas.daylightGainToday;
     const showDaylightBadge = Number.isFinite(daylightGainToday) && daylightGainToday > 0;
-    const badgeText = showDaylightBadge ? `+${formatBadgeMinutes(daylightGainToday)}` : "";
+    const badgeText = showDaylightBadge
+      ? `+${formatBadgeMinutes(daylightGainToday)} since yesterday`
+      : "";
     setText(dom.daylightGainBadge, badgeText);
     dom.daylightGainBadge.classList.toggle("is-hidden", !showDaylightBadge);
   }

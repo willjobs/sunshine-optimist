@@ -73,7 +73,7 @@ State is accessed through exported getter/setter functions. The module supports 
 
 - `daylight-controller.js` uses Astronomy Engine to compute sunrise/sunset
 - It scans the year to find extremes (earliest sunset, shortest/longest day)
-- Day-over-day deltas (sunset gain and daylight gain vs yesterday) are computed in `calculateDeltas` and displayed as inline gain badges next to the stat values
+- Day-over-day deltas (sunset gain and daylight gain vs yesterday) are computed in `calculateDeltas` and displayed as subline gain badges beneath the stat values
 - Heavy calculations use async APIs (`getYearlySunExtremesAsync`) that yield to the main thread
 
 ### Optimistic Messaging
