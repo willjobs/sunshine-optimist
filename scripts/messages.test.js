@@ -254,4 +254,101 @@ describe("messages", () => {
       "The largest daily increase in daylight is less than 8 weeks away."
     );
   });
+
+  it("deduplicates sunset_comparison group, keeping the largest value", () => {
+    const data = {
+      sunset_today: 1100,
+      sunset_earliest: 900,
+      sunset_start_of_year: 950,
+      sunset_one_month_ago: 1000,
+    };
+    const options = getOptimisticMessageOptions(data, 2, "north");
+    const sunsetMessages = options.filter(
+      (opt) => opt.headline.includes("sunset") && opt.headline.includes("later")
+    );
+    expect(sunsetMessages).toHaveLength(1);
+    expect(sunsetMessages[0].headline).toContain("earliest");
+  });
+
+  it("deduplicates daylight_gained group, keeping the largest value", () => {
+    const data = {
+      daylight_today: 800,
+      daylight_minimum: 500,
+      daylight_at_end_of_month: 750,
+      daylight_one_month_ago: 700,
+    };
+    const options = getOptimisticMessageOptions(data, 2, "north");
+    const gainedMessages = options.filter(
+      (opt) =>
+        opt.headline.includes("gained") || opt.headline.includes("longer than the winter solstice")
+    );
+    expect(gainedMessages).toHaveLength(1);
+    expect(gainedMessages[0].headline).toContain("since the winter solstice");
+  });
+
+  it("deduplicates sunset_countdown group, keeping the nearest milestone", () => {
+    const data = {
+      days_until_sunset_after_5pm: 5,
+      days_until_sunset_after_6pm: 30,
+    };
+    const options = getOptimisticMessageOptions(data, 2, "north");
+    const countdowns = options.filter((opt) => opt.headline.includes("sunset reaches"));
+    expect(countdowns).toHaveLength(1);
+    expect(countdowns[0].headline).toContain("5pm");
+  });
+
+  it("does not deduplicate standalone (ungrouped) messages", () => {
+    const data = {
+      daylight_today: 800,
+      daylight_minimum: 500,
+      daylight_maximum: 900,
+      daylight_after_5pm_today: 60,
+    };
+    const options = getOptimisticMessageOptions(data, 5, "north");
+    const after5pm = options.find((opt) => opt.headline.includes("after 5pm"));
+    const regained = options.find((opt) => opt.headline.includes("regained"));
+    expect(after5pm).toBeDefined();
+    expect(regained).toBeDefined();
+  });
+
+  it("returns at most 10 messages even when more are valid", () => {
+    const now = new Date();
+    const data = {
+      sunset_today: 1100,
+      sunset_earliest: 900,
+      sunset_start_of_year: 950,
+      sunset_one_month_ago: 1000,
+      daylight_today: 800,
+      daylight_minimum: 500,
+      daylight_maximum: 900,
+      daylight_at_end_of_month: 850,
+      daylight_one_month_ago: 700,
+      daylight_after_5pm_today: 60,
+      daylight_daily_gain_this_week_min: 2,
+      daylight_in_14_days: 850,
+      daylight_gain_this_week: 15,
+      daylight_gain_today: 2.5,
+      spring_equinox_date: new Date(now.getFullYear(), 2, 20),
+      today_date: new Date(now.getFullYear(), 2, 1),
+      days_until_sunset_after_5pm: 5,
+      days_until_sunset_after_6pm: 30,
+      days_until_sunset_after_7pm: 60,
+      days_until_max_daily_gain: 15,
+    };
+    const milestones = [{ title: "Spring equinox", offsetDays: 19 }];
+    const options = getOptimisticMessageOptions(data, 3, "north", milestones);
+    expect(options.length).toBeLessThanOrEqual(10);
+  });
+
+  it("keeps the sole message when only one in a group qualifies", () => {
+    const data = {
+      sunset_today: 1000,
+      sunset_earliest: 900,
+    };
+    const options = getOptimisticMessageOptions(data, 1, "north");
+    const sunsetMessages = options.filter((opt) =>
+      opt.headline.includes("later than it was at its earliest")
+    );
+    expect(sunsetMessages).toHaveLength(1);
+  });
 });

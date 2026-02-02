@@ -5,6 +5,9 @@ import { formatPlaceholderValue, lowerCaseFirstLetter } from "./formatters/forma
 const PLACEHOLDER_PATTERN = /\{##[^}]*\}/;
 const PLACEHOLDER_PATTERN_GLOBAL = /\{##([^}]*)\}/g;
 
+const MAX_MESSAGES = 10;
+const GROUP_PICK_LOWEST = new Set(["sunset_countdown", "milestone_countdown"]);
+
 const getPositiveNumber = (value, allowZero = false) => {
   if (!Number.isFinite(value)) {
     return null;
@@ -74,6 +77,7 @@ const fillMessageTemplate = (text, value) => {
 
 export const OPTIMISTIC_MESSAGES = [
   {
+    group: "sunset_comparison",
     headline: "Today's sunset is {## minutes} later than it was at its earliest.",
     lede: "Enjoy the extra evening light!",
     months: [1, 2, 3, 4, 12],
@@ -82,6 +86,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ sunset_today, sunset_earliest }) => getDelta(sunset_today, sunset_earliest, true),
   },
   {
+    group: "sunset_comparison",
     headline: "Today's sunset is {## minutes} later than it was at the start of the year.",
     lede: "It's so nice to have some evening light.",
     months: [2, 3, 4, 5, 6, 7, 8, 9],
@@ -91,6 +96,7 @@ export const OPTIMISTIC_MESSAGES = [
       getDelta(sunset_today, sunset_start_of_year, true),
   },
   {
+    group: "sunset_comparison",
     headline: "Today's sunset is {## minutes} later than it was one month ago.",
     lede: "The days are definitely getting longer!",
     months: [2, 3, 4, 5],
@@ -100,6 +106,7 @@ export const OPTIMISTIC_MESSAGES = [
       getDelta(sunset_today, sunset_one_month_ago),
   },
   {
+    group: "daylight_gained",
     headline:
       "By the end of this month, days will be {## minutes} longer than the winter solstice.",
     lede: "Woohoo!",
@@ -110,6 +117,7 @@ export const OPTIMISTIC_MESSAGES = [
       getDelta(daylight_at_end_of_month, daylight_minimum),
   },
   {
+    group: "daylight_gained",
     headline: "You've gained {## minutes} of daylight since the winter solstice.",
     lede: "Loving that extra light 😎",
     months: [1, 2, 3, 4, 5],
@@ -118,6 +126,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ daylight_today, daylight_minimum }) => getDelta(daylight_today, daylight_minimum),
   },
   {
+    group: null,
     headline: "You have {## minutes} of daylight after 5pm.",
     lede: "Enjoy the extra evening light!",
     months: [2, 3, 4, 5, 6, 7, 8, 9],
@@ -126,6 +135,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ daylight_after_5pm_today }) => getPositiveNumber(daylight_after_5pm_today, true),
   },
   {
+    group: "daylight_gained",
     headline: "You've gained {## minutes} of daylight in the last month.",
     lede: "Way to go!",
     months: [2, 3, 4, 5],
@@ -135,6 +145,7 @@ export const OPTIMISTIC_MESSAGES = [
       getDelta(daylight_today, daylight_one_month_ago),
   },
   {
+    group: null,
     headline: "You still have {## minutes} more daylight than the winter solstice.",
     lede: "Plenty of time to enjoy the outdoors 🙂",
     months: [7, 8, 9, 10],
@@ -143,6 +154,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ daylight_today, daylight_minimum }) => getDelta(daylight_today, daylight_minimum),
   },
   {
+    group: null,
     headline: "Only {## minutes} of daylight remain to lose before the turnaround.",
     lede: "You can do this!",
     months: [11, 12],
@@ -151,6 +163,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ daylight_today, daylight_minimum }) => getDelta(daylight_today, daylight_minimum),
   },
   {
+    group: null,
     headline: "Most of the daylight loss is already behind you.",
     lede: "The days will start getting longer before you know it!",
     months: [11, 12],
@@ -158,6 +171,7 @@ export const OPTIMISTIC_MESSAGES = [
     additional_requirements: "today_date < winter_solstice_date",
   },
   {
+    group: "gain_rate",
     headline: "Each day this week adds at least {## minutes} more daylight than the day before.",
     lede: "The pace of daylight gain is picking up!",
     months: [2, 3, 4],
@@ -167,6 +181,7 @@ export const OPTIMISTIC_MESSAGES = [
       getPositiveNumber(daylight_daily_gain_this_week_min),
   },
   {
+    group: null,
     headline: "In two weeks, you'll have {## minutes} more daylight.",
     lede: null,
     months: [1, 2, 3, 4, 12],
@@ -176,6 +191,7 @@ export const OPTIMISTIC_MESSAGES = [
       getDelta(daylight_in_14_days, daylight_today),
   },
   {
+    group: "gain_rate",
     headline: "Daylight gains are accelerating, with {## minutes} added this week.",
     lede: "Enjoy the extra light!",
     months: [1, 2, 3],
@@ -184,6 +200,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ daylight_gain_this_week }) => getPositiveNumber(daylight_gain_this_week),
   },
   {
+    group: "gain_rate",
     headline: "Each day you're gaining {## minutes} of daylight.",
     lede: "You deserve it for making it through winter!",
     months: [2, 3, 4, 5],
@@ -192,6 +209,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ daylight_gain_today }) => getPositiveNumber(daylight_gain_today),
   },
   {
+    group: "gain_rate",
     headline: "You're gaining over {## minutes} of daylight per week right now.",
     lede: "Now we're talking!",
     months: [2, 3, 4, 5],
@@ -200,6 +218,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ daylight_gain_this_week }) => getPositiveNumber(daylight_gain_this_week),
   },
   {
+    group: null,
     headline: "Daylight loss is slowing down.",
     lede: "The turnaround is coming!",
     months: [10, 11],
@@ -207,30 +226,7 @@ export const OPTIMISTIC_MESSAGES = [
     additional_requirements: "daylight_loss_this_month < daylight_loss_last_month",
   },
   {
-    headline: "Only {## days} until sunset reaches 5pm.",
-    lede: "Get ready for those longer evenings!",
-    months: [1, 2, 3],
-    data_needs: ["days_until_sunset_after_5pm"],
-    additional_requirements: "days_until_sunset_after_5pm > 0",
-    getValue: ({ days_until_sunset_after_5pm }) => getPositiveNumber(days_until_sunset_after_5pm),
-  },
-  {
-    headline: "Only {## days} until sunset reaches 6pm.",
-    lede: "Get ready for those longer evenings!",
-    months: [2, 3, 4],
-    data_needs: ["days_until_sunset_after_6pm"],
-    additional_requirements: "days_until_sunset_after_6pm > 0",
-    getValue: ({ days_until_sunset_after_6pm }) => getPositiveNumber(days_until_sunset_after_6pm),
-  },
-  {
-    headline: "Only {## days} until sunset reaches 7pm.",
-    lede: "Pretty soon it'll feel like summer!",
-    months: [3, 4, 5],
-    data_needs: ["days_until_sunset_after_7pm"],
-    additional_requirements: "days_until_sunset_after_7pm > 0",
-    getValue: ({ days_until_sunset_after_7pm }) => getPositiveNumber(days_until_sunset_after_7pm),
-  },
-  {
+    group: "milestone_countdown",
     headline: "The largest daily increase in daylight is only {## days} away.",
     lede: "Hang in there!",
     months: [2, 3],
@@ -239,14 +235,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ days_until_max_daily_gain }) => getPositiveNumber(days_until_max_daily_gain),
   },
   {
-    headline: "Only {## days} until the longest day of the year.",
-    lede: "Summer is almost here!",
-    months: [5, 6],
-    data_needs: ["days_until_summer_solstice"],
-    additional_requirements: "days_until_summer_solstice > 0",
-    getValue: ({ days_until_summer_solstice }) => getPositiveNumber(days_until_summer_solstice),
-  },
-  {
+    group: null,
     headline: "You still have over {## weeks} of sunset after 7pm.",
     lede: "Enjoy those long summer evenings!",
     months: [7, 8, 9],
@@ -256,6 +245,7 @@ export const OPTIMISTIC_MESSAGES = [
       getPositiveNumber(weeks_with_sunset_after_7pm_remaining),
   },
   {
+    group: "milestone_countdown",
     headline: "Only {## days} remain until daylight loss stops entirely.",
     lede: "The turnaround is near!",
     months: [11, 12],
@@ -264,6 +254,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ days_until_winter_solstice }) => getPositiveNumber(days_until_winter_solstice),
   },
   {
+    group: "milestone_countdown",
     headline: "The earliest sunset is only {## days} away.",
     lede: "You can do this!",
     months: [11, 12],
@@ -272,6 +263,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ days_until_earliest_sunset }) => getPositiveNumber(days_until_earliest_sunset),
   },
   {
+    group: null,
     headline: "You've regained {##%} of the daylight lost in winter.",
     lede: "It feels better every day!",
     months: [2, 3, 4, 5],
@@ -294,6 +286,7 @@ export const OPTIMISTIC_MESSAGES = [
     },
   },
   {
+    group: null,
     headline: "You're {##%} of the way to the shortest day.",
     lede: "Then things get longer again; hang in there!",
     months: [9, 10, 11, 12],
@@ -316,6 +309,7 @@ export const OPTIMISTIC_MESSAGES = [
     },
   },
   {
+    group: null,
     headline: "Today has more daylight than {##%} of the year.",
     lede: "Pretty amazing, right?",
     months: [5, 6, 7, 8, 9],
@@ -332,6 +326,7 @@ export const OPTIMISTIC_MESSAGES = [
     },
   },
   {
+    group: null,
     headline: "Daylight is within {## minutes} of its yearly maximum.",
     lede: "The payoff for making it through winter!",
     months: [5, 6],
@@ -345,6 +340,7 @@ export const OPTIMISTIC_MESSAGES = [
     },
   },
   {
+    group: null,
     headline: "Sunsets are getting later again!",
     lede: null,
     months: [12],
@@ -352,6 +348,7 @@ export const OPTIMISTIC_MESSAGES = [
     additional_requirements: "date_today > date_of_earliest_sunset",
   },
   {
+    group: null,
     headline: "The shortest day is behind you!",
     lede: null,
     months: [12],
@@ -359,6 +356,7 @@ export const OPTIMISTIC_MESSAGES = [
     additional_requirements: "date_today > winter_solstice_date",
   },
   {
+    group: null,
     headline: "Today still has {## minutes} more daylight than the average winter day.",
     lede: "I'll take it!",
     months: [9, 10, 11],
@@ -368,6 +366,7 @@ export const OPTIMISTIC_MESSAGES = [
       getDelta(daylight_today, average_winter_daylight),
   },
   {
+    group: null,
     headline: "You're losing less than {## minutes} of daylight per week now.",
     lede: "You're doing great!",
     months: [10, 11, 12],
@@ -376,6 +375,7 @@ export const OPTIMISTIC_MESSAGES = [
     getValue: ({ daylight_loss_this_week }) => getPositiveNumber(daylight_loss_this_week),
   },
   {
+    group: null,
     headline: "Only {## days} until {next_milestone_title}!",
     lede: "You're almost there :)",
     months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
@@ -463,6 +463,42 @@ const getMilestoneFallbackLede = (upcomingMilestones) => {
   return `Only ${days} ${days === 1 ? "day" : "days"} until ${title}!`;
 };
 
+const deduplicateByGroup = (entries) => {
+  const bestByGroup = new Map();
+  for (const entry of entries) {
+    const group = entry.message.group;
+    if (!group) {
+      continue;
+    }
+    const existing = bestByGroup.get(group);
+    if (!existing) {
+      bestByGroup.set(group, entry);
+      continue;
+    }
+    const pickLowest = GROUP_PICK_LOWEST.has(group);
+    const existingVal = existing.value ?? (pickLowest ? Infinity : -Infinity);
+    const newVal = entry.value ?? (pickLowest ? Infinity : -Infinity);
+    if (pickLowest ? newVal < existingVal : newVal > existingVal) {
+      bestByGroup.set(group, entry);
+    }
+  }
+  const emitted = new Set();
+  return entries.filter((entry) => {
+    const group = entry.message.group;
+    if (!group) {
+      return true;
+    }
+    if (emitted.has(group)) {
+      return false;
+    }
+    if (bestByGroup.get(group) === entry) {
+      emitted.add(group);
+      return true;
+    }
+    return false;
+  });
+};
+
 export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMilestones = []) => {
   const adjustedMonth = getAdjustedMonth(month, hemisphere);
 
@@ -504,8 +540,11 @@ export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMil
       return { message, value };
     })
     .filter(Boolean);
+  const deduplicated = deduplicateByGroup(validMessages);
+  const capped =
+    deduplicated.length > MAX_MESSAGES ? deduplicated.slice(0, MAX_MESSAGES) : deduplicated;
   const milestoneFallbackLede = getMilestoneFallbackLede(nearbyMilestones);
-  return validMessages.map((entry) => {
+  return capped.map((entry) => {
     const milestoneTitle = formatMilestoneCountdownTitle(enrichedData.next_milestone_title);
     let headline = fillMessageTemplate(entry.message.headline, entry.value);
     let lede = fillMessageTemplate(entry.message.lede, entry.value);

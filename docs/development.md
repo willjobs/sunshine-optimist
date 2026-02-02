@@ -74,6 +74,7 @@ Messages live in `scripts/messages.js`. Each message has:
   lede: "Enjoy the extra evening light!",
   months: [1, 2, 3],                           // When this message can appear (1 = Jan)
   data_needs: ["sunset_today", "sunset_yesterday"],  // Required data keys
+  group: "sunset_comparison",                  // Optional grouping for de-duplication
   additional_requirements: "sunset_today > sunset_yesterday",  // Optional condition
   getValue: ({ sunset_today, sunset_yesterday }) =>   // Returns placeholder value
     sunset_today - sunset_yesterday,
@@ -88,6 +89,10 @@ Messages live in `scripts/messages.js`. Each message has:
 - `{##%}` — "X%" (rounded)
 
 The `getValue` function should return a positive number, or `null` to hide the message.
+
+### Grouping and Capping
+
+Messages can include an optional `group` string. If multiple valid messages share the same non-null `group`, only one is kept: the message with the highest `getValue()` result, except groups `sunset_countdown` and `milestone_countdown` which keep the lowest value. Messages with `group: null` are always retained. After grouping, the list is capped.
 
 ### Adding New Data Keys
 

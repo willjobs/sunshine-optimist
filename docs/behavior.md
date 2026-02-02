@@ -105,6 +105,8 @@ Messages are filtered by:
 2. Required data keys (`data_needs`)
 3. Optional comparison expressions (`additional_requirements`)
 4. Positive return value from `getValue()` function
+5. If multiple valid messages share the same non-null `group`, only one is kept: the one with the highest `getValue()` result, except groups `sunset_countdown` and `milestone_countdown` which keep the lowest value
+6. The final list is capped
 
 ### Display
 
