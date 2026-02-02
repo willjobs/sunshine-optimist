@@ -82,12 +82,14 @@ All dates are interpreted in the **location's timezone**, not the user's. When v
 **Sunset stat**:
 
 - Main value: today's sunset time
+- Gain badge: inline badge showing how many minutes later today's sunset is than yesterday's (hidden when zero or negative; shows seconds if under 1 minute)
 - Delta 1: difference from earliest sunset of the year
 - Delta 2: difference from 1 week or 1 month ago (uses week if month is negative)
 
 **Daylight stat**:
 
 - Main value: today's daylight duration
+- Gain badge: inline badge showing how many more minutes of daylight today has than yesterday (hidden when zero or negative; shows seconds if under 1 minute)
 - Delta 1: difference from shortest day of the year
 - Delta 2: difference from 1 week or 1 month ago
 

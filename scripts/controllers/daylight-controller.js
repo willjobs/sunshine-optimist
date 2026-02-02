@@ -64,6 +64,13 @@ export const calculateSunMetrics = async (astronomy, todayParts, timeZone) => {
   const weekDaylight = astronomy.getDaylightMinutesForDateParts(weekParts);
   const monthDaylight = astronomy.getDaylightMinutesForDateParts(monthParts);
 
+  const yesterdayParts = addDaysToDateParts(todayParts, -1);
+  const yesterdayDaylight = astronomy.getDaylightMinutesForDateParts(yesterdayParts);
+  const yesterdayEvents = astronomy.getSunEvents(yesterdayParts);
+  const yesterdaySunsetMinutes = yesterdayEvents.sunset
+    ? getMinutesSinceMidnight(yesterdayEvents.sunset.date, timeZone)
+    : null;
+
   const yearlyExtremes = await astronomy.getYearlySunExtremesAsync(todayParts.year, todayDaylight);
 
   return {
@@ -79,6 +86,8 @@ export const calculateSunMetrics = async (astronomy, todayParts, timeZone) => {
     todayDaylight,
     weekDaylight,
     monthDaylight,
+    yesterdayDaylight,
+    yesterdaySunsetMinutes,
     referenceYear: todayParts.year,
     yearlyExtremes,
   };
@@ -96,6 +105,8 @@ export const calculateDeltas = (metrics) => {
     todayDaylight,
     weekDaylight,
     monthDaylight,
+    yesterdayDaylight,
+    yesterdaySunsetMinutes,
     yearlyExtremes,
   } = metrics;
 
@@ -131,6 +142,14 @@ export const calculateDeltas = (metrics) => {
   const daylightComparisonDelta =
     comparisonMode === "week" ? daylightWeekDelta : daylightMonthDelta;
 
+  // Calculate day-over-day gains (today vs yesterday)
+  const daylightGainToday =
+    todayDaylight !== null && yesterdayDaylight !== null ? todayDaylight - yesterdayDaylight : null;
+  const sunsetGainToday =
+    todaySunsetMinutes !== null && yesterdaySunsetMinutes !== null
+      ? todaySunsetMinutes - yesterdaySunsetMinutes
+      : null;
+
   // Calculate fraction of annual daylight loss completed
   let fractionOfLossCompleted = null;
   if (
@@ -154,6 +173,8 @@ export const calculateDeltas = (metrics) => {
     comparisonMode,
     sunsetComparisonDelta,
     daylightComparisonDelta,
+    daylightGainToday,
+    sunsetGainToday,
     fractionOfLossCompleted,
   };
 };
@@ -172,6 +193,17 @@ const formatDaylightForDisplay = (todayDaylight, polarState) => {
     return "—";
   }
   return formatDuration(todayDaylight);
+};
+
+/**
+ * Format a minute value for the gain badge: "+30 sec", "+2 min", or "+1h 15m".
+ */
+const formatBadgeMinutes = (minutes) => {
+  if (minutes < 1) {
+    return `${Math.round(minutes * 60)} sec`;
+  }
+  const rounded = Math.round(minutes);
+  return rounded >= 60 ? formatDuration(rounded) : `${rounded} min`;
 };
 
 /**
@@ -340,6 +372,23 @@ export const updateStatsUI = (
     dom.daylightComparisonReference,
     showDaylightComparison ? daylightComparisonTooltip : ""
   );
+
+  // Update gain badges (day-over-day: today vs yesterday)
+  if (dom.sunsetGainBadge) {
+    const sunsetGainToday = deltas.sunsetGainToday;
+    const showSunsetBadge = Number.isFinite(sunsetGainToday) && sunsetGainToday > 0;
+    const badgeText = showSunsetBadge ? `+${formatBadgeMinutes(sunsetGainToday)}` : "";
+    setText(dom.sunsetGainBadge, badgeText);
+    dom.sunsetGainBadge.classList.toggle("is-hidden", !showSunsetBadge);
+  }
+
+  if (dom.daylightGainBadge) {
+    const daylightGainToday = deltas.daylightGainToday;
+    const showDaylightBadge = Number.isFinite(daylightGainToday) && daylightGainToday > 0;
+    const badgeText = showDaylightBadge ? `+${formatBadgeMinutes(daylightGainToday)}` : "";
+    setText(dom.daylightGainBadge, badgeText);
+    dom.daylightGainBadge.classList.toggle("is-hidden", !showDaylightBadge);
+  }
 };
 
 /**
@@ -365,7 +414,7 @@ export const buildMessageData = async (
     yearlyExtremes,
   } = metrics;
 
-  const { fractionOfLossCompleted } = deltas;
+  const { fractionOfLossCompleted, daylightGainToday } = deltas;
 
   const {
     earliestSunsetMinutes,
@@ -389,11 +438,6 @@ export const buildMessageData = async (
   const daylightAtEndOfMonth = astronomy.getDaylightMinutesForDateParts(endOfMonthParts);
   const in14Parts = addDaysToDateParts(todayParts, 14);
   const daylightIn14Days = astronomy.getDaylightMinutesForDateParts(in14Parts);
-  const yesterdayParts = addDaysToDateParts(todayParts, -1);
-  const yesterdayDaylight = astronomy.getDaylightMinutesForDateParts(yesterdayParts);
-
-  const daylightGainToday =
-    todayDaylight !== null && yesterdayDaylight !== null ? todayDaylight - yesterdayDaylight : null;
   const daylightGainThisWeek =
     todayDaylight !== null && weekDaylight !== null ? todayDaylight - weekDaylight : null;
   const daylightLossThisWeek =

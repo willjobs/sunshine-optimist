@@ -139,6 +139,8 @@ const dom = {
   sunsetComparisonReference: document.getElementById("sunset-comparison-reference"),
   daylightShortestReference: document.getElementById("daylight-shortest-reference"),
   daylightComparisonReference: document.getElementById("daylight-comparison-reference"),
+  sunsetGainBadge: document.getElementById("sunset-gain-badge"),
+  daylightGainBadge: document.getElementById("daylight-gain-badge"),
   nextHeadline: document.getElementById("next-headline"),
   nextDate: document.getElementById("next-date"),
   nextAway: document.getElementById("next-away"),
