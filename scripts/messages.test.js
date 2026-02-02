@@ -29,6 +29,15 @@ describe("messages", () => {
     expect(options).toHaveLength(0);
   });
 
+  it("excludes messages when placeholder rounds to zero", () => {
+    const data = {
+      sunset_today: 1000.4,
+      sunset_earliest: 1000,
+    };
+    const options = getOptimisticMessageOptions(data, 1, "north");
+    expect(options).toHaveLength(0);
+  });
+
   it("replaces empty lede with milestone countdown when milestones provided", () => {
     // This message has lede: null - "In two weeks, you'll have {## minutes} more daylight."
     const data = {
@@ -168,6 +177,21 @@ describe("messages", () => {
     );
   });
 
+  it("rewrites finished milestone titles for countdown headlines", () => {
+    const data = {};
+    const upcomingMilestones = [
+      { title: "Finished the 10 darkest weeks of the year", offsetDays: 1 },
+    ];
+
+    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
+    const milestoneHeadline = options.find((opt) => opt.headline.includes("until you've finished"));
+
+    expect(milestoneHeadline).toBeDefined();
+    expect(milestoneHeadline.headline).toBe(
+      "Only 1 day until you've finished the 10 darkest weeks of the year!"
+    );
+  });
+
   it("rewrites daylight gain milestone titles for fallback ledes", () => {
     const data = {
       daylight_today: 600,
@@ -231,14 +255,14 @@ describe("messages", () => {
 
   it("drops 'Only' when day formatting becomes 'less than' weeks", () => {
     const data = {
-      days_until_sunset_after_5pm: 20,
+      days_until_winter_solstice: 20,
     };
 
-    const options = getOptimisticMessageOptions(data, 1, "north");
-    const message = options.find((opt) => opt.headline.includes("sunset reaches 5pm"));
+    const options = getOptimisticMessageOptions(data, 11, "north");
+    const message = options.find((opt) => opt.headline.includes("daylight loss stops entirely"));
 
     expect(message).toBeDefined();
-    expect(message.headline).toBe("Less than 3 weeks until sunset reaches 5pm.");
+    expect(message.headline).toBe("Less than 3 weeks remain until daylight loss stops entirely.");
   });
 
   it("drops 'only' mid-sentence when day formatting becomes 'less than' weeks", () => {
@@ -286,15 +310,19 @@ describe("messages", () => {
     expect(gainedMessages[0].headline).toContain("since the winter solstice");
   });
 
-  it("deduplicates sunset_countdown group, keeping the nearest milestone", () => {
+  it("deduplicates milestone_countdown group, keeping the nearest milestone", () => {
     const data = {
-      days_until_sunset_after_5pm: 5,
-      days_until_sunset_after_6pm: 30,
+      days_until_winter_solstice: 5,
+      days_until_earliest_sunset: 30,
     };
-    const options = getOptimisticMessageOptions(data, 2, "north");
-    const countdowns = options.filter((opt) => opt.headline.includes("sunset reaches"));
+    const options = getOptimisticMessageOptions(data, 11, "north");
+    const countdowns = options.filter(
+      (opt) =>
+        opt.headline.includes("daylight loss stops entirely") ||
+        opt.headline.includes("earliest sunset")
+    );
     expect(countdowns).toHaveLength(1);
-    expect(countdowns[0].headline).toContain("5pm");
+    expect(countdowns[0].headline).toContain("daylight loss stops entirely");
   });
 
   it("does not deduplicate standalone (ungrouped) messages", () => {

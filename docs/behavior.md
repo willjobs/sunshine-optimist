@@ -104,7 +104,7 @@ Messages are filtered by:
 1. Adjusted month (hemisphere-aware: southern hemisphere months +6 mod 12)
 2. Required data keys (`data_needs`)
 3. Optional comparison expressions (`additional_requirements`)
-4. Positive return value from `getValue()` function
+4. Positive return value from `getValue()` function (values that round to 0 are excluded)
 5. If multiple valid messages share the same non-null `group`, only one is kept: the one with the highest `getValue()` result, except groups `sunset_countdown` and `milestone_countdown` which keep the lowest value
 6. The final list is capped
 
@@ -124,12 +124,14 @@ Messages are filtered by:
 
 - Sunset thresholds: first sunset after 4pm, 4:30pm, 5pm, 5:30pm, 6pm, 7pm, 8pm
 - Daylight gains: 30min, 1hr, 1.5hr, 2hr since winter solstice
-- Daylight duration: first 10hr, 11hr, 12hr day
+- Daylight duration: first 10hr, 11hr day
 
 **Computed** (from `daylight-controller.js`):
 
 - Equinoxes and solstices
 - Earliest sunset, shortest day, longest day
+- First 12hr day
+- Finished the 10 darkest weeks of the year
 - Next half-hour sunset
 - DST start
 

@@ -80,14 +80,14 @@ State is accessed through exported getter/setter functions. The module supports 
 
 - `messages.js` defines templates with `months`, `data_needs`, and optional `additional_requirements`
 - Placeholders like `{## minutes}` are filled via `getValue` when needed
-- `getOptimisticMessageOptions` returns valid messages; `message-ui.js` rotates them
+- `getOptimisticMessageOptions` returns valid messages; `message-ui.js` rotates them (values that round to 0 are excluded)
 - Messages with the same non-null `group` are de-duplicated by best `getValue` (highest value, except `sunset_countdown` and `milestone_countdown` use the lowest), and the list is capped
 - If a milestone is today, milestone copy overrides the rotating message
 
 ### Milestones
 
 - `milestones.js` contains threshold and daylight-gain milestones
-- `daylight-controller.js` adds computed milestones (earliest/shortest/longest day, equinoxes, DST)
+- `daylight-controller.js` adds computed milestones (earliest/shortest/longest day, equinoxes, DST, first 12hr day, finished 10 darkest weeks)
 - The milestone card cycles through upcoming entries; confetti fires on milestone days
 
 ### Sharing

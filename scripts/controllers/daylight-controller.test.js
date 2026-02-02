@@ -197,8 +197,7 @@ describe("daylight-controller", () => {
       () => "",
       "polar-night"
     );
-    expect(upcoming).toHaveLength(1);
-    expect(upcoming[0].id).toBe("first-sunrise");
+    expect(upcoming.some((milestone) => milestone.id === "first-sunrise")).toBe(true);
   });
 
   it("adds the first sunset milestone during polar day", () => {
@@ -222,8 +221,7 @@ describe("daylight-controller", () => {
       () => "",
       "polar-day"
     );
-    expect(upcoming).toHaveLength(1);
-    expect(upcoming[0].id).toBe("first-sunset");
+    expect(upcoming.some((milestone) => milestone.id === "first-sunset")).toBe(true);
   });
 
   it("prefers the first sunrise milestone when multiple milestones share the day", () => {
@@ -247,7 +245,7 @@ describe("daylight-controller", () => {
       "normal"
     );
     expect(todayMilestone?.id).toBe("first-sunrise");
-    expect(upcoming).toHaveLength(0);
+    expect(upcoming.some((milestone) => milestone.id === "first-sunrise")).toBe(false);
   });
 
   it("includes the first sunset milestone on the return day", () => {
@@ -271,6 +269,6 @@ describe("daylight-controller", () => {
       "normal"
     );
     expect(todayMilestone?.id).toBe("first-sunset");
-    expect(upcoming).toHaveLength(0);
+    expect(upcoming.some((milestone) => milestone.id === "first-sunset")).toBe(false);
   });
 });

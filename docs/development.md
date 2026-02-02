@@ -88,7 +88,7 @@ Messages live in `scripts/messages.js`. Each message has:
 - `{## weeks}` — "X weeks" or "X week"
 - `{##%}` — "X%" (rounded)
 
-The `getValue` function should return a positive number, or `null` to hide the message.
+The `getValue` function should return a positive number, or `null` to hide the message. Values that round to 0 are excluded.
 
 ### Grouping and Capping
 
@@ -130,7 +130,7 @@ Messages can include an optional `group` string. If multiple valid messages shar
 
 ### Computed Milestones
 
-Dynamic milestones are built in `buildUpcomingMilestones()` in `daylight-controller.js`. To add a new computed milestone, update that function.
+Dynamic milestones are built in `buildUpcomingMilestones()` in `daylight-controller.js`. Examples include the first 12-hour day and finishing the 10 darkest weeks of the year. To add a new computed milestone, update that function.
 
 ## Modifying the DOM
 

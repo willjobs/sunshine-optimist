@@ -56,6 +56,9 @@ const formatMilestoneCountdownTitle = (title) => {
   if (/^gained\b/i.test(trimmed)) {
     return `you've ${lowerCaseFirstLetter(trimmed)}`;
   }
+  if (/^finished\b/i.test(trimmed)) {
+    return `you've ${lowerCaseFirstLetter(trimmed)}`;
+  }
   if (/^(the|a|an)\b/i.test(trimmed)) {
     return trimmed;
   }
@@ -341,6 +344,14 @@ export const OPTIMISTIC_MESSAGES = [
   },
   {
     group: null,
+    headline: "You're in the 10 brightest weeks of the year",
+    lede: "Keep those sunglasses handy.",
+    months: [5, 6, 7],
+    data_needs: ["days_from_summer_solstice"],
+    additional_requirements: "days_from_summer_solstice <= 35",
+  },
+  {
+    group: null,
     headline: "Sunsets are getting later again!",
     lede: null,
     months: [12],
@@ -535,6 +546,9 @@ export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMil
       }
       const value = message.getValue ? message.getValue(enrichedData) : null;
       if (!Number.isFinite(value)) {
+        return null;
+      }
+      if (Math.round(Math.abs(value)) === 0) {
         return null;
       }
       return { message, value };

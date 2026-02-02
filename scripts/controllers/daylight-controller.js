@@ -489,6 +489,11 @@ export const buildMessageData = async (
     hemisphere,
     "summer"
   );
+  const nextSummerSolsticeParts = astronomy.getNextSeasonDateParts(
+    todayParts,
+    hemisphere,
+    "summer"
+  );
   const springEquinoxDate = getLocalNoonDateFromParts(currentSeasonParts.spring, timeZone);
   const summerSolsticeDate = getLocalNoonDateFromParts(previousSummerSolsticeParts, timeZone);
   const winterSolsticeDate = getLocalNoonDateFromParts(currentSeasonParts.winter, timeZone);
@@ -510,6 +515,27 @@ export const buildMessageData = async (
   const daysUntilEarliestSunset = earliestSunsetDateParts
     ? getDaysBetweenDateParts(todayParts, earliestSunsetDateParts)
     : null;
+  const daysSincePreviousSummerSolstice = previousSummerSolsticeParts
+    ? getDaysBetweenDateParts(previousSummerSolsticeParts, todayParts)
+    : null;
+  const daysUntilNextSummerSolstice = nextSummerSolsticeParts
+    ? getDaysBetweenDateParts(todayParts, nextSummerSolsticeParts)
+    : null;
+  const daysFromSummerSolstice = (() => {
+    if (
+      Number.isFinite(daysSincePreviousSummerSolstice) &&
+      Number.isFinite(daysUntilNextSummerSolstice)
+    ) {
+      return Math.min(daysSincePreviousSummerSolstice, daysUntilNextSummerSolstice);
+    }
+    if (Number.isFinite(daysSincePreviousSummerSolstice)) {
+      return daysSincePreviousSummerSolstice;
+    }
+    if (Number.isFinite(daysUntilNextSummerSolstice)) {
+      return daysUntilNextSummerSolstice;
+    }
+    return null;
+  })();
   const daysInYear = getDaysInYear(todayParts.year);
 
   const weeksWithSunsetAfter7pmRemaining =
@@ -548,6 +574,7 @@ export const buildMessageData = async (
     weeks_with_sunset_after_7pm_remaining: weeksWithSunsetAfter7pmRemaining,
     days_until_winter_solstice: daysUntilWinterSolstice,
     days_until_earliest_sunset: daysUntilEarliestSunset,
+    days_from_summer_solstice: daysFromSummerSolstice,
     daylight_maximum: longestDayMinutes,
     summer_solstice_date: summerSolsticeDate,
     winter_solstice_date: winterSolsticeDate,
@@ -618,6 +645,24 @@ export const buildUpcomingMilestones = (
     hemisphere,
     "winter"
   );
+  const nextWinterSolsticeParts = astronomy.getNextSeasonDateParts(
+    todayParts,
+    hemisphere,
+    "winter"
+  );
+  const darkestWeeksOffsetDays = 35;
+  const darkestWeeksFromPrevious = previousWinterSolsticeParts
+    ? addDaysToDateParts(previousWinterSolsticeParts, darkestWeeksOffsetDays)
+    : null;
+  const darkestWeeksFromNext = nextWinterSolsticeParts
+    ? addDaysToDateParts(nextWinterSolsticeParts, darkestWeeksOffsetDays)
+    : null;
+  const darkestWeeksFinishedParts = (() => {
+    if (darkestWeeksFromPrevious && compareDateParts(darkestWeeksFromPrevious, todayParts) >= 0) {
+      return darkestWeeksFromPrevious;
+    }
+    return darkestWeeksFromNext || darkestWeeksFromPrevious || null;
+  })();
 
   // Add polar-specific milestones (and include the return day even after polar state flips)
   const yesterdayParts = addDaysToDateParts(todayParts, -1);
@@ -787,6 +832,16 @@ export const buildUpcomingMilestones = (
       })
     );
   });
+
+  addMilestone(
+    buildMilestone({
+      id: "darkest-weeks-finished",
+      title: "Finished the 10 darkest weeks of the year",
+      dateParts: darkestWeeksFinishedParts,
+      todayHeadline: "Finished the 10 darkest weeks of the year.",
+      todayLede: "The light keeps climbing from here.",
+    })
+  );
 
   const milestoneOffsets = milestoneCandidates
     .map((item) => withMilestoneOffset(item, todayParts))
