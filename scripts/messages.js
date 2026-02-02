@@ -466,11 +466,14 @@ const getMilestoneFallbackLede = (upcomingMilestones) => {
 export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMilestones = []) => {
   const adjustedMonth = getAdjustedMonth(month, hemisphere);
 
+  // Only show milestones as messages if they're within 5 weeks
+  const MAX_MILESTONE_MESSAGE_DAYS = 35;
+  const nearbyMilestones = Array.isArray(upcomingMilestones)
+    ? upcomingMilestones.filter((m) => m.offsetDays <= MAX_MILESTONE_MESSAGE_DAYS)
+    : [];
+
   // Inject milestone data into the data object
-  const nextMilestone =
-    Array.isArray(upcomingMilestones) && upcomingMilestones.length > 0
-      ? upcomingMilestones[0]
-      : null;
+  const nextMilestone = nearbyMilestones.length > 0 ? nearbyMilestones[0] : null;
   const enrichedData = {
     ...data,
     next_milestone_days:
@@ -501,7 +504,7 @@ export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMil
       return { message, value };
     })
     .filter(Boolean);
-  const milestoneFallbackLede = getMilestoneFallbackLede(upcomingMilestones);
+  const milestoneFallbackLede = getMilestoneFallbackLede(nearbyMilestones);
   return validMessages.map((entry) => {
     const milestoneTitle = formatMilestoneCountdownTitle(enrichedData.next_milestone_title);
     let headline = fillMessageTemplate(entry.message.headline, entry.value);

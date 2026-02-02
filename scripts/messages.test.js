@@ -191,6 +191,44 @@ describe("messages", () => {
     );
   });
 
+  it("excludes milestone headline when nearest milestone is more than 5 weeks away", () => {
+    const data = {};
+    const upcomingMilestones = [{ title: "Spring equinox", offsetDays: 36 }];
+
+    const options = getOptimisticMessageOptions(data, 3, "north", upcomingMilestones);
+    const milestoneHeadline = options.find((opt) => opt.headline.includes("until"));
+
+    expect(milestoneHeadline).toBeUndefined();
+  });
+
+  it("includes milestone headline when milestone is exactly 35 days away", () => {
+    const data = {};
+    const upcomingMilestones = [{ title: "Spring equinox", offsetDays: 35 }];
+
+    const options = getOptimisticMessageOptions(data, 3, "north", upcomingMilestones);
+    const milestoneHeadline = options.find((opt) =>
+      opt.headline.includes("until the spring equinox")
+    );
+
+    expect(milestoneHeadline).toBeDefined();
+  });
+
+  it("excludes milestone fallback lede when nearest milestone is more than 5 weeks away", () => {
+    const data = {
+      daylight_today: 600,
+      daylight_in_14_days: 650,
+    };
+    const upcomingMilestones = [{ title: "Longest day", offsetDays: 90 }];
+
+    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
+    const messageWithNullLede = options.find((opt) =>
+      opt.headline.includes("In two weeks, you'll have")
+    );
+
+    expect(messageWithNullLede).toBeDefined();
+    expect(messageWithNullLede.lede).toBe("");
+  });
+
   it("drops 'Only' when day formatting becomes 'less than' weeks", () => {
     const data = {
       days_until_sunset_after_5pm: 20,
