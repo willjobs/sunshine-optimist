@@ -1,6 +1,6 @@
 // @ts-check
 import { test, expect } from "@playwright/test";
-import { BERLIN, BOSTON } from "./helpers/fixtures.js";
+import { BOSTON, TASHKENT } from "./helpers/fixtures.js";
 import {
   installApiMocks,
   installClipboardMock,
@@ -324,8 +324,8 @@ test("modal resets to image mode when closed and reopened", async ({ page }) => 
 });
 
 test("story image wraps long location names without clipping", async ({ page }) => {
-  // Use Berlin which produces a long label: "Berlin, State of Berlin, Germany"
-  await setStoredLocation(page, BERLIN);
+  // Use Tashkent which produces a long label: "Tashkent, Uzbekistan"
+  await setStoredLocation(page, TASHKENT);
   await page.goto("/");
   await openShareModalAndWait(page);
 
@@ -344,4 +344,14 @@ test("story image wraps long location names without clipping", async ({ page }) 
   expect(imgSrc).toMatch(/^data:image\/png;base64,/);
   // A 1080x1920 PNG should have substantial content
   expect(imgSrc.length).toBeGreaterThan(10000);
+
+  // Screenshot: share image preview showing "Tashkent, Uzbekistan"
+  await page.screenshot({ path: "test-results/share-image-non-us-city.png" });
+
+  // Switch to text mode and screenshot the text share preview
+  await page.locator("[data-share-mode='text']").click();
+  await expect(page.locator("#share-text-preview")).toBeVisible();
+
+  // Screenshot: share text preview showing "Tashkent, Uzbekistan"
+  await page.screenshot({ path: "test-results/share-text-non-us-city.png" });
 });

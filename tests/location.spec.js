@@ -54,7 +54,7 @@ test("city search renders results and selection updates input", async ({ page })
   await waitForLocationResults(page, 1);
 
   const parisTexas = page.getByRole("option", {
-    name: "Paris, TX, United States",
+    name: "Paris, TX",
   });
   await expect(parisTexas).toBeVisible();
 
@@ -83,7 +83,7 @@ test("keyboard navigation updates active option", async ({ page }) => {
   await page.keyboard.press("ArrowDown");
 
   const activeOption = page.locator(".location-option.is-active");
-  await expect(activeOption).toHaveText("San Jose, CA, United States");
+  await expect(activeOption).toHaveText("San Jose, CA");
   await expect(cityInput).toHaveAttribute("aria-activedescendant", /location-option-/);
 });
 
@@ -96,7 +96,7 @@ test("clear button shows recent locations", async ({ page }) => {
   await waitForLocationResults(page, 1);
 
   const parisTexas = page.getByRole("option", {
-    name: "Paris, TX, United States",
+    name: "Paris, TX",
   });
   await expect(parisTexas).toBeVisible();
   await parisTexas.click();
@@ -107,7 +107,7 @@ test("clear button shows recent locations", async ({ page }) => {
 
   await page.getByRole("button", { name: "Clear location" }).click();
   await expect(page.locator("#location-results-meta")).toHaveText(/Recent locations/);
-  await expect(page.getByRole("option", { name: "Paris, TX, United States" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Paris, TX" })).toBeVisible();
 });
 
 test("toggle shows worldwide results when local is preferred", async ({ page }) => {
@@ -123,17 +123,20 @@ test("toggle shows worldwide results when local is preferred", async ({ page }) 
   await cityInput.fill("Paris");
   await waitForLocationResults(page, 1);
 
-  await expect(page.getByRole("option", { name: "Paris, TX, United States" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Paris, TX" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Show worldwide results" })).toBeVisible();
 
   await page.getByRole("button", { name: "Show worldwide results" }).click();
 
   // Wait for the France option to appear after toggle
-  const parisFrance = page.getByRole("option", { name: "Paris, Ile-de-France, France" });
+  const parisFrance = page.getByRole("option", { name: "Paris, France" });
   await expect(parisFrance).toBeVisible({ timeout: 10000 });
 
-  await expect(page.getByRole("option", { name: "Paris, TX, United States" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Paris, TX" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Prefer local results" })).toBeVisible();
+
+  // Screenshot: search results showing "Paris, France" and "Paris, TX"
+  await page.screenshot({ path: "test-results/search-worldwide-results.png" });
 });
 
 test("geolocation selection resolves to a place name", async ({ page }) => {

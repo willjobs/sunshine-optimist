@@ -69,6 +69,17 @@ export const BERLIN = {
   timezone: "Europe/Berlin",
 };
 
+export const TASHKENT = {
+  name: "Tashkent",
+  admin1: "Tashkent",
+  country: "Uzbekistan",
+  country_code: "UZ",
+  latitude: 41.2995,
+  longitude: 69.2401,
+  elevation: 424,
+  timezone: "Asia/Tashkent",
+};
+
 export const SAN_JOSE = {
   name: "San Jose",
   admin1: "California",

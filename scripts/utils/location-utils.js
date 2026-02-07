@@ -68,7 +68,7 @@ export const formatSelectedLocation = (item) => {
   const regionName = item.admin1 || "";
   const region =
     isUnitedStates && US_STATE_ABBR[regionName] ? US_STATE_ABBR[regionName] : regionName;
-  const parts = isUnitedStates ? [item.name, region] : [item.name, region, item.country];
+  const parts = isUnitedStates ? [item.name, region] : [item.name, item.country];
   return parts.filter(Boolean).join(", ");
 };
 
@@ -78,8 +78,8 @@ export const formatSuggestionLocation = (item) => {
   const regionName = item.admin1 || "";
   const region =
     isUnitedStates && US_STATE_ABBR[regionName] ? US_STATE_ABBR[regionName] : regionName;
-  const parts = [item.name, region, item.country].filter(Boolean);
-  return parts.join(", ");
+  const parts = isUnitedStates ? [item.name, region] : [item.name, item.country];
+  return parts.filter(Boolean).join(", ");
 };
 
 const normalizeToken = (value) => value.replace(/[^a-z0-9]/gi, "").toLowerCase();

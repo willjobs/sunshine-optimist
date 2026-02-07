@@ -18,7 +18,7 @@ describe("location-utils", () => {
       country_code: "US",
     };
     expect(formatSelectedLocation(boston)).toBe("Boston, MA");
-    expect(formatSuggestionLocation(boston)).toBe("Boston, MA, United States");
+    expect(formatSuggestionLocation(boston)).toBe("Boston, MA");
 
     const paris = {
       name: "Paris",
@@ -26,8 +26,8 @@ describe("location-utils", () => {
       country: "France",
       country_code: "FR",
     };
-    expect(formatSelectedLocation(paris)).toBe("Paris, Ile-de-France, France");
-    expect(formatSuggestionLocation(paris)).toBe("Paris, Ile-de-France, France");
+    expect(formatSelectedLocation(paris)).toBe("Paris, France");
+    expect(formatSuggestionLocation(paris)).toBe("Paris, France");
   });
 
   it("parses queries and expands filter tokens", () => {
