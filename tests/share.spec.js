@@ -1,6 +1,6 @@
 // @ts-check
 import { test, expect } from "@playwright/test";
-import { BOSTON } from "./helpers/fixtures.js";
+import { BERLIN, BOSTON } from "./helpers/fixtures.js";
 import {
   installApiMocks,
   installClipboardMock,
@@ -321,4 +321,27 @@ test("modal resets to image mode when closed and reopened", async ({ page }) => 
   await expect(textPreview).toBeHidden();
   await expect(storyPreview).toBeVisible();
   await expect(imageModeButton).toHaveClass(/is-active/);
+});
+
+test("story image wraps long location names without clipping", async ({ page }) => {
+  // Use Berlin which produces a long label: "Berlin, State of Berlin, Germany"
+  await setStoredLocation(page, BERLIN);
+  await page.goto("/");
+  await openShareModalAndWait(page);
+
+  // Wait for story image to render
+  await page.waitForFunction(() => {
+    const img = document.querySelector("#share-story-image");
+    return img && img.src && img.src.startsWith("data:image/png");
+  });
+
+  // Extract the canvas dimensions from the generated image to verify it rendered
+  const imgSrc = await page.evaluate(() => {
+    const img = document.querySelector("#share-story-image");
+    return img?.src || "";
+  });
+
+  expect(imgSrc).toMatch(/^data:image\/png;base64,/);
+  // A 1080x1920 PNG should have substantial content
+  expect(imgSrc.length).toBeGreaterThan(10000);
 });

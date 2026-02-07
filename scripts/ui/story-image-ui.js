@@ -79,13 +79,17 @@ export const generateStoryCanvas = async (headline, locationLabel) => {
   const goodNewsText = `Good news! ${headline}`;
   const footerText = "from SunshineOptimist.com";
 
+  // Calculate location lines for height measurement
+  ctx.font = `bold ${locationFontSize}px Merriweather, serif`;
+  const locationLines = wrapText(ctx, locationLine, maxTextWidth);
+
   // Calculate headline lines for height measurement
   ctx.font = `bold ${headlineFontSize}px Merriweather, serif`;
   const headlineLines = wrapText(ctx, goodNewsText, maxTextWidth);
 
   // Calculate total content height
   const totalHeight =
-    locationLineHeight +
+    locationLines.length * locationLineHeight +
     gapAfterLocation +
     headlineLines.length * headlineLineHeight +
     gapBeforeFooter +
@@ -94,14 +98,17 @@ export const generateStoryCanvas = async (headline, locationLabel) => {
   // Center vertically
   let y = (STORY_HEIGHT - totalHeight) / 2;
 
-  // Draw location line
+  // Draw location lines
   ctx.font = `bold ${locationFontSize}px Merriweather, serif`;
   ctx.shadowColor = "rgba(0, 0, 0, 0.15)";
   ctx.shadowBlur = 8;
   ctx.shadowOffsetX = 2;
   ctx.shadowOffsetY = 2;
-  ctx.fillText(locationLine, padding, y);
-  y += locationLineHeight + gapAfterLocation;
+  for (const line of locationLines) {
+    ctx.fillText(line, padding, y);
+    y += locationLineHeight;
+  }
+  y += gapAfterLocation;
 
   // Draw headline lines
   ctx.font = `bold ${headlineFontSize}px Merriweather, serif`;

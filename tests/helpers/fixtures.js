@@ -58,6 +58,17 @@ export const SAN_FRANCISCO = {
   timezone: "America/Los_Angeles",
 };
 
+export const BERLIN = {
+  name: "Berlin",
+  admin1: "State of Berlin",
+  country: "Germany",
+  country_code: "DE",
+  latitude: 52.52,
+  longitude: 13.405,
+  elevation: 34,
+  timezone: "Europe/Berlin",
+};
+
 export const SAN_JOSE = {
   name: "San Jose",
   admin1: "California",
