@@ -39,6 +39,14 @@ import { generateStoryCanvas } from "./story-image-ui.js";
 
 const DEFAULT_SHARE_TITLE = "Sunshine Optimist";
 const MOBILE_SHARE_QUERY = "(max-width: 640px)";
+let sharePreviewGeneration = 0;
+let storyPreviewGeneration = 0;
+
+/** @internal Reset share preview generations for testing */
+export const _resetSharePreviewGenerations = () => {
+  sharePreviewGeneration = 0;
+  storyPreviewGeneration = 0;
+};
 
 const isMobileShareViewport = () => {
   if (typeof window === "undefined") {
@@ -274,6 +282,8 @@ export const refreshSharePreview = async (
   if (!sharePreview) {
     return;
   }
+  sharePreviewGeneration += 1;
+  const thisGeneration = sharePreviewGeneration;
   setShareText("");
   setText(sharePreview, "Preparing your share...");
   try {
@@ -284,8 +294,14 @@ export const refreshSharePreview = async (
       languageCode,
       fallbackTimeZone
     );
+    if (thisGeneration !== sharePreviewGeneration) {
+      return;
+    }
     setSharePreviewText(sharePreview, message);
   } catch (error) {
+    if (thisGeneration !== sharePreviewGeneration) {
+      return;
+    }
     console.warn("Share preview failed:", error);
     setText(sharePreview, "Unable to prepare share text.");
   }
@@ -502,6 +518,8 @@ export const refreshStoryPreview = async (imgElement, headline, _lede, languageC
   if (!imgElement) {
     return;
   }
+  storyPreviewGeneration += 1;
+  const thisGeneration = storyPreviewGeneration;
   const snapshot = getModalSnapshot() || getShareSnapshot();
   const locationLabel = await resolveShareLocationLabel(
     snapshot?.location || getActiveLocation(),
@@ -510,6 +528,9 @@ export const refreshStoryPreview = async (imgElement, headline, _lede, languageC
   const headlineText = snapshot?.headline || getText(headline) || "Sunshine Optimist";
 
   const generatedCanvas = await generateStoryCanvas(headlineText, locationLabel);
+  if (thisGeneration !== storyPreviewGeneration) {
+    return;
+  }
 
   // Store the canvas for download functionality
   setLastGeneratedCanvas(generatedCanvas);
