@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   formatSelectedLocation,
   formatSuggestionLocation,
+  isCurrentLocation,
   parseQuery,
   applyFilterTokens,
   isNameMatch,
@@ -66,6 +67,15 @@ describe("location-utils", () => {
 
     expect(isNameMatch(items[0], "Pa")).toBe(true);
     expect(isNameMatch(items[0], "X")).toBe(false);
+  });
+
+  it("detects current location by flag or name", () => {
+    expect(isCurrentLocation({ isCurrent: true })).toBe(true);
+    expect(isCurrentLocation({ name: "Current Location" })).toBe(true);
+    expect(isCurrentLocation({ name: "current location" })).toBe(true);
+    expect(isCurrentLocation({ name: "New York" })).toBe(false);
+    expect(isCurrentLocation(null)).toBe(false);
+    expect(isCurrentLocation(undefined)).toBe(false);
   });
 
   it("calculates distance and sorts by proximity", () => {

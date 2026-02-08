@@ -60,6 +60,8 @@ const STATE_ALIAS_BY_TOKEN = {
   dc: "District of Columbia",
 };
 
+export const CURRENT_LOCATION_LABEL = "Current Location";
+
 export const normalizeCountryCode = (item) => (item.country_code || "").toUpperCase();
 
 export const formatSelectedLocation = (item) => {
@@ -73,6 +75,10 @@ export const formatSelectedLocation = (item) => {
 };
 
 export const formatSuggestionLocation = formatSelectedLocation;
+
+export const isCurrentLocation = (location) =>
+  Boolean(location?.isCurrent) ||
+  (location?.name || "").toLowerCase() === CURRENT_LOCATION_LABEL.toLowerCase();
 
 const normalizeToken = (value) => value.replace(/[^a-z0-9]/gi, "").toLowerCase();
 

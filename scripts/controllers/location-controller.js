@@ -7,9 +7,11 @@
 import { setInputValue } from "../utils/dom-utils.js";
 import {
   applyFilterTokens,
+  CURRENT_LOCATION_LABEL,
   formatFilterTokensForHint,
   formatSelectedLocation,
   formatSuggestionLocation,
+  isCurrentLocation,
   isNameMatch,
   normalizeCountryCode,
   parseQuery,
@@ -61,8 +63,6 @@ import { fetchReverseGeocodeLocation } from "../services/reverse-geocode-service
 const MAX_RESULTS = 8;
 const MAX_RECENTS = 5;
 const CAN_USE_GEOLOCATION = "geolocation" in navigator;
-const CURRENT_LOCATION_LABEL = "Current Location";
-
 // Callback for when location changes require daylight recalculation
 let onLocationChange = null;
 
@@ -91,13 +91,6 @@ export const initLocationController = (domElements, config) => {
 export const setLocationChangeCallback = (callback) => {
   onLocationChange = callback;
 };
-
-/**
- * Check if a location is the "Current Location" placeholder
- */
-const isCurrentLocation = (location) =>
-  Boolean(location?.isCurrent) ||
-  (location?.name || "").toLowerCase() === CURRENT_LOCATION_LABEL.toLowerCase();
 
 /**
  * Update the visibility of the clear button

@@ -24,13 +24,16 @@ import {
   formatSharePercent,
   lowerCaseFirstLetter,
 } from "../formatters/formatters.js";
-import { formatSelectedLocation } from "../utils/location-utils.js";
+import {
+  CURRENT_LOCATION_LABEL,
+  formatSelectedLocation,
+  isCurrentLocation,
+} from "../utils/location-utils.js";
 import { getAdjustedMonth } from "../utils/date-utils.js";
 import { fetchReverseGeocodeLocation } from "../services/reverse-geocode-service.js";
 import { clampValue } from "../utils/utils.js";
 import { generateStoryCanvas } from "./story-image-ui.js";
 
-const CURRENT_LOCATION_LABEL = "Current Location";
 const DEFAULT_SHARE_TITLE = "Sunshine Optimist";
 const MOBILE_SHARE_QUERY = "(max-width: 640px)";
 
@@ -95,13 +98,6 @@ export const getShareMode = () => shareMode;
 export const setShareMode = (mode) => {
   shareMode = mode === "text" ? "text" : "story";
 };
-
-/**
- * Check if a location is "Current Location"
- */
-const isCurrentLocation = (location) =>
-  Boolean(location?.isCurrent) ||
-  (location?.name || "").toLowerCase() === CURRENT_LOCATION_LABEL.toLowerCase();
 
 /**
  * Get share progress mode based on month and hemisphere
