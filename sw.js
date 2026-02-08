@@ -5,8 +5,10 @@
  * Uses a cache-first strategy for static assets.
  */
 
-const CACHE_VERSION = "v141-f320507";
+const CACHE_VERSION = "v142-4d50e1e";
 const STATIC_CACHE_NAME = `sunshine-optimist-static-${CACHE_VERSION}`;
+const FONT_CACHE_NAME = "sunshine-optimist-fonts-v1";
+const FONT_ORIGINS = ["https://fonts.googleapis.com", "https://fonts.gstatic.com"];
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
@@ -71,8 +73,12 @@ self.addEventListener("activate", (event) => {
         return Promise.all(
           cacheNames
             .filter((cacheName) => {
-              // Delete old versioned caches
-              return cacheName.startsWith("sunshine-optimist-") && cacheName !== STATIC_CACHE_NAME;
+              // Delete old versioned caches, but keep font cache
+              return (
+                cacheName.startsWith("sunshine-optimist-") &&
+                cacheName !== STATIC_CACHE_NAME &&
+                cacheName !== FONT_CACHE_NAME
+              );
             })
             .map((cacheName) => {
               // eslint-disable-next-line no-console
@@ -115,7 +121,27 @@ const handleStaticRequest = async (request) => {
 };
 
 /**
- * Fetch event - handle same-origin static assets only
+ * Handle Google Font requests (network-first with cache fallback)
+ */
+const handleFontRequest = async (request) => {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      const cache = await caches.open(FONT_CACHE_NAME);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    throw new Error("Font unavailable offline");
+  }
+};
+
+/**
+ * Fetch event - handle static assets and font requests
  */
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
@@ -130,9 +156,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Only handle same-origin requests (static assets)
-  // Let third-party API requests and external resources (like Google Fonts)
-  // go directly to the network with their own caching headers
+  // Handle Google Fonts with network-first strategy for offline support
+  if (FONT_ORIGINS.includes(url.origin)) {
+    event.respondWith(handleFontRequest(event.request));
+    return;
+  }
+
+  // Handle same-origin static assets with cache-first strategy
   if (url.origin === self.location.origin) {
     event.respondWith(handleStaticRequest(event.request));
   }
