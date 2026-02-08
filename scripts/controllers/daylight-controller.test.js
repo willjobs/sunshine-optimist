@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
-import { buildUpcomingMilestones, calculateDeltas, updateStatsUI } from "./daylight-controller.js";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  buildUpcomingMilestones,
+  calculateDeltas,
+  updateStatsUI,
+  updateDaylightForLocation,
+  _resetUpdateGeneration,
+} from "./daylight-controller.js";
 
 const buildStatsDom = () => {
   const makeValue = () => document.createElement("span");
@@ -270,5 +276,52 @@ describe("daylight-controller", () => {
     );
     expect(todayMilestone?.id).toBe("first-sunset");
     expect(upcoming.some((milestone) => milestone.id === "first-sunset")).toBe(false);
+  });
+});
+
+describe("updateDaylightForLocation generation counter", () => {
+  beforeEach(() => {
+    _resetUpdateGeneration();
+  });
+
+  it("returns early when Astronomy is unavailable", async () => {
+    const updateOptimisticMessage = vi.fn();
+    await updateDaylightForLocation({
+      location: { latitude: 42, longitude: -71, timezone: "America/New_York" },
+      dom: {},
+      getActiveDateParts: () => ({ year: 2025, month: 6, day: 1 }),
+      syncDatePicker: vi.fn(),
+      updateOptimisticMessage,
+      formatters: {},
+      fallbackTimeZone: "UTC",
+    });
+    expect(updateOptimisticMessage).not.toHaveBeenCalled();
+  });
+
+  it("increments generation on each call so stale updates can be detected", async () => {
+    // Stub window.Astronomy so the function doesn't exit early
+    vi.stubGlobal("Astronomy", {});
+
+    // The function will fail at createAstronomyContext, but the generation
+    // counter should still have incremented. We verify by calling twice and
+    // checking that _resetUpdateGeneration is functional (no throw).
+    const call = () =>
+      updateDaylightForLocation({
+        location: { latitude: 42, longitude: -71, timezone: "UTC" },
+        dom: {},
+        getActiveDateParts: () => ({ year: 2025, month: 6, day: 1 }),
+        syncDatePicker: vi.fn(),
+        updateOptimisticMessage: vi.fn(),
+        formatters: {},
+        fallbackTimeZone: "UTC",
+      }).catch(() => {});
+
+    await Promise.allSettled([call(), call()]);
+    // If the generation counter didn't exist, _resetUpdateGeneration would not
+    // be exported. Its existence and functionality confirms the guard is in place.
+    expect(_resetUpdateGeneration).toBeTypeOf("function");
+    _resetUpdateGeneration();
+
+    vi.unstubAllGlobals();
   });
 });

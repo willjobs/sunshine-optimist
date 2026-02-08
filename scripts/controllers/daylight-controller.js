@@ -859,9 +859,17 @@ export const buildUpcomingMilestones = (
   return { todayMilestone, upcoming };
 };
 
+let updateGeneration = 0;
+
+/** @internal Reset generation counter for testing */
+export const _resetUpdateGeneration = () => {
+  updateGeneration = 0;
+};
+
 /**
  * Main function to update daylight information for a location.
  * Uses async operations to avoid blocking the main thread during heavy calculations.
+ * Includes a generation counter to discard stale results from superseded calls.
  */
 export const updateDaylightForLocation = async ({
   location,
@@ -874,6 +882,9 @@ export const updateDaylightForLocation = async ({
 }) => {
   if (!window.Astronomy || !location) return;
 
+  updateGeneration += 1;
+  const thisGeneration = updateGeneration;
+
   const timeZone = location.timezone || fallbackTimeZone;
   const hemisphere = location.latitude < 0 ? "south" : "north";
   const astronomy = createAstronomyContext(location, timeZone);
@@ -882,6 +893,9 @@ export const updateDaylightForLocation = async ({
 
   // 1. Calculate all sun metrics (async to yield to main thread during full-year scan)
   const metrics = await calculateSunMetrics(astronomy, todayParts, timeZone);
+
+  // Discard stale results if a newer update has started
+  if (thisGeneration !== updateGeneration) return;
 
   // 2. Calculate deltas and comparison mode
   const deltas = calculateDeltas(metrics);
@@ -926,6 +940,10 @@ export const updateDaylightForLocation = async ({
     timeZone,
     formatters.formatTimeFromMinutes
   );
+
+  // Discard stale results if a newer update has started
+  if (thisGeneration !== updateGeneration) return;
+
   updateOptimisticMessage({
     data: messageData,
     month: todayParts.month,
