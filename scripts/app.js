@@ -21,6 +21,9 @@ import {
   setLastFilterTokensRaw,
   isSharePrivacyEnabled,
   setSharePrivacyEnabled,
+  getShareMode,
+  setShareMode,
+  getLastGeneratedCanvas,
 } from "./state/app-state.js";
 import {
   loadSharePrivacyPreference,
@@ -36,10 +39,7 @@ import {
   shareTextWithWebShare,
   shareStoryWithWebShare,
   flashActionLabel,
-  getShareMode,
-  setShareMode,
   refreshStoryPreview,
-  getLastGeneratedCanvas,
   canUseWebShare,
   canShareStoryImage,
 } from "./ui/share-modal-ui.js";

@@ -17,6 +17,10 @@ import {
   resetLocationSearchState,
   batchStateUpdates,
   scheduleAfterBatch,
+  getShareMode,
+  setShareMode,
+  getLastGeneratedCanvas,
+  setLastGeneratedCanvas,
 } from "./app-state.js";
 
 afterEach(() => {
@@ -67,5 +71,23 @@ describe("app-state", () => {
       scheduleAfterBatch(() => calls.push("after"));
     });
     expect(calls).toEqual(["during", "after"]);
+  });
+
+  it("manages share mode state", () => {
+    expect(getShareMode()).toBe("story");
+    setShareMode("text");
+    expect(getShareMode()).toBe("text");
+    setShareMode("invalid");
+    expect(getShareMode()).toBe("story");
+    setShareMode("story");
+  });
+
+  it("manages last generated canvas state", () => {
+    expect(getLastGeneratedCanvas()).toBe(null);
+    const fakeCanvas = { toDataURL: () => "" };
+    setLastGeneratedCanvas(fakeCanvas);
+    expect(getLastGeneratedCanvas()).toBe(fakeCanvas);
+    setLastGeneratedCanvas(null);
+    expect(getLastGeneratedCanvas()).toBe(null);
   });
 });

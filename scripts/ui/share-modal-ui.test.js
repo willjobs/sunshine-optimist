@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import {
-  buildShareProgressLine,
-  flashActionLabel,
-  getShareMode,
-  setShareMode,
-} from "./share-modal-ui.js";
+import { buildShareProgressLine, flashActionLabel } from "./share-modal-ui.js";
+import { getShareMode, setShareMode } from "../state/app-state.js";
 
 describe("share-modal-ui", () => {
   it("builds progress lines for max and shortest modes", () => {

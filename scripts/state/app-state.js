@@ -76,6 +76,8 @@ const shareState = {
   modalSnapshot: null,
   privacyEnabled: false,
   text: "",
+  shareMode: "story",
+  lastGeneratedCanvas: null,
 };
 
 // ============================================================================
@@ -338,6 +340,16 @@ export const setSharePrivacyEnabled = (enabled) => {
 export const getShareText = () => shareState.text;
 export const setShareText = (text) => {
   shareState.text = text;
+};
+
+export const getShareMode = () => shareState.shareMode;
+export const setShareMode = (mode) => {
+  shareState.shareMode = mode === "text" ? "text" : "story";
+};
+
+export const getLastGeneratedCanvas = () => shareState.lastGeneratedCanvas;
+export const setLastGeneratedCanvas = (canvas) => {
+  shareState.lastGeneratedCanvas = canvas;
 };
 
 // ============================================================================

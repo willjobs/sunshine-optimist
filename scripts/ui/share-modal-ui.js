@@ -11,6 +11,9 @@ import {
   isSharePrivacyEnabled,
   getShareText,
   setShareText,
+  setShareMode,
+  getLastGeneratedCanvas,
+  setLastGeneratedCanvas,
   getActiveLocation,
   getUpcomingMilestones,
   getMilestoneIndex,
@@ -70,33 +73,6 @@ export const canShareStoryImage = () => {
   } catch {
     return false;
   }
-};
-
-/**
- * Store the last generated canvas for download functionality
- */
-let lastGeneratedCanvas = null;
-
-/**
- * Get the last generated canvas for download
- */
-export const getLastGeneratedCanvas = () => lastGeneratedCanvas;
-
-/**
- * Share mode state - "text" or "story"
- */
-let shareMode = "story";
-
-/**
- * Get current share mode
- */
-export const getShareMode = () => shareMode;
-
-/**
- * Set share mode
- */
-export const setShareMode = (mode) => {
-  shareMode = mode === "text" ? "text" : "story";
 };
 
 /**
@@ -356,7 +332,7 @@ export const closeShareModal = (shareModal) => {
     return;
   }
   setModalSnapshot(null);
-  shareMode = "story";
+  setShareMode("story");
   if (typeof shareModal.close === "function") {
     shareModal.close();
   } else {
@@ -536,7 +512,7 @@ export const refreshStoryPreview = async (imgElement, headline, _lede, languageC
   const generatedCanvas = await generateStoryCanvas(headlineText, locationLabel);
 
   // Store the canvas for download functionality
-  lastGeneratedCanvas = generatedCanvas;
+  setLastGeneratedCanvas(generatedCanvas);
 
   // Convert canvas to data URL and set as img src for native long-press save
   imgElement.src = generatedCanvas.toDataURL("image/png");
