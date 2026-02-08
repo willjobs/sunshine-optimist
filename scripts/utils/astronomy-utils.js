@@ -2,6 +2,7 @@ import {
   addDaysToDateParts,
   compareDateParts,
   formatDateInputValue,
+  getDaysBetweenDateParts,
   getDaysInMonth,
   getDaysInYear,
   getLocalDateParts,
@@ -11,6 +12,7 @@ import {
 } from "./date-utils.js";
 
 const CHUNK_SIZE = 30;
+const MINUTES_PER_DAY = 24 * 60;
 
 const yieldToMain = () =>
   new Promise((resolve) => {
@@ -174,9 +176,25 @@ export const createAstronomyContext = (location, timeZone) => {
     return events;
   };
 
+  const getNormalizedSunsetMinutes = (sunset, dateParts) => {
+    if (!sunset || !dateParts) {
+      return null;
+    }
+    const sunsetMinutes = getMinutesSinceMidnight(sunset.date, timeZone);
+    if (!Number.isFinite(sunsetMinutes)) {
+      return null;
+    }
+    const sunsetDateParts = getLocalDateParts(sunset.date, timeZone);
+    const dayOffset = getDaysBetweenDateParts(dateParts, sunsetDateParts);
+    if (!Number.isFinite(dayOffset)) {
+      return sunsetMinutes;
+    }
+    return sunsetMinutes + dayOffset * MINUTES_PER_DAY;
+  };
+
   const getSunsetMinutesForDateParts = (dateParts) => {
     const { sunset } = getSunEvents(dateParts);
-    return sunset ? getMinutesSinceMidnight(sunset.date, timeZone) : null;
+    return getNormalizedSunsetMinutes(sunset, dateParts);
   };
 
   const getDaylightMinutesForDateParts = (dateParts) => getDaylightMinutes(getSunEvents(dateParts));
@@ -203,8 +221,11 @@ export const createAstronomyContext = (location, timeZone) => {
       const events = getSunEvents(dateParts);
 
       if (events.sunset) {
-        const sunsetMinutes = getMinutesSinceMidnight(events.sunset.date, timeZone);
-        if (earliestSunsetMinutes === null || sunsetMinutes < earliestSunsetMinutes) {
+        const sunsetMinutes = getNormalizedSunsetMinutes(events.sunset, dateParts);
+        if (
+          Number.isFinite(sunsetMinutes) &&
+          (earliestSunsetMinutes === null || sunsetMinutes < earliestSunsetMinutes)
+        ) {
           earliestSunsetMinutes = sunsetMinutes;
           earliestSunsetDateParts = dateParts;
         }
@@ -422,11 +443,10 @@ export const createAstronomyContext = (location, timeZone) => {
   const findNextSunsetThreshold = (startDateParts, targetMinutes, limitDays = 370) => {
     for (let offset = 1; offset <= limitDays; offset += 1) {
       const dateParts = addDaysToDateParts(startDateParts, offset);
-      const { sunset } = getSunEvents(dateParts);
-      if (!sunset) {
+      const sunsetMinutes = getSunsetMinutesForDateParts(dateParts);
+      if (sunsetMinutes === null) {
         continue;
       }
-      const sunsetMinutes = getMinutesSinceMidnight(sunset.date, timeZone);
       if (sunsetMinutes >= targetMinutes) {
         return { dateParts, offsetDays: offset };
       }
@@ -449,11 +469,10 @@ export const createAstronomyContext = (location, timeZone) => {
     let days = 0;
     for (let offset = 0; offset <= limitDays; offset += 1) {
       const dateParts = addDaysToDateParts(startDateParts, offset);
-      const { sunset } = getSunEvents(dateParts);
-      if (!sunset) {
+      const sunsetMinutes = getSunsetMinutesForDateParts(dateParts);
+      if (sunsetMinutes === null) {
         return null;
       }
-      const sunsetMinutes = getMinutesSinceMidnight(sunset.date, timeZone);
       if (sunsetMinutes >= targetMinutes) {
         days += 1;
       } else {

@@ -13,7 +13,6 @@ import {
   getDaysInMonth,
   getDaysInYear,
   getLocalNoonDateFromParts,
-  getMinutesSinceMidnight,
 } from "../utils/date-utils.js";
 import { setText } from "../utils/dom-utils.js";
 import { createAstronomyContext } from "../utils/astronomy-utils.js";
@@ -42,7 +41,7 @@ import { updateShareSnapshot } from "../ui/share-modal-ui.js";
  * Returns raw data needed for delta calculations and UI updates.
  * Uses async yearly extremes calculation to avoid blocking the main thread.
  */
-export const calculateSunMetrics = async (astronomy, todayParts, timeZone) => {
+export const calculateSunMetrics = async (astronomy, todayParts) => {
   const weekParts = addDaysToDateParts(todayParts, -7);
   const monthParts = addMonthsToDateParts(todayParts, -1);
 
@@ -50,15 +49,9 @@ export const calculateSunMetrics = async (astronomy, todayParts, timeZone) => {
   const weekEvents = astronomy.getSunEvents(weekParts);
   const monthEvents = astronomy.getSunEvents(monthParts);
 
-  const todaySunsetMinutes = todayEvents.sunset
-    ? getMinutesSinceMidnight(todayEvents.sunset.date, timeZone)
-    : null;
-  const weekSunsetMinutes = weekEvents.sunset
-    ? getMinutesSinceMidnight(weekEvents.sunset.date, timeZone)
-    : null;
-  const monthSunsetMinutes = monthEvents.sunset
-    ? getMinutesSinceMidnight(monthEvents.sunset.date, timeZone)
-    : null;
+  const todaySunsetMinutes = astronomy.getSunsetMinutesForDateParts(todayParts);
+  const weekSunsetMinutes = astronomy.getSunsetMinutesForDateParts(weekParts);
+  const monthSunsetMinutes = astronomy.getSunsetMinutesForDateParts(monthParts);
 
   const todayDaylight = astronomy.getDaylightMinutesForDateParts(todayParts);
   const weekDaylight = astronomy.getDaylightMinutesForDateParts(weekParts);
@@ -66,10 +59,7 @@ export const calculateSunMetrics = async (astronomy, todayParts, timeZone) => {
 
   const yesterdayParts = addDaysToDateParts(todayParts, -1);
   const yesterdayDaylight = astronomy.getDaylightMinutesForDateParts(yesterdayParts);
-  const yesterdayEvents = astronomy.getSunEvents(yesterdayParts);
-  const yesterdaySunsetMinutes = yesterdayEvents.sunset
-    ? getMinutesSinceMidnight(yesterdayEvents.sunset.date, timeZone)
-    : null;
+  const yesterdaySunsetMinutes = astronomy.getSunsetMinutesForDateParts(yesterdayParts);
 
   const yearlyExtremes = await astronomy.getYearlySunExtremesAsync(todayParts.year, todayDaylight);
 
@@ -892,7 +882,7 @@ export const updateDaylightForLocation = async ({
   syncDatePicker(timeZone);
 
   // 1. Calculate all sun metrics (async to yield to main thread during full-year scan)
-  const metrics = await calculateSunMetrics(astronomy, todayParts, timeZone);
+  const metrics = await calculateSunMetrics(astronomy, todayParts);
 
   // Discard stale results if a newer update has started
   if (thisGeneration !== updateGeneration) return;
