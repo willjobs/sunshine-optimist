@@ -72,15 +72,7 @@ export const formatSelectedLocation = (item) => {
   return parts.filter(Boolean).join(", ");
 };
 
-export const formatSuggestionLocation = (item) => {
-  const isUnitedStates =
-    normalizeCountryCode(item) === "US" || item.country?.toLowerCase() === "united states";
-  const regionName = item.admin1 || "";
-  const region =
-    isUnitedStates && US_STATE_ABBR[regionName] ? US_STATE_ABBR[regionName] : regionName;
-  const parts = isUnitedStates ? [item.name, region] : [item.name, item.country];
-  return parts.filter(Boolean).join(", ");
-};
+export const formatSuggestionLocation = formatSelectedLocation;
 
 const normalizeToken = (value) => value.replace(/[^a-z0-9]/gi, "").toLowerCase();
 
