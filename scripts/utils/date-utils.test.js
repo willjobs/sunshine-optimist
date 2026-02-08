@@ -41,6 +41,9 @@ describe("date-utils", () => {
     expect(
       compareDateParts({ year: 2024, month: 1, day: 1 }, { year: 2024, month: 1, day: 1 })
     ).toBe(0);
+    expect(compareDateParts(null, { year: 2024, month: 1, day: 1 })).toBeNaN();
+    expect(compareDateParts({ year: 2024, month: 1, day: 1 }, null)).toBeNaN();
+    expect(compareDateParts(null, null)).toBeNaN();
     expect(
       getDaysBetweenDateParts({ year: 2024, month: 1, day: 1 }, { year: 2024, month: 1, day: 10 })
     ).toBe(9);

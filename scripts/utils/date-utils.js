@@ -121,7 +121,7 @@ export const getDaysInMonth = (year, month) => new Date(Date.UTC(year, month, 0)
 
 export const compareDateParts = (left, right) => {
   if (!left || !right) {
-    return 0;
+    return NaN;
   }
   if (left.year !== right.year) {
     return left.year < right.year ? -1 : 1;
