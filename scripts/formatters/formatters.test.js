@@ -21,6 +21,9 @@ describe("formatters", () => {
     expect(formatDuration(45)).toBe("45m");
     expect(formatDuration(75)).toBe("1h 15m");
     expect(formatMinutesValue(1)).toBe("1 minute");
+    expect(formatMinutesValue(60)).toBe("1 hr");
+    expect(formatMinutesValue(59.5)).toBe("1 hr");
+    expect(formatMinutesValue(59.4)).toBe("59 minutes");
     expect(formatMinutesValue(90)).toBe("1 hr 30 mins");
     expect(formatShareMinutes(1)).toBe("1 min");
     expect(formatShareMinutes(0)).toBe("0 mins");

@@ -30,7 +30,7 @@ export const formatMinutesValue = (value) => {
     return "";
   }
   const rounded = Math.round(Math.abs(value));
-  if (rounded > 60) {
+  if (rounded >= 60) {
     const hours = Math.floor(rounded / 60);
     const mins = rounded % 60;
     const hourLabel = hours === 1 ? "hr" : "hrs";
