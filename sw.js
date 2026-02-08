@@ -5,7 +5,7 @@
  * Uses a cache-first strategy for static assets.
  */
 
-const CACHE_VERSION = "v140-913815e";
+const CACHE_VERSION = "v141-f320507";
 const STATIC_CACHE_NAME = `sunshine-optimist-static-${CACHE_VERSION}`;
 
 // Static assets to cache on install
@@ -92,7 +92,7 @@ self.addEventListener("activate", (event) => {
  * Handle static asset requests (cache-first strategy)
  */
 const handleStaticRequest = async (request) => {
-  const cachedResponse = await caches.match(request);
+  const cachedResponse = await caches.match(request, { ignoreSearch: true });
   if (cachedResponse) {
     return cachedResponse;
   }
