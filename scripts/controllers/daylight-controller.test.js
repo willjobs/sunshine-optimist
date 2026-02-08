@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   buildUpcomingMilestones,
+  calculateSunMetrics,
   calculateDeltas,
   updateStatsUI,
   updateDaylightForLocation,
@@ -166,6 +167,36 @@ describe("daylight-controller", () => {
     };
     const deltas = calculateDeltas(metrics);
     expect(deltas.fractionOfLossCompleted).toBeCloseTo(0.5, 5);
+  });
+
+  it("uses astronomy sunset minute helpers so post-midnight sunsets stay normalized", async () => {
+    const sunsetMinuteValues = [1441.08, 1310.5, 1205.25, 1435.2];
+    const astronomy = {
+      getSunEvents: vi.fn(() => ({
+        sunrise: { date: new Date(0) },
+        sunset: { date: new Date(0) },
+      })),
+      getSunsetMinutesForDateParts: vi.fn(() => sunsetMinuteValues.shift() ?? null),
+      getDaylightMinutesForDateParts: vi.fn(() => 600),
+      getYearlySunExtremesAsync: vi.fn(async () => ({
+        earliestSunsetMinutes: 1100,
+        earliestSunsetDateParts: { year: 2026, month: 12, day: 1 },
+        shortestDayMinutes: 500,
+        shortestDayDateParts: { year: 2026, month: 12, day: 21 },
+        longestDayMinutes: 900,
+        longestDayDateParts: { year: 2026, month: 6, day: 21 },
+        maxDailyGainMinutes: 2,
+        maxDailyGainDateParts: { year: 2026, month: 1, day: 2 },
+        daysWithLessDaylight: 0,
+      })),
+    };
+
+    const metrics = await calculateSunMetrics(astronomy, { year: 2026, month: 4, day: 28 });
+    expect(metrics.todaySunsetMinutes).toBe(1441.08);
+    expect(metrics.weekSunsetMinutes).toBe(1310.5);
+    expect(metrics.monthSunsetMinutes).toBe(1205.25);
+    expect(metrics.yesterdaySunsetMinutes).toBe(1435.2);
+    expect(astronomy.getSunsetMinutesForDateParts).toHaveBeenCalledTimes(4);
   });
 
   it("shows 24 hours of daylight during polar day", () => {

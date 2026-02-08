@@ -1,5 +1,12 @@
 import { beforeAll, describe, it, expect } from "vitest";
 import { createAstronomyContext } from "./astronomy-utils.js";
+import {
+  addDaysToDateParts,
+  getDaysBetweenDateParts,
+  getDaysInYear,
+  getLocalDateParts,
+  getMinutesSinceMidnight,
+} from "./date-utils.js";
 
 beforeAll(async () => {
   if (globalThis.Astronomy) {
@@ -37,6 +44,22 @@ describe("astronomy-utils", () => {
 describe("polar region daylight calculations", () => {
   const barrow = { latitude: 71.29058, longitude: -156.78873 };
   const timeZone = "America/Anchorage";
+  const findNextDaySunset = (context, year) => {
+    const yearStart = { year, month: 1, day: 1 };
+    const daysInYear = getDaysInYear(year);
+    for (let offset = 0; offset < daysInYear; offset += 1) {
+      const dateParts = addDaysToDateParts(yearStart, offset);
+      const events = context.getSunEvents(dateParts);
+      if (!events.sunset) {
+        continue;
+      }
+      const sunsetDateParts = getLocalDateParts(events.sunset.date, timeZone);
+      if (getDaysBetweenDateParts(dateParts, sunsetDateParts) === 1) {
+        return { dateParts, sunsetDate: events.sunset.date };
+      }
+    }
+    return null;
+  };
 
   it("does not produce spuriously short daylight on polar transition days", () => {
     const context = createAstronomyContext(barrow, timeZone);
@@ -146,5 +169,20 @@ describe("polar region daylight calculations", () => {
     const daylight = context.getDaylightMinutesForDateParts(match?.dateParts);
     expect(daylight).not.toBe(null);
     expect(daylight).toBeGreaterThanOrEqual(30);
+  });
+
+  it("normalizes next-day sunsets beyond 24h for threshold and extremes logic", () => {
+    const context = createAstronomyContext(barrow, timeZone);
+    const nextDaySunset = findNextDaySunset(context, 2026);
+    expect(nextDaySunset).not.toBe(null);
+    if (!nextDaySunset) {
+      return;
+    }
+
+    const rawMinutes = getMinutesSinceMidnight(nextDaySunset.sunsetDate, timeZone);
+    const normalizedMinutes = context.getSunsetMinutesForDateParts(nextDaySunset.dateParts);
+    expect(rawMinutes).toBeLessThan(24 * 60);
+    expect(normalizedMinutes).toBeGreaterThanOrEqual(24 * 60);
+    expect(normalizedMinutes - rawMinutes).toBeCloseTo(24 * 60, 5);
   });
 });
