@@ -48,7 +48,7 @@ All application state is centralized in `scripts/state/app-state.js`:
 - **Date state**: Live vs custom date, commit timeout
 - **Milestone state**: Upcoming milestones, current index, timezone
 - **Optimistic message state**: Rotation interval, current index
-- **Share state**: Snapshot, modal snapshot, privacy preference
+- **Share state**: Snapshot, modal snapshot, privacy preference, share mode, last generated canvas
 - **Reverse geocode state**: Cache, in-flight promise
 
 State is accessed through exported getter/setter functions. The module supports batch updates for performance.
@@ -105,11 +105,11 @@ Controllers communicate via callback registration (e.g., `setLocationChangeCallb
 
 ### Service Worker Strategy
 
-**Static assets** (cache-first): HTML, CSS, JavaScript, cached on install with network fallback.
+**Static assets** (cache-first): HTML, CSS, JavaScript, cached on install with network fallback. Cache matching uses `ignoreSearch: true` so versioned query strings (e.g., `?v=v132-abc123`) match bare cached URLs.
 
 **API requests** (network-first with stale-while-revalidate): Geocoding APIs try network first, fall back to cached response (max 24 hours old).
 
-**External resources** (network-only): Google Fonts rely on their own caching.
+**Google Fonts** (network-first with cache fallback): Font CSS and font files from `fonts.googleapis.com` and `fonts.gstatic.com` are cached in a dedicated font cache. On subsequent loads, the service worker tries the network first and updates the cache; offline, it falls back to the cached version.
 
 ### Offline Support
 
