@@ -148,7 +148,7 @@ const updateRecentLocations = (item) => {
 const setStatusMessages = (messages) => {
   const { resultsMeta, resultsPanel } = dom;
   if (!resultsMeta) return;
-  resultsMeta.innerHTML = "";
+  resultsMeta.replaceChildren();
   messages.forEach((message) => {
     const status = document.createElement("div");
     status.className = `location-status${message.type ? ` is-${message.type}` : ""}`;
@@ -166,7 +166,7 @@ const setStatusMessages = (messages) => {
 const renderActions = (actions) => {
   const { resultsActions, resultsPanel } = dom;
   if (!resultsActions) return;
-  resultsActions.innerHTML = "";
+  resultsActions.replaceChildren();
   actions.forEach((action) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -276,7 +276,7 @@ const showLoadingState = () => {
   setSuggestionResults([]);
   setActiveIndex(-1);
   if (!resultsList || !cityInput) return;
-  resultsList.innerHTML = "";
+  resultsList.replaceChildren();
   cityInput.removeAttribute("aria-activedescendant");
   setStatusMessages([{ text: "Searching for cities...", type: "hint" }]);
   renderActions(getActionItems());
@@ -291,7 +291,7 @@ const showErrorState = () => {
   setSuggestionResults([]);
   setActiveIndex(-1);
   if (!resultsList || !cityInput) return;
-  resultsList.innerHTML = "";
+  resultsList.replaceChildren();
   cityInput.removeAttribute("aria-activedescendant");
   setStatusMessages([
     {
@@ -322,9 +322,9 @@ export const clearResults = () => {
   setActiveIndex(-1);
   const { resultsList, resultsMeta, resultsActions, resultsPanel, cityInput } = dom;
   if (!resultsList || !resultsMeta || !resultsActions || !resultsPanel || !cityInput) return;
-  resultsList.innerHTML = "";
-  resultsMeta.innerHTML = "";
-  resultsActions.innerHTML = "";
+  resultsList.replaceChildren();
+  resultsMeta.replaceChildren();
+  resultsActions.replaceChildren();
   resultsPanel.classList.remove("is-open");
   cityInput.setAttribute("aria-expanded", "false");
   cityInput.removeAttribute("aria-activedescendant");
@@ -356,7 +356,7 @@ export const updateResultsMaxHeight = () => {
 const renderResults = (groups, options = {}) => {
   const { resultsList, cityInput } = dom;
   if (!resultsList || !cityInput) return;
-  resultsList.innerHTML = "";
+  resultsList.replaceChildren();
   setSuggestionResults([]);
   setActiveIndex(-1);
 

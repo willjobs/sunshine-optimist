@@ -16,7 +16,7 @@ export const launchConfetti = (confettiRoot) => {
     return;
   }
 
-  confettiRoot.innerHTML = "";
+  confettiRoot.replaceChildren();
 
   const existingTimeoutId = getConfettiTimeoutId();
   if (existingTimeoutId) {
@@ -52,7 +52,7 @@ export const launchConfetti = (confettiRoot) => {
 
   const timeoutId = window.setTimeout(
     () => {
-      confettiRoot.innerHTML = "";
+      confettiRoot.replaceChildren();
       setConfettiTimeoutId(null);
     },
     (maxDuration + 0.5) * 1000
