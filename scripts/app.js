@@ -24,6 +24,7 @@ import {
   getShareMode,
   setShareMode,
   getLastGeneratedCanvas,
+  setMilestoneScanResults,
 } from "./state/app-state.js";
 import {
   loadSharePrivacyPreference,
@@ -72,6 +73,7 @@ import {
   updateResultsMaxHeight,
   handleTogglePreference,
   handleRetry,
+  handleFindMilestoneCities,
 } from "./controllers/location-controller.js";
 import { updateDaylightForLocation } from "./controllers/daylight-controller.js";
 
@@ -190,6 +192,7 @@ initLocationController(dom, {
   languageCode,
   regionCode,
   fallbackTimeZone: FALLBACK_TIMEZONE,
+  getActiveDateParts: (tz) => getActiveDateParts(tz),
 });
 
 // Create formatters object for daylight controller
@@ -202,6 +205,7 @@ const formatters = {
 
 // Wrapper function for updating daylight that provides all dependencies
 const handleDaylightUpdate = (location) => {
+  setMilestoneScanResults(null);
   updateDaylightForLocation({
     location,
     dom,
@@ -394,6 +398,8 @@ if (resultsActions) {
       handleTogglePreference();
     } else if (actionType === "retry") {
       handleRetry();
+    } else if (actionType === "find-milestone-cities") {
+      handleFindMilestoneCities();
     }
   });
 }

@@ -395,6 +395,38 @@ export const clearReverseGeocodeCache = (cacheKey = null) => {
 };
 
 // ============================================================================
+// Milestone City Scan State
+// ============================================================================
+const milestoneScanState = {
+  results: null, // null = not scanned, [] = scanned with no results
+  loading: false,
+  abortController: null,
+};
+
+export const getMilestoneScanResults = () => milestoneScanState.results;
+export const setMilestoneScanResults = (results) => {
+  milestoneScanState.results = results;
+};
+
+export const isMilestoneScanLoading = () => milestoneScanState.loading;
+export const setMilestoneScanLoading = (loading) => {
+  milestoneScanState.loading = loading;
+};
+
+export const getMilestoneScanAbortController = () => milestoneScanState.abortController;
+export const setMilestoneScanAbortController = (controller) => {
+  milestoneScanState.abortController = controller;
+};
+
+export const cancelMilestoneScan = () => {
+  if (milestoneScanState.abortController) {
+    milestoneScanState.abortController.abort();
+    milestoneScanState.abortController = null;
+  }
+  milestoneScanState.loading = false;
+};
+
+// ============================================================================
 // Bulk State Reset (for testing or reinitialization)
 // ============================================================================
 

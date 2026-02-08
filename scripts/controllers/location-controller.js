@@ -45,6 +45,12 @@ import {
   setRecentLocations,
   setActiveLocation,
   clearReverseGeocodeCache,
+  getMilestoneScanResults,
+  setMilestoneScanResults,
+  isMilestoneScanLoading,
+  setMilestoneScanLoading,
+  setMilestoneScanAbortController,
+  cancelMilestoneScan,
 } from "../state/app-state.js";
 import {
   loadRecentLocations,
@@ -58,6 +64,7 @@ import {
   DEFAULT_LOCATION,
 } from "../services/geocoding-service.js";
 import { fetchReverseGeocodeLocation } from "../services/reverse-geocode-service.js";
+import { scanCitiesForMilestones } from "../services/milestone-scanner-service.js";
 
 // Constants
 const MAX_RESULTS = 8;
@@ -71,6 +78,7 @@ let dom = {};
 let languageCode = "en";
 let regionCode = "";
 let fallbackTimeZone = "UTC";
+let getActiveDateParts = null;
 
 /**
  * Initialize the location controller with DOM elements and config
@@ -82,6 +90,7 @@ export const initLocationController = (domElements, config) => {
   languageCode = config.languageCode || "en";
   regionCode = config.regionCode || "";
   fallbackTimeZone = config.fallbackTimeZone || "UTC";
+  getActiveDateParts = config.getActiveDateParts || null;
 };
 
 /**
@@ -300,6 +309,7 @@ const showErrorState = () => {
  * Clear results and close the panel
  */
 export const clearResults = () => {
+  cancelMilestoneScan();
   const debounceId = getDebounceId();
   if (debounceId) {
     clearTimeout(debounceId);
@@ -442,9 +452,28 @@ export const showRecentResults = () => {
   }
   const statusMessages = [{ text: "Recent locations.", type: "hint" }];
   const groups = [{ label: "Recent", items: recentLocations }];
+
+  const scanResults = getMilestoneScanResults();
+  if (scanResults && scanResults.length > 0) {
+    groups.push({
+      label: "Cities with Milestones",
+      items: scanResults.map((r) => r.city),
+    });
+  } else if (scanResults !== null && scanResults.length === 0) {
+    statusMessages.push({ text: "No cities found with milestones today.", type: "hint" });
+  }
+
+  const loading = isMilestoneScanLoading();
+  const actions = loading
+    ? [{ action: "find-milestone-cities", label: "Scanning cities\u2026", disabled: true }]
+    : [
+        ...getActionItems(),
+        { action: "find-milestone-cities", label: "Find cities with milestones" },
+      ];
+
   renderResults(groups, {
     statusMessages,
-    actions: getActionItems(),
+    actions,
     emptyMessage: "No recent locations yet.",
   });
 };
@@ -725,4 +754,30 @@ export const handleRetry = () => {
   } else {
     clearResults();
   }
+};
+
+/**
+ * Scan major cities for milestones occurring today
+ */
+export const handleFindMilestoneCities = async () => {
+  cancelMilestoneScan();
+
+  const controller = new AbortController();
+  setMilestoneScanAbortController(controller);
+  setMilestoneScanLoading(true);
+  showRecentResults();
+
+  try {
+    const results = await scanCitiesForMilestones(getActiveDateParts, controller.signal);
+    if (controller.signal.aborted) return;
+    setMilestoneScanResults(results);
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    console.error("Milestone scan failed:", error);
+    setMilestoneScanResults([]);
+  } finally {
+    setMilestoneScanLoading(false);
+  }
+
+  showRecentResults();
 };

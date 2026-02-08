@@ -12,6 +12,8 @@ scripts/
 │   ├── location-controller.js  # City search, geolocation, results
 │   ├── daylight-controller.js  # Sun calculations, milestones, stats
 │   └── optimistic-controller.js # Message selection and rotation
+├── data/
+│   └── major-cities.js         # 100 major world cities for milestone scanning
 ├── state/
 │   └── app-state.js            # Centralized state management
 ├── ui/
@@ -23,6 +25,7 @@ scripts/
 │   └── tooltip-ui.js           # Delta tooltip behavior
 ├── services/
 │   ├── geocoding-service.js    # Open-Meteo API for city search
+│   ├── milestone-scanner-service.js # Scans major cities for today's milestones
 │   ├── reverse-geocode-service.js # BigDataCloud API for coords to place name
 │   └── storage-service.js      # localStorage abstraction
 ├── formatters/
@@ -90,6 +93,7 @@ State is accessed through exported getter/setter functions. The module supports 
 - `milestones.js` contains threshold and daylight-gain milestones
 - `daylight-controller.js` adds computed milestones (earliest/shortest/longest day, equinoxes, DST, first 12hr day, finished 10 darkest weeks)
 - The milestone card cycles through upcoming entries; confetti fires on milestone days
+- Easter egg: clearing the location input shows a "Find cities with milestones" button that scans 100 major world cities to find up to 5 with a milestone today
 
 ### Sharing
 

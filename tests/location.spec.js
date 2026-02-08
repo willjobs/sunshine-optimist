@@ -139,6 +139,59 @@ test("toggle shows worldwide results when local is preferred", async ({ page }) 
   await page.screenshot({ path: "test-results/search-worldwide-results.png" });
 });
 
+test("find cities with milestones button appears after clearing", async ({ page }) => {
+  await setupPage(page);
+  await page.goto("/");
+
+  const cityInput = page.getByRole("combobox", { name: "City" });
+  await cityInput.fill("Paris");
+  await waitForLocationResults(page, 1);
+
+  const parisTexas = page.getByRole("option", { name: "Paris, TX" });
+  await parisTexas.click();
+  await expect(cityInput).toHaveValue("Paris, TX");
+
+  await page.getByRole("button", { name: "Clear location" }).click();
+  await expect(page.locator("#location-results-meta")).toHaveText(/Recent locations/);
+
+  const milestoneButton = page.getByRole("button", {
+    name: "Find cities with milestones",
+  });
+  await expect(milestoneButton).toBeVisible();
+});
+
+test("milestone scan shows results or empty message", async ({ page }) => {
+  await setupPage(page);
+  await page.goto("/");
+
+  const cityInput = page.getByRole("combobox", { name: "City" });
+  await cityInput.fill("Paris");
+  await waitForLocationResults(page, 1);
+
+  const parisTexas = page.getByRole("option", { name: "Paris, TX" });
+  await parisTexas.click();
+  await expect(cityInput).toHaveValue("Paris, TX");
+
+  await page.getByRole("button", { name: "Clear location" }).click();
+
+  const milestoneButton = page.getByRole("button", {
+    name: "Find cities with milestones",
+  });
+  await milestoneButton.click();
+
+  // Should show either milestone city results or "No cities found" message
+  await expect(
+    page
+      .locator("#location-results-meta, #location-results-list")
+      .filter({
+        has: page.locator(
+          ':text("Cities with Milestones"), :text("No cities found with milestones today")'
+        ),
+      })
+      .first()
+  ).toBeVisible({ timeout: 30000 });
+});
+
 test("geolocation selection resolves to a place name", async ({ page }) => {
   await setupPage(page);
   await page.addInitScript(
