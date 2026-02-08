@@ -89,6 +89,9 @@ export const clearDateCommitTimeout = () => {
  */
 export const applyDateSelection = (nextParts) => {
   if (nextParts) {
+    if (nextParts.year < 1900 || nextParts.year > 2100) {
+      return false;
+    }
     const currentCustom = getCustomDateParts();
     if (
       !isUsingLiveDate() &&

@@ -45,6 +45,15 @@ describe("date-controller", () => {
     expect(noChange).toBe(false);
   });
 
+  it("rejects out-of-range dates", () => {
+    expect(dateController.applyDateSelection({ year: 1899, month: 12, day: 31 })).toBe(false);
+    expect(isUsingLiveDate()).toBe(true);
+    expect(dateController.applyDateSelection({ year: 2101, month: 1, day: 1 })).toBe(false);
+    expect(isUsingLiveDate()).toBe(true);
+    expect(dateController.applyDateSelection({ year: 1900, month: 1, day: 1 })).toBe(true);
+    expect(dateController.applyDateSelection({ year: 2100, month: 12, day: 31 })).toBe(true);
+  });
+
   it("syncs date picker UI state", () => {
     const { dateInput, dateReset, datePicker } = buildDom();
     setUseLiveDate(false);

@@ -5,7 +5,7 @@
  * Uses a cache-first strategy for static assets.
  */
 
-const CACHE_VERSION = "v142-4d50e1e";
+const CACHE_VERSION = "v143-f43315f";
 const STATIC_CACHE_NAME = `sunshine-optimist-static-${CACHE_VERSION}`;
 const FONT_CACHE_NAME = "sunshine-optimist-fonts-v1";
 const FONT_ORIGINS = ["https://fonts.googleapis.com", "https://fonts.gstatic.com"];

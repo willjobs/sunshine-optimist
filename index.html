@@ -77,7 +77,7 @@
       href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Manrope:wght@400..700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v142-4d50e1e" />
+    <link rel="stylesheet" href="styles.css?v=v143-f43315f" />
   </head>
   <body>
     <div class="confetti" id="confetti" aria-hidden="true"></div>
@@ -164,7 +164,13 @@
           <div class="date-row">
             <div class="date-picker" aria-label="Date">
               <label class="sr-only" for="date-input">Date</label>
-              <input class="date-input" id="date-input" type="date" />
+              <input
+                class="date-input"
+                id="date-input"
+                type="date"
+                min="1900-01-01"
+                max="2100-12-31"
+              />
               <button class="date-reset" id="date-reset" type="button">Today</button>
             </div>
 
@@ -614,8 +620,8 @@
       </dialog>
     </div>
 
-    <script src="astronomy-engine/astronomy.browser.min.js?v=v142-4d50e1e"></script>
-    <script type="module" src="scripts/app.js?v=v142-4d50e1e"></script>
+    <script src="astronomy-engine/astronomy.browser.min.js?v=v143-f43315f"></script>
+    <script type="module" src="scripts/app.js?v=v143-f43315f"></script>
     <script>
       // Register service worker for offline support
       if ("serviceWorker" in navigator) {
