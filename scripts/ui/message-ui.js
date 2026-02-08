@@ -195,9 +195,12 @@ const updateOptimisticDots = (dots, count, index) => {
   const currentCount = Number(dots.dataset.count || "0");
   if (currentCount !== count) {
     const nextDots = Array.from({ length: count }, (_, dotIndex) => {
-      const dot = document.createElement("span");
+      const dot = document.createElement("button");
+      dot.type = "button";
       dot.className = "optimistic-dot";
+      dot.role = "tab";
       dot.dataset.index = String(dotIndex);
+      dot.setAttribute("aria-label", `Message ${dotIndex + 1} of ${count}`);
       return dot;
     });
     dots.replaceChildren(...nextDots);
@@ -205,7 +208,9 @@ const updateOptimisticDots = (dots, count, index) => {
   }
   const dotNodes = dots.querySelectorAll(".optimistic-dot");
   dotNodes.forEach((dot, dotIndex) => {
-    dot.classList.toggle("is-active", dotIndex === index);
+    const isActive = dotIndex === index;
+    dot.classList.toggle("is-active", isActive);
+    dot.setAttribute("aria-selected", String(isActive));
   });
 };
 
@@ -343,6 +348,9 @@ const clearOptimisticNavigationHandlers = () => {
   if (controls.nextButton) {
     controls.nextButton.removeEventListener("click", handlers.onNext);
   }
+  if (controls.dots) {
+    controls.dots.removeEventListener("click", handlers.onDotClick);
+  }
   if (controls.container) {
     controls.container.removeEventListener("pointerdown", handlers.onPointerDown);
     controls.container.removeEventListener("pointerup", handlers.onPointerUp);
@@ -384,6 +392,30 @@ const bindOptimisticNavigation = (headline, lede, controls) => {
 
   const onPrev = () => navigateOptimisticMessage(-1);
   const onNext = () => navigateOptimisticMessage(1);
+  const onDotClick = (event) => {
+    const dot = event.target.closest(".optimistic-dot");
+    if (!dot) {
+      return;
+    }
+    const targetIndex = Number(dot.dataset.index);
+    if (!Number.isFinite(targetIndex)) {
+      return;
+    }
+    const currentIndex = getOptimisticIndex();
+    if (targetIndex === currentIndex) {
+      return;
+    }
+    const { headline: h, lede: l, controls: c } = optimisticNavState;
+    if (!h && !l) {
+      return;
+    }
+    const options = getOptimisticOptions();
+    if (options.length < 2) {
+      return;
+    }
+    applyOptimisticIndex(h, l, targetIndex, { animate: true, controls: c });
+    scheduleOptimisticRotation(h, l, c);
+  };
   const onPointerDown = (event) => {
     if (event.pointerType !== "touch" && event.pointerType !== "pen") {
       return;
@@ -439,6 +471,9 @@ const bindOptimisticNavigation = (headline, lede, controls) => {
   if (normalized.nextButton) {
     normalized.nextButton.addEventListener("click", onNext);
   }
+  if (normalized.dots) {
+    normalized.dots.addEventListener("click", onDotClick);
+  }
   if (normalized.container) {
     normalized.container.addEventListener("pointerdown", onPointerDown);
     normalized.container.addEventListener("pointerup", onPointerUp);
@@ -448,6 +483,7 @@ const bindOptimisticNavigation = (headline, lede, controls) => {
   optimisticNavState.handlers = {
     onPrev,
     onNext,
+    onDotClick,
     onPointerDown,
     onPointerUp,
     onPointerCancel,

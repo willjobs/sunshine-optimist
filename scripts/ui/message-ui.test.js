@@ -87,6 +87,35 @@ describe("message-ui", () => {
     randomSpy.mockRestore();
   });
 
+  it("jumps to message when dot is clicked", () => {
+    vi.useFakeTimers();
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const { headline, lede } = buildNodes();
+    const controls = buildControls();
+    const messages = [
+      { headline: "First headline", lede: "First lede" },
+      { headline: "Second headline", lede: "Second lede" },
+      { headline: "Third headline", lede: "Third lede" },
+    ];
+    startOptimisticRotation(headline, lede, messages, controls);
+    expect(getOptimisticIndex()).toBe(0);
+
+    const dots = controls.dots.querySelectorAll(".optimistic-dot");
+    expect(dots).toHaveLength(3);
+
+    dots[2].click();
+    expect(getOptimisticIndex()).toBe(2);
+    vi.advanceTimersByTime(400);
+    expect(headline.textContent).toBe("Third headline");
+    expect(lede.textContent).toBe("Third lede");
+
+    const updatedDots = controls.dots.querySelectorAll(".optimistic-dot");
+    expect(updatedDots[2].classList.contains("is-active")).toBe(true);
+    expect(updatedDots[0].classList.contains("is-active")).toBe(false);
+    expect(updatedDots[1].classList.contains("is-active")).toBe(false);
+    randomSpy.mockRestore();
+  });
+
   it("stops rotation and clears options", () => {
     const { headline, lede } = buildNodes();
     const messages = [

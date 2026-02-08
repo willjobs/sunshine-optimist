@@ -520,14 +520,27 @@ h1 {
 .optimistic-dots {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   margin: 0 0 14px;
   min-height: 10px;
   opacity: 0.7;
-  pointer-events: none;
 }
 
 .optimistic-dot {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.optimistic-dot::after {
+  content: "";
   width: 6px;
   height: 6px;
   border-radius: 999px;
@@ -537,7 +550,17 @@ h1 {
     background 0.2s ease;
 }
 
-.optimistic-dot.is-active {
+.optimistic-dot:hover::after {
+  background: rgba(200, 111, 21, 0.5);
+}
+
+.optimistic-dot:focus-visible {
+  outline: 2px solid rgba(200, 111, 21, 0.6);
+  outline-offset: -2px;
+  border-radius: 999px;
+}
+
+.optimistic-dot.is-active::after {
   background: rgba(200, 111, 21, 0.85);
   transform: scale(1.2);
 }

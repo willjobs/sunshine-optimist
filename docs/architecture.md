@@ -81,6 +81,7 @@ State is accessed through exported getter/setter functions. The module supports 
 - `messages.js` defines templates with `months`, `data_needs`, and optional `additional_requirements`
 - Placeholders like `{## minutes}` are filled via `getValue` when needed
 - `getOptimisticMessageOptions` returns valid messages; `message-ui.js` rotates them (values that round to 0 are excluded)
+- Dot indicators below the message are interactive buttons; clicking/tapping a dot navigates to that message and resets the auto-rotation timer
 - Messages with the same non-null `group` are de-duplicated by best `getValue` (highest value, except `sunset_countdown` and `milestone_countdown` use the lowest), and the list is capped
 - If a milestone is today, milestone copy overrides the rotating message
 

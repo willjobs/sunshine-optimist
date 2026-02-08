@@ -112,6 +112,7 @@ Messages are filtered by:
 
 - Multiple valid messages: rotates every 12 seconds with fade animation
 - First message selected randomly, then sequential
+- Dot indicators are clickable/tappable to jump to a specific message; clicking a dot resets the rotation timer
 - No valid messages: shows fallback headline
 - Polar day/night: shows special message
 - Milestone today: overrides with milestone copy and triggers confetti
