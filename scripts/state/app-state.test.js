@@ -5,11 +5,10 @@ import {
   togglePreferLocalResults,
   setUserCoords,
   setReverseGeocodeCache,
-  setReverseGeocodeCacheKey,
   setReverseGeocodePromise,
   getReverseGeocodeCache,
-  getReverseGeocodeCacheKey,
   getReverseGeocodePromise,
+  clearReverseGeocodeCache,
   setFetchController,
   setDebounceId,
   getFetchController,
@@ -26,9 +25,7 @@ import {
 afterEach(() => {
   setPreferLocalResults(true);
   setUserCoords(null);
-  setReverseGeocodeCache(null);
-  setReverseGeocodeCacheKey("");
-  setReverseGeocodePromise(null);
+  clearReverseGeocodeCache();
 });
 
 describe("app-state", () => {
@@ -41,14 +38,13 @@ describe("app-state", () => {
   });
 
   it("clears reverse geocode cache when user coords change", () => {
-    setReverseGeocodeCache({ name: "Cached" });
-    setReverseGeocodeCacheKey("1,1");
-    setReverseGeocodePromise(Promise.resolve(null));
+    const cacheKey = "1,1";
+    setReverseGeocodeCache(cacheKey, { name: "Cached" });
+    setReverseGeocodePromise(cacheKey, Promise.resolve(null));
 
     setUserCoords({ lat: 1, lon: 1 });
-    expect(getReverseGeocodeCache()).toBe(null);
-    expect(getReverseGeocodeCacheKey()).toBe("");
-    expect(getReverseGeocodePromise()).toBe(null);
+    expect(getReverseGeocodeCache(cacheKey)).toBe(null);
+    expect(getReverseGeocodePromise(cacheKey)).toBe(null);
   });
 
   it("resets location search state", () => {

@@ -84,9 +84,8 @@ const shareState = {
 // Reverse Geocode Cache State
 // ============================================================================
 const reverseGeocodeState = {
-  cache: null,
-  cacheKey: "",
-  promise: null,
+  cacheByKey: new Map(),
+  promiseByKey: new Map(),
 };
 
 // ============================================================================
@@ -149,9 +148,8 @@ export const setUserCoords = (coords) => {
   const coordsChanged =
     !current || !coords || current.lat !== coords.lat || current.lon !== coords.lon;
   if (coordsChanged) {
-    reverseGeocodeState.cache = null;
-    reverseGeocodeState.cacheKey = "";
-    reverseGeocodeState.promise = null;
+    reverseGeocodeState.cacheByKey.clear();
+    reverseGeocodeState.promiseByKey.clear();
   }
   locationState.userCoords = coords;
 };
@@ -358,25 +356,42 @@ export const setLastGeneratedCanvas = (canvas) => {
 
 export const getReverseGeocodeState = () => reverseGeocodeState;
 
-export const getReverseGeocodeCache = () => reverseGeocodeState.cache;
-export const setReverseGeocodeCache = (cache) => {
-  reverseGeocodeState.cache = cache;
+export const getReverseGeocodeCache = (cacheKey) => {
+  if (!cacheKey) return null;
+  return reverseGeocodeState.cacheByKey.get(cacheKey) || null;
 };
 
-export const getReverseGeocodeCacheKey = () => reverseGeocodeState.cacheKey;
-export const setReverseGeocodeCacheKey = (key) => {
-  reverseGeocodeState.cacheKey = key;
+export const setReverseGeocodeCache = (cacheKey, cacheValue) => {
+  if (!cacheKey) return;
+  if (cacheValue === null || cacheValue === undefined) {
+    reverseGeocodeState.cacheByKey.delete(cacheKey);
+    return;
+  }
+  reverseGeocodeState.cacheByKey.set(cacheKey, cacheValue);
 };
 
-export const getReverseGeocodePromise = () => reverseGeocodeState.promise;
-export const setReverseGeocodePromise = (promise) => {
-  reverseGeocodeState.promise = promise;
+export const getReverseGeocodePromise = (cacheKey) => {
+  if (!cacheKey) return null;
+  return reverseGeocodeState.promiseByKey.get(cacheKey) || null;
 };
 
-export const clearReverseGeocodeCache = () => {
-  reverseGeocodeState.cache = null;
-  reverseGeocodeState.cacheKey = "";
-  reverseGeocodeState.promise = null;
+export const setReverseGeocodePromise = (cacheKey, promise) => {
+  if (!cacheKey) return;
+  if (promise === null || promise === undefined) {
+    reverseGeocodeState.promiseByKey.delete(cacheKey);
+    return;
+  }
+  reverseGeocodeState.promiseByKey.set(cacheKey, promise);
+};
+
+export const clearReverseGeocodeCache = (cacheKey = null) => {
+  if (cacheKey) {
+    reverseGeocodeState.cacheByKey.delete(cacheKey);
+    reverseGeocodeState.promiseByKey.delete(cacheKey);
+    return;
+  }
+  reverseGeocodeState.cacheByKey.clear();
+  reverseGeocodeState.promiseByKey.clear();
 };
 
 // ============================================================================

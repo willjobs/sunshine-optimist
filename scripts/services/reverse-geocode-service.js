@@ -6,13 +6,12 @@
 import {
   getReverseGeocodeCache,
   setReverseGeocodeCache,
-  getReverseGeocodeCacheKey,
-  setReverseGeocodeCacheKey,
   getReverseGeocodePromise,
   setReverseGeocodePromise,
 } from "../state/app-state.js";
 
 const REVERSE_GEOCODE_URL = "https://api.bigdatacloud.net/data/reverse-geocode-client";
+const getCacheKey = (location) => `${location.latitude},${location.longitude}`;
 
 /**
  * Map reverse geocode response to normalized location object
@@ -54,19 +53,19 @@ export const fetchReverseGeocodeLocation = async (location, languageCode = "en")
     return null;
   }
 
-  const cacheKey = `${location.latitude},${location.longitude}`;
+  const cacheKey = getCacheKey(location);
 
-  // Check cache
-  if (getReverseGeocodeCache() && getReverseGeocodeCacheKey() === cacheKey) {
-    return getReverseGeocodeCache();
+  // Check cache for this location key
+  const cached = getReverseGeocodeCache(cacheKey);
+  if (cached) {
+    return cached;
   }
 
-  // Check if there's a pending request for this location
-  if (getReverseGeocodePromise() && getReverseGeocodeCacheKey() === cacheKey) {
-    return getReverseGeocodePromise();
+  // Check if there's a pending request for this location key
+  const pending = getReverseGeocodePromise(cacheKey);
+  if (pending) {
+    return pending;
   }
-
-  setReverseGeocodeCacheKey(cacheKey);
 
   const fetchPromise = (async () => {
     const url = `${REVERSE_GEOCODE_URL}?latitude=${location.latitude}&longitude=${location.longitude}&localityLanguage=${encodeURIComponent(
@@ -85,11 +84,16 @@ export const fetchReverseGeocodeLocation = async (location, languageCode = "en")
     }
   })();
 
-  setReverseGeocodePromise(fetchPromise);
+  setReverseGeocodePromise(cacheKey, fetchPromise);
 
-  const resolved = await fetchPromise;
-  setReverseGeocodePromise(null);
-  setReverseGeocodeCache(resolved);
-
-  return resolved;
+  try {
+    const resolved = await fetchPromise;
+    setReverseGeocodeCache(cacheKey, resolved);
+    return resolved;
+  } finally {
+    // Clear only if this request is still the active in-flight promise for this key.
+    if (getReverseGeocodePromise(cacheKey) === fetchPromise) {
+      setReverseGeocodePromise(cacheKey, null);
+    }
+  }
 };

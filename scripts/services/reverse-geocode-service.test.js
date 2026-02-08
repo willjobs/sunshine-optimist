@@ -1,16 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { fetchReverseGeocodeLocation } from "./reverse-geocode-service.js";
-import {
-  setReverseGeocodeCache,
-  setReverseGeocodeCacheKey,
-  setReverseGeocodePromise,
-} from "../state/app-state.js";
+import { clearReverseGeocodeCache } from "../state/app-state.js";
 
 beforeEach(() => {
-  setReverseGeocodeCache(null);
-  setReverseGeocodeCacheKey("");
-  setReverseGeocodePromise(null);
+  clearReverseGeocodeCache();
 });
 
 afterEach(() => {
