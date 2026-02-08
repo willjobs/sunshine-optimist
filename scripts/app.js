@@ -205,7 +205,6 @@ const formatters = {
 
 // Wrapper function for updating daylight that provides all dependencies
 const handleDaylightUpdate = (location) => {
-  setMilestoneScanResults(null);
   updateDaylightForLocation({
     location,
     dom,
@@ -219,7 +218,10 @@ const handleDaylightUpdate = (location) => {
 
 // Wire up callbacks between controllers
 setLocationChangeCallback(handleDaylightUpdate);
-setDateChangeCallback(handleDaylightUpdate);
+setDateChangeCallback((location) => {
+  setMilestoneScanResults(null);
+  handleDaylightUpdate(location);
+});
 
 // ============================================================================
 // Event Handlers Setup
