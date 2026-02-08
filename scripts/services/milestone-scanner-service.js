@@ -19,6 +19,16 @@ const YIELD_EVERY = 5;
 
 const yieldToMain = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+/** Fisher-Yates shuffle (returns a new array). */
+const shuffle = (array) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
 /**
  * Check if a city has any defined milestone today.
  * Returns the first matching milestone or null.
@@ -74,9 +84,10 @@ export const hasMilestoneToday = (city, getDateParts) => {
  * @returns {Promise<Array<{ city: Object, milestone: Object }>>}
  */
 export const scanCitiesForMilestones = async (getDateParts, abortSignal) => {
+  const cities = shuffle(MAJOR_CITIES);
   const results = [];
 
-  for (let i = 0; i < MAJOR_CITIES.length; i += 1) {
+  for (let i = 0; i < cities.length; i += 1) {
     if (abortSignal?.aborted) break;
 
     if (i > 0 && i % YIELD_EVERY === 0) {
@@ -85,7 +96,7 @@ export const scanCitiesForMilestones = async (getDateParts, abortSignal) => {
 
     if (abortSignal?.aborted) break;
 
-    const result = hasMilestoneToday(MAJOR_CITIES[i], getDateParts);
+    const result = hasMilestoneToday(cities[i], getDateParts);
     if (result) {
       results.push(result);
       if (results.length >= MAX_MILESTONE_CITIES) break;
