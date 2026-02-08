@@ -230,7 +230,7 @@ export const createDateFormatter = (localeSource) => {
   };
 };
 
-export const shiftMonth = (month, offset) => ((month - 1 + offset) % 12) + 1;
+export const shiftMonth = (month, offset) => ((((month - 1 + offset) % 12) + 12) % 12) + 1;
 
 export const getAdjustedMonth = (month, hemisphere) =>
   hemisphere === "south" ? shiftMonth(month, 6) : month;

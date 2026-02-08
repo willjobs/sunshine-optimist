@@ -53,8 +53,12 @@ describe("date-utils", () => {
   });
 
   it("shifts months and adjusts for hemisphere", () => {
-    expect(shiftMonth(1, -1)).toBe(0);
+    expect(shiftMonth(1, -1)).toBe(12);
+    expect(shiftMonth(1, -2)).toBe(11);
+    expect(shiftMonth(3, -3)).toBe(12);
+    expect(shiftMonth(7, -12)).toBe(7);
     expect(shiftMonth(12, 1)).toBe(1);
+    expect(shiftMonth(6, 6)).toBe(12);
     expect(getAdjustedMonth(1, "south")).toBe(7);
     expect(getAdjustedMonth(1, "north")).toBe(1);
   });
