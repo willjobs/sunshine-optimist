@@ -218,4 +218,12 @@ test("geolocation selection resolves to a place name", async ({ page }) => {
 
   const cityInput = page.getByRole("combobox", { name: "City" });
   await expect(cityInput).toHaveValue("Seattle, WA");
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const stored = window.localStorage.getItem("sunshine-optimist:active-location");
+        return stored ? JSON.parse(stored).timezone : null;
+      })
+    )
+    .toBe(SEATTLE.timezone);
 });

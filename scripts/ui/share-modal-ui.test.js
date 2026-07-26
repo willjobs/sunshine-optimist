@@ -16,6 +16,7 @@ vi.mock("./story-image-ui.js", () => ({
 
 import {
   _resetSharePreviewGenerations,
+  buildShareMessage,
   buildShareProgressLine,
   flashActionLabel,
   refreshSharePreview,
@@ -111,6 +112,40 @@ describe("share-modal-ui", () => {
       shortestDayMinutes: 400,
     });
     expect(noneLine).toBe("");
+  });
+
+  it.each([
+    ["polar-day", "24 hours"],
+    ["polar-night", "0 hours"],
+  ])("builds truthful share text for %s", async (polarState, expectedDaylight) => {
+    const snapshot = {
+      ...buildShareSnapshot(),
+      location: {
+        name: "Tromsø",
+        admin1: "",
+        country: "Norway",
+        country_code: "NO",
+        latitude: 69.6492,
+        longitude: 18.9553,
+        timezone: "Europe/Oslo",
+      },
+      todayDaylight: null,
+      sunsetEarliestDelta: null,
+      polarState,
+    };
+    setShareSnapshot(snapshot);
+
+    const message = await buildShareMessage(
+      document.createElement("h2"),
+      document.createElement("p"),
+      () => snapshot.dateParts,
+      "en",
+      snapshot.timeZone
+    );
+
+    expect(message).toContain(`☀️ ${expectedDaylight} of daylight today`);
+    expect(message).not.toContain("Sunset");
+    expect(message).not.toContain("NaN");
   });
 
   it("flashes copy feedback and hides it again", () => {

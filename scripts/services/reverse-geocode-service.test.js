@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { fetchReverseGeocodeLocation } from "./reverse-geocode-service.js";
 import { clearReverseGeocodeCache } from "../state/app-state.js";
+import { RequestTimeoutError } from "./fetch-service.js";
 
 beforeEach(() => {
   clearReverseGeocodeCache();
@@ -102,5 +103,13 @@ describe("reverse-geocode-service", () => {
     expect(secondResult?.name).toBe("Location Two");
     expect(secondResultRepeat?.name).toBe("Location Two");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserves timeout errors so callers can recover deliberately", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new RequestTimeoutError()));
+
+    await expect(
+      fetchReverseGeocodeLocation({ latitude: 1, longitude: 2, timezone: "UTC" })
+    ).rejects.toMatchObject({ name: "TimeoutError" });
   });
 });

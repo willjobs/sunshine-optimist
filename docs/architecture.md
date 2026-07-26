@@ -111,14 +111,14 @@ Controllers communicate via callback registration (e.g., `setLocationChangeCallb
 
 **Static assets** (cache-first): HTML, CSS, JavaScript, cached on install with network fallback. Cache matching uses `ignoreSearch: true` so versioned query strings (e.g., `?v=v132-abc123`) match bare cached URLs.
 
-**API requests** (network-first with stale-while-revalidate): Geocoding APIs try network first, fall back to cached response (max 24 hours old).
+**API requests** (network-only): Location search, reverse geocoding, and coordinate timezone requests require a connection. Each request has a bounded timeout, and stored location data lets the app continue to calculate daylight offline.
 
 **Google Fonts** (network-first with cache fallback): Font CSS and font files from `fonts.googleapis.com` and `fonts.gstatic.com` are cached in a dedicated font cache. On subsequent loads, the service worker tries the network first and updates the cache; offline, it falls back to the cached version.
 
 ### Offline Support
 
 - Complete app functionality available offline with last-used data
-- Recent API responses available for 24 hours
+- New location searches and coordinate lookups require a connection
 - Location calculations work entirely client-side
 
 ## Performance Optimizations

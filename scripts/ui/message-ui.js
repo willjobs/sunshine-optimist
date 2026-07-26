@@ -198,7 +198,6 @@ const updateOptimisticDots = (dots, count, index) => {
       const dot = document.createElement("button");
       dot.type = "button";
       dot.className = "optimistic-dot";
-      dot.role = "tab";
       dot.dataset.index = String(dotIndex);
       dot.setAttribute("aria-label", `Message ${dotIndex + 1} of ${count}`);
       return dot;
@@ -210,7 +209,11 @@ const updateOptimisticDots = (dots, count, index) => {
   dotNodes.forEach((dot, dotIndex) => {
     const isActive = dotIndex === index;
     dot.classList.toggle("is-active", isActive);
-    dot.setAttribute("aria-selected", String(isActive));
+    if (isActive) {
+      dot.setAttribute("aria-current", "true");
+    } else {
+      dot.removeAttribute("aria-current");
+    }
   });
 };
 

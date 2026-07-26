@@ -82,7 +82,7 @@ export default [
 
   // Playwright config file
   {
-    files: ["playwright.config.js"],
+    files: ["playwright*.config.js"],
     languageOptions: {
       globals: {
         ...globals.node,

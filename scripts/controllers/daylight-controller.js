@@ -987,5 +987,6 @@ export const updateDaylightForLocation = async ({
     sunsetEarliestDelta: deltas.sunsetEarliestDelta,
     hemisphere,
     fractionOfLossCompleted: deltas.fractionOfLossCompleted,
+    polarState,
   });
 };
