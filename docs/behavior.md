@@ -187,7 +187,6 @@ SunshineOptimist.com
 ## Offline Support
 
 - Static assets cached on install
-- API responses cached for 24 hours
 - Last-selected location works offline
 - New city searches require network
 

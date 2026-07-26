@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test": "playwright test",
+    "test:offline": "playwright test --config=playwright.offline.config.js",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
     "test:unit": "vitest",
