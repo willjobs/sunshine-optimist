@@ -79,6 +79,20 @@ let languageCode = "en";
 let regionCode = "";
 let fallbackTimeZone = "UTC";
 let getActiveDateParts = null;
+let locationOperationGeneration = 0;
+
+const beginLocationOperation = () => {
+  locationOperationGeneration += 1;
+  if (isLocationBiasRequested() || isLocationBiasLoading()) {
+    setLocationBiasRequested(false);
+    setLocationBiasLoading(false);
+    updateGeolocateButton();
+  }
+  return locationOperationGeneration;
+};
+
+const isCurrentLocationOperation = (operationToken) =>
+  operationToken === locationOperationGeneration;
 
 /**
  * Initialize the location controller with DOM elements and config
@@ -481,7 +495,14 @@ export const showRecentResults = () => {
 /**
  * Select a location result
  */
-export const selectResult = (item, { persist = true, updateRecents = true } = {}) => {
+export const selectResult = (
+  item,
+  { persist = true, updateRecents = true, operationToken = null } = {}
+) => {
+  const activeOperationToken = operationToken ?? beginLocationOperation();
+  if (!isCurrentLocationOperation(activeOperationToken)) {
+    return false;
+  }
   clearReverseGeocodeCache();
   const label = formatSelectedLocation(item);
   setInputValue(dom.cityInput, label);
@@ -503,8 +524,9 @@ export const selectResult = (item, { persist = true, updateRecents = true } = {}
     onLocationChange(item);
   }
   if (isCurrentLocation(item) && !item.reverseGeocodeFailed) {
-    void resolveCurrentLocationName(item);
+    void resolveCurrentLocationName(item, activeOperationToken);
   }
+  return true;
 };
 
 /**
@@ -553,21 +575,31 @@ const buildCurrentLocation = (coords, { reverseGeocodeFailed = false } = {}) => 
 /**
  * Select location from coordinates (with reverse geocoding)
  */
-const selectLocationFromCoords = async (coords) => {
+const selectLocationFromCoords = async (coords, operationToken) => {
   const currentLocation = buildCurrentLocation(coords);
   const resolved = await fetchReverseGeocodeLocation(currentLocation, languageCode);
-  if (resolved) {
-    selectResult(resolved);
+  if (!isCurrentLocationOperation(operationToken)) {
     return;
   }
-  selectResult({ ...currentLocation, reverseGeocodeFailed: true });
+  if (resolved) {
+    selectResult(resolved, { operationToken });
+    return;
+  }
+  selectResult(
+    { ...currentLocation, reverseGeocodeFailed: true },
+    {
+      operationToken,
+    }
+  );
 };
 
 /**
  * Request browser geolocation
  */
-export const requestLocationBias = ({ onError } = {}) => {
+export const requestLocationBias = ({ onError, operationToken = null } = {}) => {
   if (isLocationBiasRequested() || !("geolocation" in navigator)) return;
+  const activeOperationToken = operationToken ?? beginLocationOperation();
+  if (!isCurrentLocationOperation(activeOperationToken)) return;
   setLocationBiasRequested(true);
   setLocationBiasLoading(true);
   updateGeolocateButton();
@@ -578,22 +610,30 @@ export const requestLocationBias = ({ onError } = {}) => {
         lat: position.coords.latitude,
         lon: position.coords.longitude,
       };
+      if (!isCurrentLocationOperation(activeOperationToken)) {
+        return;
+      }
       setUserCoords(coords);
       try {
-        await selectLocationFromCoords(coords);
+        await selectLocationFromCoords(coords, activeOperationToken);
       } finally {
-        setLocationBiasLoading(false);
-        setLocationBiasRequested(false);
-        updateGeolocateButton();
+        if (isCurrentLocationOperation(activeOperationToken)) {
+          setLocationBiasLoading(false);
+          setLocationBiasRequested(false);
+          updateGeolocateButton();
+        }
       }
     },
     (error) => {
+      if (!isCurrentLocationOperation(activeOperationToken)) {
+        return;
+      }
       setLocationBiasLoading(false);
       setLocationBiasRequested(false);
       updateGeolocateButton();
       renderActions(getActionItems());
       if (typeof onError === "function") {
-        onError(error);
+        onError(error, activeOperationToken);
       }
     },
     { enableHighAccuracy: false, timeout: 5000 }
@@ -603,11 +643,15 @@ export const requestLocationBias = ({ onError } = {}) => {
 /**
  * Resolve a "Current Location" placeholder to actual location name
  */
-const resolveCurrentLocationName = async (location) => {
+const resolveCurrentLocationName = async (location, operationToken) => {
   if (!isCurrentLocation(location) || location?.reverseGeocodeFailed) return;
   const resolved = await fetchReverseGeocodeLocation(location, languageCode);
-  if (resolved) {
-    selectResult(resolved, { persist: true, updateRecents: false });
+  if (resolved && isCurrentLocationOperation(operationToken)) {
+    selectResult(resolved, {
+      persist: true,
+      updateRecents: false,
+      operationToken,
+    });
   }
 };
 
@@ -635,17 +679,35 @@ export const fetchSuggestions = async (nameQuery, filterTokens, rawTokens) => {
 /**
  * Fetch and select the default location
  */
-const fetchDefaultLocation = async () => {
+const fetchDefaultLocation = async (operationToken) => {
   try {
     const match = await fetchDefaultLocationData(languageCode);
-    if (match) {
-      selectResult(match, { persist: false, updateRecents: false });
+    if (!isCurrentLocationOperation(operationToken)) {
       return;
     }
-    selectResult(DEFAULT_LOCATION, { persist: false, updateRecents: false });
+    if (match) {
+      selectResult(match, {
+        persist: false,
+        updateRecents: false,
+        operationToken,
+      });
+      return;
+    }
+    selectResult(DEFAULT_LOCATION, {
+      persist: false,
+      updateRecents: false,
+      operationToken,
+    });
   } catch (error) {
+    if (!isCurrentLocationOperation(operationToken)) {
+      return;
+    }
     console.warn("Default location lookup failed:", error);
-    selectResult(DEFAULT_LOCATION, { persist: false, updateRecents: false });
+    selectResult(DEFAULT_LOCATION, {
+      persist: false,
+      updateRecents: false,
+      operationToken,
+    });
   }
 };
 
@@ -667,9 +729,11 @@ export const initializeLocation = () => {
     selectResult(storedLocation, { persist: false, updateRecents: false });
   }
 
+  const initializationToken = storedLocation ? null : beginLocationOperation();
+
   if (!CAN_USE_GEOLOCATION || !navigator.permissions?.query) {
     if (!storedLocation) {
-      fetchDefaultLocation();
+      fetchDefaultLocation(initializationToken);
     }
     return;
   }
@@ -677,18 +741,27 @@ export const initializeLocation = () => {
   navigator.permissions
     .query({ name: "geolocation" })
     .then((status) => {
+      if (!isCurrentLocationOperation(initializationToken)) {
+        return;
+      }
       if (status.state === "granted") {
         if (!storedLocation) {
-          requestLocationBias({ onError: fetchDefaultLocation });
+          requestLocationBias({
+            operationToken: initializationToken,
+            onError: (_error, operationToken) => fetchDefaultLocation(operationToken),
+          });
         }
       } else if (!storedLocation) {
-        fetchDefaultLocation();
+        fetchDefaultLocation(initializationToken);
       }
     })
     .catch((error) => {
+      if (!isCurrentLocationOperation(initializationToken)) {
+        return;
+      }
       console.warn("Unable to check geolocation permission:", error);
       if (!storedLocation) {
-        fetchDefaultLocation();
+        fetchDefaultLocation(initializationToken);
       }
     });
 };
