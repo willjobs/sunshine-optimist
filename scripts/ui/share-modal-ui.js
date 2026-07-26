@@ -122,7 +122,7 @@ const getLossFraction = (snapshot) => {
  * Build share progress line
  */
 export const buildShareProgressLine = (snapshot) => {
-  if (!snapshot) {
+  if (!snapshot || snapshot.polarState === "polar-day" || snapshot.polarState === "polar-night") {
     return "";
   }
   const isShortening = Number.isFinite(snapshot.daylightGainToday)
@@ -207,6 +207,16 @@ const buildShareMilestoneLine = () => {
   return `📈 ${dayCount} until ${title || active.title}`;
 };
 
+const formatShareDaylight = (snapshot) => {
+  if (snapshot?.polarState === "polar-day") {
+    return "24 hours";
+  }
+  if (snapshot?.polarState === "polar-night") {
+    return "0 hours";
+  }
+  return Number.isFinite(snapshot?.todayDaylight) ? formatDuration(snapshot.todayDaylight) : "—";
+};
+
 /**
  * Build share message text
  */
@@ -227,10 +237,7 @@ export const buildShareMessage = async (
     languageCode
   );
   const progressLine = buildShareProgressLine(snapshot);
-  const daylightText = Number.isFinite(snapshot?.todayDaylight)
-    ? formatDuration(snapshot.todayDaylight)
-    : "—";
-  const sunsetDeltaText = formatShareMinutes(snapshot?.sunsetEarliestDelta);
+  const daylightText = formatShareDaylight(snapshot);
   const milestoneLine = buildShareMilestoneLine();
 
   const lines = [`☀️ ${locationLabel} — ${dateLabel}`, "", headlineText, ""];
@@ -238,7 +245,15 @@ export const buildShareMessage = async (
     lines.push(progressLine, "");
   }
   lines.push(`☀️ ${daylightText} of daylight today`);
-  lines.push(`🌅 Sunset ${sunsetDeltaText} later than the earliest sunset`);
+  if (
+    snapshot?.polarState !== "polar-day" &&
+    snapshot?.polarState !== "polar-night" &&
+    Number.isFinite(snapshot?.sunsetEarliestDelta)
+  ) {
+    lines.push(
+      `🌅 Sunset ${formatShareMinutes(snapshot.sunsetEarliestDelta)} later than the earliest sunset`
+    );
+  }
   if (milestoneLine) {
     lines.push(milestoneLine);
   }
