@@ -177,7 +177,12 @@ const resolveShareLocationLabel = async (location, languageCode) => {
   if (location.reverseGeocodeFailed) {
     return CURRENT_LOCATION_LABEL;
   }
-  const resolved = await fetchReverseGeocodeLocation(location, languageCode);
+  let resolved = null;
+  try {
+    resolved = await fetchReverseGeocodeLocation(location, languageCode);
+  } catch (error) {
+    console.warn("Share location lookup timed out:", error);
+  }
   return resolved ? formatSelectedLocation(resolved) : CURRENT_LOCATION_LABEL;
 };
 

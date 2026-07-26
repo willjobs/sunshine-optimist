@@ -2,6 +2,8 @@
  * Open-Meteo Geocoding API service for city search
  */
 
+import { fetchWithTimeout } from "./fetch-service.js";
+
 const GEOCODING_API_URL = "https://geocoding-api.open-meteo.com/v1/search";
 
 /**
@@ -32,7 +34,7 @@ export const searchCities = async (nameQuery, languageCode, signal) => {
     nameQuery
   )}&count=20&language=${encodeURIComponent(languageCode)}&format=json`;
 
-  const response = await fetch(url, { signal });
+  const response = await fetchWithTimeout(url, { signal });
   if (!response.ok) {
     throw new Error("Failed to fetch city suggestions.");
   }
@@ -50,7 +52,7 @@ export const fetchDefaultLocationData = async (languageCode) => {
     languageCode
   )}&format=json`;
 
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url);
   if (!response.ok) {
     throw new Error("Failed to fetch default location.");
   }

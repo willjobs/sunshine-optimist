@@ -577,7 +577,14 @@ const buildCurrentLocation = (coords, { reverseGeocodeFailed = false } = {}) => 
  */
 const selectLocationFromCoords = async (coords, operationToken) => {
   const currentLocation = buildCurrentLocation(coords);
-  const resolved = await fetchReverseGeocodeLocation(currentLocation, languageCode);
+  let resolved = null;
+  try {
+    resolved = await fetchReverseGeocodeLocation(currentLocation, languageCode);
+  } catch (error) {
+    if (isCurrentLocationOperation(operationToken)) {
+      console.warn("Current location lookup timed out:", error);
+    }
+  }
   if (!isCurrentLocationOperation(operationToken)) {
     return;
   }
@@ -645,7 +652,14 @@ export const requestLocationBias = ({ onError, operationToken = null } = {}) => 
  */
 const resolveCurrentLocationName = async (location, operationToken) => {
   if (!isCurrentLocation(location) || location?.reverseGeocodeFailed) return;
-  const resolved = await fetchReverseGeocodeLocation(location, languageCode);
+  let resolved = null;
+  try {
+    resolved = await fetchReverseGeocodeLocation(location, languageCode);
+  } catch (error) {
+    if (isCurrentLocationOperation(operationToken)) {
+      console.warn("Current location name lookup timed out:", error);
+    }
+  }
   if (resolved && isCurrentLocationOperation(operationToken)) {
     selectResult(resolved, {
       persist: true,
