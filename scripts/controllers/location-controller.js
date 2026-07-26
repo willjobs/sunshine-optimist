@@ -64,6 +64,7 @@ import {
   DEFAULT_LOCATION,
 } from "../services/geocoding-service.js";
 import { fetchReverseGeocodeLocation } from "../services/reverse-geocode-service.js";
+import { fetchCoordinateTimeZone } from "../services/timezone-service.js";
 import { scanCitiesForMilestones } from "../services/milestone-scanner-service.js";
 
 // Constants
@@ -577,23 +578,34 @@ const buildCurrentLocation = (coords, { reverseGeocodeFailed = false } = {}) => 
  */
 const selectLocationFromCoords = async (coords, operationToken) => {
   const currentLocation = buildCurrentLocation(coords);
-  let resolved = null;
-  try {
-    resolved = await fetchReverseGeocodeLocation(currentLocation, languageCode);
-  } catch (error) {
-    if (isCurrentLocationOperation(operationToken)) {
-      console.warn("Current location lookup timed out:", error);
+  const reverseGeocodePromise = fetchReverseGeocodeLocation(currentLocation, languageCode).catch(
+    (error) => {
+      if (isCurrentLocationOperation(operationToken)) {
+        console.warn("Current location lookup timed out:", error);
+      }
+      return null;
     }
-  }
+  );
+  const timezonePromise = fetchCoordinateTimeZone(currentLocation).catch((error) => {
+    if (isCurrentLocationOperation(operationToken)) {
+      console.warn("Current location timezone lookup failed:", error);
+    }
+    return null;
+  });
+  const [resolved, resolvedTimeZone] = await Promise.all([reverseGeocodePromise, timezonePromise]);
   if (!isCurrentLocationOperation(operationToken)) {
     return;
   }
+  const location = {
+    ...(resolved || currentLocation),
+    timezone: resolvedTimeZone || fallbackTimeZone,
+  };
   if (resolved) {
-    selectResult(resolved, { operationToken });
+    selectResult(location, { operationToken });
     return;
   }
   selectResult(
-    { ...currentLocation, reverseGeocodeFailed: true },
+    { ...location, reverseGeocodeFailed: true },
     {
       operationToken,
     }

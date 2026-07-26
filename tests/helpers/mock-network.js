@@ -67,6 +67,7 @@ export const installApiMocks = async (
   {
     geocodeFixtures = defaultGeocodeFixtures,
     reverseGeocodeResponse = defaultReverseGeocodeResponse,
+    timezoneResponse = SEATTLE.timezone,
   } = {}
 ) => {
   await page.route("https://geocoding-api.open-meteo.com/v1/search**", async (route) => {
@@ -85,6 +86,14 @@ export const installApiMocks = async (
       status: 200,
       contentType: "application/json",
       body: toJson(reverseGeocodeResponse),
+    });
+  });
+
+  await page.route("https://api.open-meteo.com/v1/forecast**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: toJson({ timezone: timezoneResponse }),
     });
   });
 };
