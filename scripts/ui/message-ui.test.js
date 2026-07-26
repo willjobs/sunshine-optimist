@@ -77,6 +77,9 @@ describe("message-ui", () => {
     const dots = controls.dots.querySelectorAll(".optimistic-dot");
     expect(dots).toHaveLength(2);
     expect(dots[0].classList.contains("is-active")).toBe(true);
+    expect(dots[0].getAttribute("aria-current")).toBe("true");
+    expect(dots[0].hasAttribute("aria-selected")).toBe(false);
+    expect(dots[0].getAttribute("role")).toBe(null);
 
     controls.nextButton.click();
     expect(getOptimisticIndex()).toBe(1);
@@ -84,6 +87,8 @@ describe("message-ui", () => {
     expect(headline.textContent).toBe("Second headline");
     const updatedDots = controls.dots.querySelectorAll(".optimistic-dot");
     expect(updatedDots[1].classList.contains("is-active")).toBe(true);
+    expect(updatedDots[1].getAttribute("aria-current")).toBe("true");
+    expect(updatedDots[0].hasAttribute("aria-current")).toBe(false);
     randomSpy.mockRestore();
   });
 

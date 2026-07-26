@@ -39,3 +39,23 @@ test("app loads with baseline content and stats", async ({ page }) => {
   );
   expect(hasDebugApi).toBe(true);
 });
+
+test("message navigation uses keyboard-operable button semantics", async ({ page }) => {
+  await page.goto("/");
+
+  const navigation = page.getByRole("navigation", { name: "Message navigation" });
+  await expect(navigation).toBeVisible();
+  await expect(page.getByRole("tab")).toHaveCount(0);
+
+  const messageButtons = navigation.getByRole("button");
+  const buttonCount = await messageButtons.count();
+  expect(buttonCount).toBeGreaterThan(1);
+  await expect(messageButtons.first()).toHaveAttribute("aria-current", "true");
+
+  const lastButton = messageButtons.last();
+  await lastButton.focus();
+  await page.keyboard.press("Enter");
+
+  await expect(lastButton).toHaveAttribute("aria-current", "true");
+  await expect(messageButtons.first()).not.toHaveAttribute("aria-current");
+});
