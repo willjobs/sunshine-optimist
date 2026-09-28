@@ -10,6 +10,7 @@ scripts/
 ├── controllers/
 │   ├── date-controller.js      # Date picker state and commit handling
 │   ├── location-controller.js  # City search, geolocation, results
+│   ├── milestone-explorer-controller.js # In-place city milestone discovery
 │   ├── daylight-controller.js  # Sun calculations, milestones, stats
 │   └── optimistic-controller.js # Message selection and rotation
 ├── data/
@@ -97,6 +98,7 @@ State is accessed through exported getter/setter functions.
 - `daylight-controller.js` adds computed milestones (earliest/shortest/longest day, equinoxes, DST, first 12hr day, finished 10 darkest weeks)
 - The milestone card cycles through upcoming entries; confetti fires on milestone days
 - Easter egg: clearing the location input shows a "Find cities with milestones" button that scans 100 major world cities to find up to 5 with a milestone today
+- A persistent action below the milestone card uses the same city scan and shows matching cities with their milestone names in place
 
 ### Sharing
 

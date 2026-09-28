@@ -61,6 +61,10 @@ import {
 } from "./controllers/date-controller.js";
 import { updateOptimisticMessage } from "./controllers/optimistic-controller.js";
 import {
+  initMilestoneExplorer,
+  resetMilestoneExplorer,
+} from "./controllers/milestone-explorer-controller.js";
+import {
   initLocationController,
   setLocationChangeCallback,
   initializeLocation,
@@ -128,6 +132,10 @@ const dom = {
   clearButton: document.getElementById("location-clear"),
   milestone: document.querySelector(".milestone"),
   milestoneToggle: document.getElementById("milestone-toggle"),
+  milestoneExplorerToggle: document.getElementById("milestone-explorer-toggle"),
+  milestoneExplorerPanel: document.getElementById("milestone-explorer-panel"),
+  milestoneExplorerStatus: document.getElementById("milestone-explorer-status"),
+  milestoneExplorerResults: document.getElementById("milestone-explorer-results"),
   confettiRoot: document.getElementById("confetti"),
   sunsetTimeValue: document.getElementById("sunset-time"),
   sunsetEarliestDeltaValue: document.getElementById("sunset-earliest-delta"),
@@ -197,6 +205,19 @@ initLocationController(dom, {
   getActiveDateParts: (tz) => getActiveDateParts(tz),
 });
 
+initMilestoneExplorer(
+  {
+    toggle: dom.milestoneExplorerToggle,
+    panel: dom.milestoneExplorerPanel,
+    status: dom.milestoneExplorerStatus,
+    results: dom.milestoneExplorerResults,
+  },
+  {
+    getDateParts: (timeZone) => getActiveDateParts(timeZone),
+    onSelectCity: (city) => selectResult(city),
+  }
+);
+
 // Create formatters object for daylight controller
 const formatters = {
   formatLongDateFromParts,
@@ -227,8 +248,12 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("pageshow", () => refreshLiveDateIfNeeded(FALLBACK_TIMEZONE));
 
 // Wire up callbacks between controllers
-setLocationChangeCallback(handleDaylightUpdate);
+setLocationChangeCallback((location) => {
+  resetMilestoneExplorer();
+  handleDaylightUpdate(location);
+});
 setDateChangeCallback((location) => {
+  resetMilestoneExplorer();
   setMilestoneScanResults(null);
   handleDaylightUpdate(location);
 });
@@ -241,6 +266,7 @@ setDateChangeCallback((location) => {
 if (cityInput) {
   cityInput.addEventListener("input", handleInput);
   cityInput.addEventListener("focus", handleInput);
+  cityInput.addEventListener("focus", resetMilestoneExplorer);
   cityInput.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       clearResults();

@@ -49,6 +49,13 @@ This document describes the user interactions and behaviors of Sunshine Optimist
 - Last 5 selected locations, persisted in localStorage
 - The "Find cities with milestones" action is available even when there are no recent locations
 
+### Explore Milestones in Other Cities
+
+- A persistent action below the milestone card scans major cities for milestones on the active date in each city's timezone
+- Results appear beside the milestone card with the city and milestone name; selecting one changes the active city
+- Closing the panel or changing the date or location cancels an unfinished scan
+- The city search field keeps its current value until a result is selected
+
 ### Geolocation Button
 
 - Click requests browser permission
