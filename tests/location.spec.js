@@ -87,6 +87,23 @@ test("keyboard navigation updates active option", async ({ page }) => {
   await expect(cityInput).toHaveAttribute("aria-activedescendant", /location-option-/);
 });
 
+test("enter never selects suggestions from the previous query", async ({ page }) => {
+  await setupPage(page, {
+    geocodeFixtures: { paris: [PARIS_TX], seattle: [SEATTLE] },
+  });
+  await page.goto("/");
+
+  const cityInput = page.getByRole("combobox", { name: "City" });
+  await cityInput.fill("Paris");
+  await expect(page.getByRole("option", { name: "Paris, TX" })).toBeVisible();
+
+  await cityInput.fill("Seattle");
+  await cityInput.press("Enter");
+  await expect(cityInput).toHaveValue("Seattle");
+  await expect(page.getByRole("option", { name: "Paris, TX" })).toHaveCount(0);
+  await expect(page.getByRole("option", { name: "Seattle, WA" })).toBeVisible();
+});
+
 test("clear button shows recent locations", async ({ page }) => {
   await setupPage(page);
   await page.goto("/");
@@ -226,4 +243,50 @@ test("geolocation selection resolves to a place name", async ({ page }) => {
       })
     )
     .toBe(SEATTLE.timezone);
+});
+
+test("stored current location refreshes coordinates when permission is granted", async ({
+  page,
+}) => {
+  await installFontMocks(page);
+  await installPermissionsMock(page, "granted");
+  await installApiMocks(page);
+  await setStoredLocation(page, {
+    name: "Current Location",
+    latitude: BOSTON.latitude,
+    longitude: BOSTON.longitude,
+    timezone: BOSTON.timezone,
+    isCurrent: true,
+  });
+  await page.addInitScript(
+    (coords) => {
+      window.__geolocationCalls = 0;
+      Object.defineProperty(navigator, "geolocation", {
+        value: {
+          getCurrentPosition: (success) => {
+            window.__geolocationCalls += 1;
+            success({ coords });
+          },
+        },
+        configurable: true,
+      });
+    },
+    { latitude: SEATTLE.latitude, longitude: SEATTLE.longitude }
+  );
+
+  await page.goto("/");
+  await expect.poll(() => page.evaluate(() => window.__geolocationCalls)).toBe(1);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        JSON.parse(window.localStorage.getItem("sunshine-optimist:active-location") || "null")
+      )
+    )
+    .toMatchObject({
+      name: "Seattle",
+      latitude: SEATTLE.latitude,
+      longitude: SEATTLE.longitude,
+      timezone: SEATTLE.timezone,
+      isCurrent: true,
+    });
 });

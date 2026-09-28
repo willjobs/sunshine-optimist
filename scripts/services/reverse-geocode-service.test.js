@@ -41,6 +41,26 @@ describe("reverse-geocode-service", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("preserves current-location provenance when resolving its name", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ locality: "Seattle", latitude: 47.6062, longitude: -122.3321 }),
+      })
+    );
+
+    const resolved = await fetchReverseGeocodeLocation({
+      name: "Current Location",
+      latitude: 47.6062,
+      longitude: -122.3321,
+      timezone: "America/Los_Angeles",
+      isCurrent: true,
+    });
+
+    expect(resolved).toMatchObject({ name: "Seattle", isCurrent: true });
+  });
+
   it("keeps concurrent requests isolated by coordinate key", async () => {
     let resolveFirstRequest;
     let resolveSecondRequest;

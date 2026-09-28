@@ -461,12 +461,10 @@ export const buildResults = (
  */
 export const showRecentResults = () => {
   const recentLocations = getRecentLocations();
-  if (!recentLocations.length) {
-    clearResults();
-    return;
-  }
-  const statusMessages = [{ text: "Recent locations.", type: "hint" }];
-  const groups = [{ label: "Recent", items: recentLocations }];
+  const statusMessages = recentLocations.length
+    ? [{ text: "Recent locations.", type: "hint" }]
+    : [];
+  const groups = recentLocations.length ? [{ label: "Recent", items: recentLocations }] : [];
 
   const scanResults = getMilestoneScanResults();
   if (scanResults && scanResults.length > 0) {
@@ -524,7 +522,11 @@ export const selectResult = (
   if (onLocationChange) {
     onLocationChange(item);
   }
-  if (isCurrentLocation(item) && !item.reverseGeocodeFailed) {
+  if (
+    isCurrentLocation(item) &&
+    item.name === CURRENT_LOCATION_LABEL &&
+    !item.reverseGeocodeFailed
+  ) {
     void resolveCurrentLocationName(item, activeOperationToken);
   }
   return true;
@@ -694,11 +696,23 @@ export const fetchSuggestions = async (nameQuery, filterTokens, rawTokens) => {
   showLoadingState();
   try {
     const results = await searchCities(nameQuery, languageCode, controller.signal);
+    if (
+      controller.signal.aborted ||
+      getFetchController() !== controller ||
+      getLastNameQuery() !== nameQuery
+    ) {
+      return;
+    }
     buildResults(results, filterTokens, rawTokens);
   } catch (error) {
     if (error.name === "AbortError") return;
+    if (getFetchController() !== controller || getLastNameQuery() !== nameQuery) return;
     console.error("City lookup failed:", error);
     showErrorState();
+  } finally {
+    if (getFetchController() === controller) {
+      setFetchController(null);
+    }
   }
 };
 
@@ -755,7 +769,9 @@ export const initializeLocation = () => {
     selectResult(storedLocation, { persist: false, updateRecents: false });
   }
 
-  const initializationToken = storedLocation ? null : beginLocationOperation();
+  const initializationToken = storedLocation
+    ? locationOperationGeneration
+    : beginLocationOperation();
 
   if (!CAN_USE_GEOLOCATION || !navigator.permissions?.query) {
     if (!storedLocation) {
@@ -771,10 +787,13 @@ export const initializeLocation = () => {
         return;
       }
       if (status.state === "granted") {
-        if (!storedLocation) {
+        if (!storedLocation || isCurrentLocation(storedLocation)) {
+          const operationToken = storedLocation ? beginLocationOperation() : initializationToken;
           requestLocationBias({
-            operationToken: initializationToken,
-            onError: (_error, operationToken) => fetchDefaultLocation(operationToken),
+            operationToken,
+            onError: storedLocation
+              ? undefined
+              : (_error, currentToken) => fetchDefaultLocation(currentToken),
           });
         }
       } else if (!storedLocation) {
@@ -815,17 +834,10 @@ export const handleInput = () => {
       fetchController.abort();
       setFetchController(null);
     }
-    if (getRecentLocations().length) {
-      showRecentResults();
-    } else {
-      clearResults();
-    }
+    showRecentResults();
     return;
   }
-  const existingDebounceId = getDebounceId();
-  if (existingDebounceId) {
-    clearTimeout(existingDebounceId);
-  }
+  clearResults();
   const newDebounceId = window.setTimeout(() => {
     fetchSuggestions(nameQuery, filterTokens, rawFilterTokens);
   }, 250);

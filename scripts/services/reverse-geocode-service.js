@@ -40,6 +40,7 @@ const mapReverseGeocodeResponse = (data, location) => {
     longitude,
     elevation: 0,
     timezone: location.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    ...(location.isCurrent ? { isCurrent: true } : {}),
   };
 };
 

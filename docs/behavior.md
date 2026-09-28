@@ -8,7 +8,7 @@ This document describes the user interactions and behaviors of Sunshine Optimist
 
 1. Checks browser geolocation permission
 2. If granted: requests coordinates, reverse-geocodes to place name, selects location
-3. If denied: falls back to stored location, then browser region, then New York City
+3. If denied or unavailable: looks up Boston, Massachusetts, then uses built-in Boston coordinates if that lookup fails
 4. Displays today's date, calculates sun metrics, shows optimistic headline and stats
 
 ### Returning User
@@ -16,7 +16,8 @@ This document describes the user interactions and behaviors of Sunshine Optimist
 1. Loads last-used location from localStorage
 2. Loads recent locations list (up to 5)
 3. Loads share privacy preference
-4. If last location was "Current Location" and permission granted, updates coordinates
+4. If the last location came from geolocation and permission is granted, refreshes its coordinates and place name
+5. Invalid saved locations are removed; valid recent locations are retained
 
 ## Location Search
 
@@ -24,7 +25,8 @@ This document describes the user interactions and behaviors of Sunshine Optimist
 
 - Minimum 2 characters to trigger search
 - 250ms debounce before API call
-- Supports filter tokens: `#region`, `#country`, `#admin` to filter results
+- A comma followed by a region or country filters results (for example, `Paris, France`)
+- Changing the query immediately clears suggestions from the previous query
 - Escape closes results panel
 
 ### Results
@@ -45,6 +47,7 @@ This document describes the user interactions and behaviors of Sunshine Optimist
 
 - Shown when field is empty or has fewer than 2 characters
 - Last 5 selected locations, persisted in localStorage
+- The "Find cities with milestones" action is available even when there are no recent locations
 
 ### Geolocation Button
 
@@ -68,8 +71,9 @@ When selected:
 
 - Defaults to today in the location's timezone (not user's timezone)
 - Calendar popup: immediate selection
-- Keyboard input: 1.2s debounce, immediate on Enter or blur
+- Keyboard input: 300ms debounce, immediate on Enter or blur
 - "Today" button appears when viewing a custom date
+- In Today mode, the display refreshes at midnight in the selected location and when a suspended tab becomes visible again
 
 ### Timezone Handling
 
@@ -150,7 +154,7 @@ Messages are filtered by:
 
 ## Share Feature
 
-### Text Mode (default)
+### Text Mode
 
 Format:
 
@@ -165,9 +169,9 @@ SunshineOptimist.com
 ```
 
 - Copy to clipboard button
-- Social share links: Instagram (copy), Facebook, X/Twitter, Bluesky
+- On supported mobile browsers, the system share sheet is available
 
-### Image Mode
+### Image Mode (default)
 
 - 1080x1920px Instagram Story image
 - Warm gradient background with headline and location
@@ -182,7 +186,7 @@ SunshineOptimist.com
 ### Closing
 
 - Click Close, backdrop, or press Escape
-- Resets to Text mode
+- Resets to Image mode
 
 ## Offline Support
 
@@ -208,7 +212,8 @@ SunshineOptimist.com
 ### Storage Errors
 
 - localStorage unavailable: app works without persistence
-- Corrupted data: cleared and reset to defaults
+- Invalid saved locations: removed and replaced with the default location
+- Invalid recent entries: discarded while valid entries are kept
 
 ## Debug Tools
 

@@ -3,5 +3,6 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["scripts/**/*.test.js", "tests/**/*.test.js"],
+    setupFiles: ["./tests/setup-jsdom.js"],
   },
 });

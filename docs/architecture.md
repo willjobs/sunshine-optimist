@@ -54,7 +54,7 @@ All application state is centralized in `scripts/state/app-state.js`:
 - **Share state**: Snapshot, modal snapshot, privacy preference, share mode, last generated canvas
 - **Reverse geocode state**: Cache, in-flight promise
 
-State is accessed through exported getter/setter functions. The module supports batch updates for performance.
+State is accessed through exported getter/setter functions.
 
 ## Key Flows
 
@@ -65,11 +65,14 @@ State is accessed through exported getter/setter functions. The module supports 
 3. If geolocation is allowed, results are biased by distance
 4. Recent and last-active locations are stored in localStorage
 5. For "Current Location", the app reverse-geocodes via BigDataCloud to display a real place name
+6. Geolocated selections retain their origin so stored coordinates can refresh when permission is granted
+7. Saved locations are validated before use; malformed entries cannot reach date or daylight calculations
 
 ### Date and Timezone Handling
 
 - The date picker defaults to today in the selected location's timezone
 - All dates are evaluated in the location's timezone, not the user's
+- Today mode refreshes at the selected location's midnight and rechecks when the tab becomes visible
 - Helpers in `date-utils.js` convert between UTC and local date parts
 
 ### Daylight Calculations
@@ -98,7 +101,7 @@ State is accessed through exported getter/setter functions. The module supports 
 ### Sharing
 
 - **Text mode**: Formatted text with daylight data, progress bars, and milestone info
-- **Image mode**: 1080x1920px Instagram Story image generated via Canvas API
+- **Image mode (default)**: 1080x1920px Instagram Story image generated via Canvas API
 - Privacy mode displays "My Location" instead of actual city name
 
 ## Controller Communication
@@ -138,7 +141,7 @@ Controllers communicate via callback registration (e.g., `setLocationChangeCallb
 ### Debouncing
 
 - Search input: 250ms
-- Date input: 1.2s (immediate on blur/Enter)
+- Date input: 300ms (immediate on blur/Enter)
 - `AbortController` cancels previous geocoding requests
 
 ## Browser Compatibility
@@ -147,4 +150,4 @@ Controllers communicate via callback registration (e.g., `setLocationChangeCallb
 
 **Supported browsers**: Chrome 80+, Firefox 74+, Safari 13.1+, Edge 80+.
 
-**Graceful degradation**: No geolocation falls back to default location. No Clipboard API hides copy button. No Service Worker means no offline support.
+**Graceful degradation**: No geolocation falls back to the Boston default location. Copying text requires the Clipboard API. No Service Worker means no offline support.

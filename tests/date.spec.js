@@ -34,3 +34,21 @@ test("date input commits custom date and reset returns to live date", async ({ p
   await expect(todayButton).toBeDisabled();
   await expect(dateInput).not.toHaveValue("2024-12-15");
 });
+
+test("live date advances at midnight in the selected city", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-09-28T14:59:50Z") });
+  await setStoredLocation(page, {
+    name: "Tokyo",
+    latitude: 35.6762,
+    longitude: 139.6503,
+    timezone: "Asia/Tokyo",
+  });
+  await page.goto("/");
+
+  const dateInput = page.locator("#date-input");
+  await expect(dateInput).toHaveValue("2026-09-28");
+  await expect(page.locator("#daylight-duration")).not.toHaveText("—");
+
+  await page.clock.fastForward(11000);
+  await expect(dateInput).toHaveValue("2026-09-29");
+});

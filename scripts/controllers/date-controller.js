@@ -5,9 +5,11 @@
  */
 
 import {
+  addDaysToDateParts,
   formatDateInputValue,
   getLocalDateParts,
   parseDateInputValue,
+  zonedTimeToUtc,
 } from "../utils/date-utils.js";
 import {
   isUsingLiveDate,
@@ -23,9 +25,12 @@ import {
 // Constants
 const DATE_COMMIT_DELAY_MS = 300;
 const DATE_KEYBOARD_GRACE_MS = 800;
+const LIVE_DATE_REFRESH_GRACE_MS = 100;
 
 // Callback for when date changes require daylight recalculation
 let onDateChange = null;
+let liveDateRefreshTimeoutId = null;
+let lastLiveDateKey = null;
 
 /**
  * Register a callback to be called when the date changes
@@ -45,6 +50,67 @@ export const getActiveDateParts = (timeZone) => {
     return getCustomDateParts();
   }
   return getLocalDateParts(new Date(), timeZone);
+};
+
+const clearLiveDateTimer = () => {
+  if (liveDateRefreshTimeoutId !== null) {
+    clearTimeout(liveDateRefreshTimeoutId);
+    liveDateRefreshTimeoutId = null;
+  }
+};
+
+export const clearLiveDateRefreshTimeout = () => {
+  clearLiveDateTimer();
+  lastLiveDateKey = null;
+};
+
+/** Schedule a refresh at the next midnight in the active location's timezone. */
+export const scheduleLiveDateRefresh = (fallbackTimeZone) => {
+  clearLiveDateTimer();
+  const location = getActiveLocation();
+  if (!location || !isUsingLiveDate()) {
+    lastLiveDateKey = null;
+    return;
+  }
+
+  const timeZone = location.timezone || fallbackTimeZone;
+  const now = new Date();
+  const todayParts = getLocalDateParts(now, timeZone);
+  lastLiveDateKey = formatDateInputValue(todayParts);
+  const tomorrowParts = addDaysToDateParts(todayParts, 1);
+  const nextMidnight = zonedTimeToUtc(
+    tomorrowParts.year,
+    tomorrowParts.month,
+    tomorrowParts.day,
+    0,
+    0,
+    0,
+    timeZone
+  );
+  const delay = Math.max(1000, nextMidnight.getTime() - now.getTime() + LIVE_DATE_REFRESH_GRACE_MS);
+  liveDateRefreshTimeoutId = window.setTimeout(() => {
+    liveDateRefreshTimeoutId = null;
+    refreshLiveDateIfNeeded(fallbackTimeZone);
+  }, delay);
+};
+
+/** Catch a midnight transition missed while the browser was suspended. */
+export const refreshLiveDateIfNeeded = (fallbackTimeZone) => {
+  const location = getActiveLocation();
+  if (!location || !isUsingLiveDate()) {
+    clearLiveDateRefreshTimeout();
+    return false;
+  }
+
+  const timeZone = location.timezone || fallbackTimeZone;
+  const currentKey = formatDateInputValue(getLocalDateParts(new Date(), timeZone));
+  const didChange = lastLiveDateKey !== null && currentKey !== lastLiveDateKey;
+  lastLiveDateKey = currentKey;
+  if (didChange && onDateChange) {
+    onDateChange(location);
+  }
+  scheduleLiveDateRefresh(fallbackTimeZone);
+  return didChange;
 };
 
 /**
