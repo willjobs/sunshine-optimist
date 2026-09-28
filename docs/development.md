@@ -40,7 +40,7 @@ npm run format        # Auto-format all files
 ### Unit Tests (Vitest)
 
 ```bash
-npm run test:unit
+npm run test:unit -- --run
 ```
 
 ### End-to-End Tests (Playwright)
@@ -52,6 +52,7 @@ npm run test:ui       # Interactive UI mode
 ```
 
 The Playwright config automatically starts a local server on port 9247.
+Use `npm run test:offline` to check that an installed app reloads without a network connection.
 
 ## Debugging
 
