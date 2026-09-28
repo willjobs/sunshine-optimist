@@ -524,7 +524,11 @@ export const selectResult = (
   if (onLocationChange) {
     onLocationChange(item);
   }
-  if (isCurrentLocation(item) && !item.reverseGeocodeFailed) {
+  if (
+    isCurrentLocation(item) &&
+    item.name === CURRENT_LOCATION_LABEL &&
+    !item.reverseGeocodeFailed
+  ) {
     void resolveCurrentLocationName(item, activeOperationToken);
   }
   return true;
@@ -767,7 +771,9 @@ export const initializeLocation = () => {
     selectResult(storedLocation, { persist: false, updateRecents: false });
   }
 
-  const initializationToken = storedLocation ? null : beginLocationOperation();
+  const initializationToken = storedLocation
+    ? locationOperationGeneration
+    : beginLocationOperation();
 
   if (!CAN_USE_GEOLOCATION || !navigator.permissions?.query) {
     if (!storedLocation) {
@@ -783,10 +789,13 @@ export const initializeLocation = () => {
         return;
       }
       if (status.state === "granted") {
-        if (!storedLocation) {
+        if (!storedLocation || isCurrentLocation(storedLocation)) {
+          const operationToken = storedLocation ? beginLocationOperation() : initializationToken;
           requestLocationBias({
-            operationToken: initializationToken,
-            onError: (_error, operationToken) => fetchDefaultLocation(operationToken),
+            operationToken,
+            onError: storedLocation
+              ? undefined
+              : (_error, currentToken) => fetchDefaultLocation(currentToken),
           });
         }
       } else if (!storedLocation) {
