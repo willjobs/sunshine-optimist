@@ -461,12 +461,10 @@ export const buildResults = (
  */
 export const showRecentResults = () => {
   const recentLocations = getRecentLocations();
-  if (!recentLocations.length) {
-    clearResults();
-    return;
-  }
-  const statusMessages = [{ text: "Recent locations.", type: "hint" }];
-  const groups = [{ label: "Recent", items: recentLocations }];
+  const statusMessages = recentLocations.length
+    ? [{ text: "Recent locations.", type: "hint" }]
+    : [];
+  const groups = recentLocations.length ? [{ label: "Recent", items: recentLocations }] : [];
 
   const scanResults = getMilestoneScanResults();
   if (scanResults && scanResults.length > 0) {
@@ -836,11 +834,7 @@ export const handleInput = () => {
       fetchController.abort();
       setFetchController(null);
     }
-    if (getRecentLocations().length) {
-      showRecentResults();
-    } else {
-      clearResults();
-    }
+    showRecentResults();
     return;
   }
   clearResults();

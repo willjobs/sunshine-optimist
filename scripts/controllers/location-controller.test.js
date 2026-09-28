@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { handleInput, initLocationController } from "./location-controller.js";
+import { handleInput, initLocationController, showRecentResults } from "./location-controller.js";
 import {
   getSuggestionResults,
   resetLocationSearchState,
   setFetchController,
+  setRecentLocations,
   setSuggestionResults,
 } from "../state/app-state.js";
 
@@ -46,5 +47,17 @@ describe("location search", () => {
     expect(getSuggestionResults()).toEqual([]);
     expect(dom.cityInput.getAttribute("aria-expanded")).toBe("false");
     expect(dom.resultsList.children).toHaveLength(0);
+  });
+
+  it("shows the milestone search action without recent cities", () => {
+    const dom = buildSearchDom();
+    initLocationController(dom, { languageCode: "en", fallbackTimeZone: "UTC" });
+    setRecentLocations([]);
+
+    showRecentResults();
+
+    expect(dom.resultsPanel.classList.contains("is-open")).toBe(true);
+    expect(dom.resultsActions.textContent).toContain("Find cities with milestones");
+    expect(dom.resultsMeta.textContent).toContain("No recent locations yet");
   });
 });
