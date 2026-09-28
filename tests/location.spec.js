@@ -87,6 +87,23 @@ test("keyboard navigation updates active option", async ({ page }) => {
   await expect(cityInput).toHaveAttribute("aria-activedescendant", /location-option-/);
 });
 
+test("enter never selects suggestions from the previous query", async ({ page }) => {
+  await setupPage(page, {
+    geocodeFixtures: { paris: [PARIS_TX], seattle: [SEATTLE] },
+  });
+  await page.goto("/");
+
+  const cityInput = page.getByRole("combobox", { name: "City" });
+  await cityInput.fill("Paris");
+  await expect(page.getByRole("option", { name: "Paris, TX" })).toBeVisible();
+
+  await cityInput.fill("Seattle");
+  await cityInput.press("Enter");
+  await expect(cityInput).toHaveValue("Seattle");
+  await expect(page.getByRole("option", { name: "Paris, TX" })).toHaveCount(0);
+  await expect(page.getByRole("option", { name: "Seattle, WA" })).toBeVisible();
+});
+
 test("clear button shows recent locations", async ({ page }) => {
   await setupPage(page);
   await page.goto("/");

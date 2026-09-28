@@ -694,11 +694,23 @@ export const fetchSuggestions = async (nameQuery, filterTokens, rawTokens) => {
   showLoadingState();
   try {
     const results = await searchCities(nameQuery, languageCode, controller.signal);
+    if (
+      controller.signal.aborted ||
+      getFetchController() !== controller ||
+      getLastNameQuery() !== nameQuery
+    ) {
+      return;
+    }
     buildResults(results, filterTokens, rawTokens);
   } catch (error) {
     if (error.name === "AbortError") return;
+    if (getFetchController() !== controller || getLastNameQuery() !== nameQuery) return;
     console.error("City lookup failed:", error);
     showErrorState();
+  } finally {
+    if (getFetchController() === controller) {
+      setFetchController(null);
+    }
   }
 };
 
@@ -822,10 +834,7 @@ export const handleInput = () => {
     }
     return;
   }
-  const existingDebounceId = getDebounceId();
-  if (existingDebounceId) {
-    clearTimeout(existingDebounceId);
-  }
+  clearResults();
   const newDebounceId = window.setTimeout(() => {
     fetchSuggestions(nameQuery, filterTokens, rawFilterTokens);
   }, 250);
