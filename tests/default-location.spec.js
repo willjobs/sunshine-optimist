@@ -21,6 +21,31 @@ test("default location loads when no stored location is available", async ({ pag
   await expect(cityInput).toHaveValue("Boston, MA");
 });
 
+test("invalid stored timezone falls back to the default location", async ({ page }) => {
+  await installFontMocks(page);
+  await installPermissionsMock(page, "denied");
+  await installApiMocks(page);
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "sunshine-optimist:active-location",
+      JSON.stringify({
+        name: "Broken City",
+        latitude: 42,
+        longitude: -71,
+        timezone: "Invalid/Zone",
+      })
+    );
+  });
+
+  await page.goto("/");
+  await expect(page.getByRole("combobox", { name: "City" })).toHaveValue("Boston, MA");
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.localStorage.getItem("sunshine-optimist:active-location"))
+    )
+    .toBe(null);
+});
+
 test("delayed startup fallback does not overwrite a manual selection", async ({ page }) => {
   await installFontMocks(page);
   await installPermissionsMock(page, "denied");
