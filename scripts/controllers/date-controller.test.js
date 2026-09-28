@@ -28,6 +28,7 @@ beforeEach(() => {
 
 afterEach(() => {
   dateController.clearDateCommitTimeout();
+  dateController.clearLiveDateRefreshTimeout?.();
   vi.useRealTimers();
 });
 
@@ -96,5 +97,35 @@ describe("date-controller", () => {
     expect(dateController.isRecentDateKeyboardInput()).toBe(true);
     setLastKeydownAt(now - 2000);
     expect(dateController.isRecentDateKeyboardInput()).toBe(false);
+  });
+
+  it("refreshes live daylight when the selected city reaches midnight", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-28T14:59:55Z"));
+    const location = { name: "Tokyo", timezone: "Asia/Tokyo" };
+    setActiveLocation(location);
+    const onChange = vi.fn();
+    dateController.setDateChangeCallback(onChange);
+
+    dateController.scheduleLiveDateRefresh("UTC");
+    vi.advanceTimersByTime(6000);
+
+    expect(onChange).toHaveBeenCalledOnce();
+    expect(onChange).toHaveBeenCalledWith(location);
+  });
+
+  it("catches a missed midnight when the tab becomes visible", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-28T14:00:00Z"));
+    const location = { name: "Tokyo", timezone: "Asia/Tokyo" };
+    setActiveLocation(location);
+    const onChange = vi.fn();
+    dateController.setDateChangeCallback(onChange);
+    dateController.scheduleLiveDateRefresh("UTC");
+
+    vi.setSystemTime(new Date("2026-09-28T15:00:01Z"));
+    dateController.refreshLiveDateIfNeeded("UTC");
+
+    expect(onChange).toHaveBeenCalledOnce();
   });
 });

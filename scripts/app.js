@@ -56,6 +56,8 @@ import {
   isRecentDateKeyboardInput,
   resetToLiveDate,
   setDateChangeCallback,
+  scheduleLiveDateRefresh,
+  refreshLiveDateIfNeeded,
 } from "./controllers/date-controller.js";
 import { updateOptimisticMessage } from "./controllers/optimistic-controller.js";
 import {
@@ -205,6 +207,7 @@ const formatters = {
 
 // Wrapper function for updating daylight that provides all dependencies
 const handleDaylightUpdate = (location) => {
+  scheduleLiveDateRefresh(FALLBACK_TIMEZONE);
   updateDaylightForLocation({
     location,
     dom,
@@ -215,6 +218,13 @@ const handleDaylightUpdate = (location) => {
     fallbackTimeZone: FALLBACK_TIMEZONE,
   });
 };
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    refreshLiveDateIfNeeded(FALLBACK_TIMEZONE);
+  }
+});
+window.addEventListener("pageshow", () => refreshLiveDateIfNeeded(FALLBACK_TIMEZONE));
 
 // Wire up callbacks between controllers
 setLocationChangeCallback(handleDaylightUpdate);
