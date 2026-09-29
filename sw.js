@@ -5,7 +5,7 @@
  * Uses a cache-first strategy for static assets.
  */
 
-const CACHE_VERSION = "v173-afb60a8";
+const CACHE_VERSION = "v175-380eedd";
 const STATIC_CACHE_NAME = `sunshine-optimist-static-${CACHE_VERSION}`;
 const FONT_CACHE_NAME = "sunshine-optimist-fonts-v1";
 const FONT_ORIGINS = ["https://fonts.googleapis.com", "https://fonts.gstatic.com"];
@@ -48,6 +48,10 @@ const STATIC_ASSETS = [
   "/scripts/utils/utils.js",
 ];
 
+// A fresh URL bypasses intermediary caches; reload also bypasses the browser HTTP cache.
+const precacheRequest = (path) =>
+  new Request(`${self.location.origin}${path}?v=${CACHE_VERSION}`, { cache: "reload" });
+
 /**
  * Install event - cache static assets
  */
@@ -58,7 +62,7 @@ self.addEventListener("install", (event) => {
       .then((cache) => {
         // eslint-disable-next-line no-console
         console.log("[SW] Caching static assets");
-        return cache.addAll(STATIC_ASSETS);
+        return cache.addAll(STATIC_ASSETS.map(precacheRequest));
       })
       .then(() => {
         // Activate immediately without waiting for existing tabs to close
@@ -103,7 +107,12 @@ self.addEventListener("activate", (event) => {
  * Handle static asset requests (cache-first strategy)
  */
 const handleStaticRequest = async (request) => {
-  const cachedResponse = await caches.match(request, { ignoreSearch: true });
+  const cache = await caches.open(STATIC_CACHE_NAME);
+  const requestedVersion = new URL(request.url).searchParams.get("v");
+  const cachedResponse =
+    !requestedVersion || requestedVersion === CACHE_VERSION
+      ? await cache.match(request, { ignoreSearch: true })
+      : null;
   if (cachedResponse) {
     return cachedResponse;
   }
@@ -111,15 +120,13 @@ const handleStaticRequest = async (request) => {
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
-      const cache = await caches.open(STATIC_CACHE_NAME);
       cache.put(request, networkResponse.clone());
     }
     return networkResponse;
   } catch (error) {
     // If both cache and network fail, return a basic offline page for navigation requests
     if (request.mode === "navigate") {
-      const cache = await caches.open(STATIC_CACHE_NAME);
-      return cache.match("/index.html");
+      return cache.match("/index.html", { ignoreSearch: true });
     }
     throw error;
   }
