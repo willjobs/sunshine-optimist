@@ -30,6 +30,48 @@ test("milestone toggle cycles upcoming milestones", async ({ page }) => {
   await expect(page.locator("#next-headline")).not.toHaveText(initialHeadline || "");
 });
 
+test("explore action is visible with a selected city and opens results in place", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const explore = page.locator("#milestone-explorer-toggle");
+  const panel = page.locator("#milestone-explorer-panel");
+  const city = page.getByRole("combobox", { name: "City" });
+
+  await expect(explore).toBeVisible();
+  await expect(explore).toHaveText("Explore milestones in other cities");
+  await expect(explore).toHaveAttribute("aria-expanded", "false");
+  await explore.click();
+
+  await expect(explore).toHaveAttribute("aria-expanded", "true");
+  await expect(panel).toBeVisible();
+  await expect(city).toHaveValue("Boston, MA");
+  await expect(page.locator("#milestone-explorer-status")).toHaveText(
+    /with a milestone found|no milestones found/i
+  );
+
+  await explore.click();
+  await expect(panel).toBeHidden();
+  await expect(explore).toHaveAttribute("aria-expanded", "false");
+});
+
+test("choosing an explored milestone city updates the active city", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-09-28T12:00:00Z"));
+  await page.goto("/");
+
+  const city = page.getByRole("combobox", { name: "City" });
+  await page.locator("#milestone-explorer-toggle").click();
+  const firstResult = page.locator("#milestone-explorer-results button").first();
+  await expect(firstResult).toBeVisible({ timeout: 30000 });
+  const resultCity = await firstResult.locator(".milestone-explorer-city-name").textContent();
+
+  await firstResult.click();
+
+  await expect(city).toHaveValue(resultCity || "");
+  await expect(page.locator("#milestone-explorer-panel")).toBeHidden();
+});
+
 test("delta tooltip opens with keyboard and closes on escape", async ({ page }) => {
   await page.goto("/");
 

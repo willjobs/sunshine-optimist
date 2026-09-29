@@ -427,6 +427,29 @@ export const cancelMilestoneScan = () => {
 };
 
 // ============================================================================
+// Milestone Explorer State
+// ============================================================================
+const milestoneExplorerState = {
+  open: false,
+  abortController: null,
+};
+
+export const isMilestoneExplorerOpen = () => milestoneExplorerState.open;
+export const setMilestoneExplorerOpen = (open) => {
+  milestoneExplorerState.open = open;
+};
+
+export const getMilestoneExplorerAbortController = () => milestoneExplorerState.abortController;
+export const setMilestoneExplorerAbortController = (controller) => {
+  milestoneExplorerState.abortController = controller;
+};
+
+export const cancelMilestoneExplorerScan = () => {
+  milestoneExplorerState.abortController?.abort();
+  milestoneExplorerState.abortController = null;
+};
+
+// ============================================================================
 // Bulk State Reset (for testing or reinitialization)
 // ============================================================================
 
