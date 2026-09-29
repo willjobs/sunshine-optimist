@@ -77,7 +77,7 @@
       href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Manrope:wght@400..700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v173-afb60a8" />
+    <link rel="stylesheet" href="styles.css?v=v175-380eedd" />
   </head>
   <body>
     <div class="confetti" id="confetti" aria-hidden="true"></div>
@@ -634,8 +634,41 @@
       </dialog>
     </div>
 
-    <script src="astronomy-engine/astronomy.browser.min.js?v=v173-afb60a8"></script>
-    <script type="module" src="scripts/app.js?v=v173-afb60a8"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "/scripts/messages.js": "/scripts/messages.js?v=v175-380eedd",
+          "/scripts/milestones.js": "/scripts/milestones.js?v=v175-380eedd",
+          "/scripts/formatters/formatters.js": "/scripts/formatters/formatters.js?v=v175-380eedd",
+          "/scripts/controllers/date-controller.js": "/scripts/controllers/date-controller.js?v=v175-380eedd",
+          "/scripts/controllers/daylight-controller.js": "/scripts/controllers/daylight-controller.js?v=v175-380eedd",
+          "/scripts/controllers/location-controller.js": "/scripts/controllers/location-controller.js?v=v175-380eedd",
+          "/scripts/controllers/milestone-explorer-controller.js": "/scripts/controllers/milestone-explorer-controller.js?v=v175-380eedd",
+          "/scripts/controllers/optimistic-controller.js": "/scripts/controllers/optimistic-controller.js?v=v175-380eedd",
+          "/scripts/services/geocoding-service.js": "/scripts/services/geocoding-service.js?v=v175-380eedd",
+          "/scripts/services/fetch-service.js": "/scripts/services/fetch-service.js?v=v175-380eedd",
+          "/scripts/services/milestone-scanner-service.js": "/scripts/services/milestone-scanner-service.js?v=v175-380eedd",
+          "/scripts/services/reverse-geocode-service.js": "/scripts/services/reverse-geocode-service.js?v=v175-380eedd",
+          "/scripts/services/storage-service.js": "/scripts/services/storage-service.js?v=v175-380eedd",
+          "/scripts/services/timezone-service.js": "/scripts/services/timezone-service.js?v=v175-380eedd",
+          "/scripts/state/app-state.js": "/scripts/state/app-state.js?v=v175-380eedd",
+          "/scripts/data/major-cities.js": "/scripts/data/major-cities.js?v=v175-380eedd",
+          "/scripts/ui/confetti-ui.js": "/scripts/ui/confetti-ui.js?v=v175-380eedd",
+          "/scripts/ui/message-ui.js": "/scripts/ui/message-ui.js?v=v175-380eedd",
+          "/scripts/ui/milestone-ui.js": "/scripts/ui/milestone-ui.js?v=v175-380eedd",
+          "/scripts/ui/share-modal-ui.js": "/scripts/ui/share-modal-ui.js?v=v175-380eedd",
+          "/scripts/ui/story-image-ui.js": "/scripts/ui/story-image-ui.js?v=v175-380eedd",
+          "/scripts/ui/tooltip-ui.js": "/scripts/ui/tooltip-ui.js?v=v175-380eedd",
+          "/scripts/utils/astronomy-utils.js": "/scripts/utils/astronomy-utils.js?v=v175-380eedd",
+          "/scripts/utils/date-utils.js": "/scripts/utils/date-utils.js?v=v175-380eedd",
+          "/scripts/utils/dom-utils.js": "/scripts/utils/dom-utils.js?v=v175-380eedd",
+          "/scripts/utils/location-utils.js": "/scripts/utils/location-utils.js?v=v175-380eedd",
+          "/scripts/utils/utils.js": "/scripts/utils/utils.js?v=v175-380eedd"
+        }
+      }
+    </script>
+    <script src="astronomy-engine/astronomy.browser.min.js?v=v175-380eedd"></script>
+    <script type="module" src="scripts/app.js?v=v175-380eedd"></script>
     <script>
       // Register service worker for offline support
       if ("serviceWorker" in navigator) {

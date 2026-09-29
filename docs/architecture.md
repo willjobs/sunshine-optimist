@@ -114,7 +114,9 @@ Controllers communicate via callback registration (e.g., `setLocationChangeCallb
 
 ### Service Worker Strategy
 
-**Static assets** (cache-first): HTML, CSS, JavaScript, cached on install with network fallback. Cache matching uses `ignoreSearch: true` so versioned query strings (e.g., `?v=v132-abc123`) match bare cached URLs.
+**Static assets** (cache-first): HTML, CSS, and JavaScript are fetched with release-versioned URLs and `cache: "reload"` during installation, then served from that release's cache. A failed precache leaves the previous worker active. Fetches consult only the active release cache; `ignoreSearch: true` lets requests for either bare or matching-version URLs use its entries. A request bearing a newer version goes to the network instead of receiving the old worker's copy. The HTML import map versions every JavaScript module in the app's import graph, so a new entry script cannot load a module left in the browser's HTTP cache from a previous release.
+
+GitHub Pages supplies the site's HTTP cache headers. Release URLs and service worker cache names provide invalidation without depending on custom `_headers` rules.
 
 **API requests** (network-only): Location search, reverse geocoding, and coordinate timezone requests require a connection. Each request has a bounded timeout, and stored location data lets the app continue to calculate daylight offline.
 

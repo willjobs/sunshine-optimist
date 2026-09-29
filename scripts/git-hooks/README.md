@@ -20,7 +20,7 @@ The version format is `v{commit-count}-{short-hash}` (e.g., `v79-0cba1f5`).
 Updates are made to:
 
 - `sw.js`: Updates `CACHE_VERSION` constant for service worker cache naming
-- `index.html`: Updates `?v=...` query strings on CSS and JS references for HTTP cache busting
+- `index.html`: Updates `?v=...` query strings on CSS, entry scripts, and the import map for every JavaScript dependency
 
 This dual approach ensures reliable cache invalidation across:
 
