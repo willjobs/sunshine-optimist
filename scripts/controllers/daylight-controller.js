@@ -400,7 +400,7 @@ export const buildMessageData = async (
   deltas,
   hemisphere,
   timeZone,
-  _formatTimeFromMinutes
+  formatShortDateFromParts
 ) => {
   const {
     todaySunsetMinutes,
@@ -536,6 +536,9 @@ export const buildMessageData = async (
   );
   const todayDate = getLocalNoonDateFromParts(todayParts, timeZone);
   const earliestSunsetDate = getLocalNoonDateFromParts(earliestSunsetDateParts, timeZone);
+  const daylightTwin = [8, 9, 10].includes(todayParts.month)
+    ? await astronomy.findDaylightTwinAsync(todayParts, hemisphere)
+    : null;
 
   const messageData = {
     sunset_today: todaySunsetMinutes,
@@ -574,6 +577,9 @@ export const buildMessageData = async (
     date_of_earliest_sunset: earliestSunsetDate,
     average_winter_daylight: averageWinterDaylight,
     daylight_loss_this_week: daylightLossThisWeek,
+    daylight_twin_date: daylightTwin
+      ? formatShortDateFromParts(daylightTwin, timeZone, todayParts.year)
+      : null,
   };
 
   return { messageData, daylightGainToday };
@@ -928,7 +934,7 @@ export const updateDaylightForLocation = async ({
     deltas,
     hemisphere,
     timeZone,
-    formatters.formatTimeFromMinutes
+    formatters.formatShortDateFromParts
   );
 
   // Discard stale results if a newer update has started

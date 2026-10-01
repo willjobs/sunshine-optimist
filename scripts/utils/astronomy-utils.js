@@ -84,6 +84,7 @@ export const createAstronomyContext = (location, timeZone) => {
       getDaysUntilSunsetAfter: () => null,
       getWeeksWithSunsetAfter: () => null,
       getDaylightDailyGainThisWeekMin: () => null,
+      findDaylightTwinAsync: async () => null,
       getNextHalfHour: () => null,
       findNextSunsetThreshold: () => null,
       findNextDaylightSavingsStart: () => null,
@@ -198,6 +199,42 @@ export const createAstronomyContext = (location, timeZone) => {
   };
 
   const getDaylightMinutesForDateParts = (dateParts) => getDaylightMinutes(getSunEvents(dateParts));
+
+  const findDaylightTwinAsync = async (todayParts, hemisphere) => {
+    const todayDaylight = getDaylightMinutesForDateParts(todayParts);
+    if (!Number.isFinite(todayDaylight)) {
+      return null;
+    }
+
+    // August-October is after summer in the north and before it in the south.
+    const direction = hemisphere === "south" ? 1 : -1;
+    const summer =
+      direction === 1
+        ? getNextSeasonDateParts(todayParts, hemisphere, "summer")
+        : getPreviousSeasonDateParts(todayParts, hemisphere, "summer");
+    if (!summer) {
+      return null;
+    }
+
+    let closest = null;
+    let smallestDifference = Infinity;
+    for (let offset = 1; offset <= 183; offset += 1) {
+      if (offset % CHUNK_SIZE === 0) {
+        await yieldToMain();
+      }
+      const candidate = addDaysToDateParts(summer, direction * offset);
+      const daylight = getDaylightMinutesForDateParts(candidate);
+      if (!Number.isFinite(daylight)) {
+        continue;
+      }
+      const difference = Math.abs(daylight - todayDaylight);
+      if (difference < smallestDifference) {
+        closest = candidate;
+        smallestDifference = difference;
+      }
+    }
+    return smallestDifference <= 3 ? closest : null;
+  };
 
   const buildYearSummaryCore = (year, yieldFn) => {
     if (cache.yearSummary.has(year)) {
@@ -663,6 +700,7 @@ export const createAstronomyContext = (location, timeZone) => {
     getDaysUntilSunsetAfter,
     getWeeksWithSunsetAfter,
     getDaylightDailyGainThisWeekMin,
+    findDaylightTwinAsync,
     getNextHalfHour,
     findNextSunsetThreshold,
     findNextDaylightSavingsStart,

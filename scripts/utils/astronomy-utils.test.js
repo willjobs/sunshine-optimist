@@ -2,6 +2,7 @@ import { beforeAll, describe, it, expect } from "vitest";
 import { createAstronomyContext } from "./astronomy-utils.js";
 import {
   addDaysToDateParts,
+  compareDateParts,
   getDaysBetweenDateParts,
   getDaysInYear,
   getLocalDateParts,
@@ -19,6 +20,50 @@ beforeAll(async () => {
 });
 
 describe("astronomy-utils", () => {
+  it("finds a close daylight twin on the other side of summer in both hemispheres", async () => {
+    const cases = [
+      {
+        location: { latitude: 42.36, longitude: -71.06 },
+        timeZone: "America/New_York",
+        today: { year: 2026, month: 9, day: 15 },
+        hemisphere: "north",
+        expectedSide: "before",
+      },
+      {
+        location: { latitude: -33.87, longitude: 151.21 },
+        timeZone: "Australia/Sydney",
+        today: { year: 2026, month: 9, day: 15 },
+        hemisphere: "south",
+        expectedSide: "after",
+      },
+    ];
+    for (const { location, timeZone, today, hemisphere, expectedSide } of cases) {
+      const context = createAstronomyContext(location, timeZone);
+      const twin = await context.findDaylightTwinAsync(today, hemisphere);
+      const summer =
+        expectedSide === "before"
+          ? context.getPreviousSeasonDateParts(today, hemisphere, "summer")
+          : context.getNextSeasonDateParts(today, hemisphere, "summer");
+      expect(twin).not.toBe(null);
+      expect(compareDateParts(twin, summer)).toBe(expectedSide === "before" ? -1 : 1);
+      expect(
+        Math.abs(
+          context.getDaylightMinutesForDateParts(today) -
+            context.getDaylightMinutesForDateParts(twin)
+        )
+      ).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("omits a daylight twin during polar day or night", async () => {
+    const context = createAstronomyContext(
+      { latitude: 71.29058, longitude: -156.78873 },
+      "America/Anchorage"
+    );
+    expect(await context.findDaylightTwinAsync({ year: 2026, month: 6, day: 21 }, "north")).toBe(
+      null
+    );
+  });
   it("returns fallback values when Astronomy is unavailable", async () => {
     const original = globalThis.Astronomy;
     try {
