@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   buildUpcomingMilestones,
+  getUpcomingSunriseThresholdsAsync,
   calculateSunMetrics,
   calculateDeltas,
   updateStatsUI,
@@ -235,6 +236,54 @@ describe("daylight-controller", () => {
       "polar-night"
     );
     expect(upcoming.some((milestone) => milestone.id === "first-sunrise")).toBe(true);
+  });
+
+  it("adds stable morning thresholds to the milestone card", () => {
+    const todayParts = { year: 2026, month: 3, day: 1 };
+    const thresholdDay = { year: 2026, month: 3, day: 25 };
+    const astronomy = buildAstronomyStub();
+    const metrics = {
+      todaySunsetMinutes: null,
+      yearlyExtremes: {
+        earliestSunsetDateParts: null,
+        shortestDayDateParts: null,
+        longestDayDateParts: null,
+      },
+    };
+    const { upcoming } = buildUpcomingMilestones(
+      astronomy,
+      todayParts,
+      metrics,
+      "north",
+      "UTC",
+      () => "",
+      "normal",
+      new Map([[7 * 60, thresholdDay]])
+    );
+    expect(upcoming.find((milestone) => milestone.id === "sunrise-before-7")?.dateParts).toEqual(
+      thresholdDay
+    );
+  });
+
+  it("looks to the next brightening season after a threshold has passed", async () => {
+    const previousWinter = { year: 2025, month: 12, day: 21 };
+    const nextWinter = { year: 2026, month: 12, day: 21 };
+    const astronomy = {
+      getPreviousSeasonDateParts: () => previousWinter,
+      getNextSeasonDateParts: (_dateParts, _hemisphere, season) =>
+        season === "winter" ? nextWinter : { year: 2027, month: 6, day: 21 },
+      findStableSunriseThresholdsAsync: vi.fn(async (winter) =>
+        isSameDateParts(winter, previousWinter)
+          ? new Map([[7 * 60, { year: 2026, month: 3, day: 25 }]])
+          : new Map([[7 * 60, { year: 2027, month: 3, day: 24 }]])
+      ),
+    };
+    const upcoming = await getUpcomingSunriseThresholdsAsync(
+      astronomy,
+      { year: 2026, month: 10, day: 1 },
+      "north"
+    );
+    expect(upcoming.get(7 * 60)).toEqual({ year: 2027, month: 3, day: 24 });
   });
 
   it("adds the first sunset milestone during polar day", () => {

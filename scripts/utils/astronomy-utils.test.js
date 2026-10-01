@@ -20,6 +20,71 @@ beforeAll(async () => {
 });
 
 describe("astronomy-utils", () => {
+  it("finds sustained sunrise thresholds after spring clock changes", async () => {
+    const cases = [
+      {
+        location: { latitude: 40.71, longitude: -74.01 },
+        timeZone: "America/New_York",
+        today: { year: 2026, month: 3, day: 1 },
+        hemisphere: "north",
+        target: 7 * 60,
+      },
+      {
+        location: { latitude: -33.87, longitude: 151.21 },
+        timeZone: "Australia/Sydney",
+        today: { year: 2026, month: 9, day: 1 },
+        hemisphere: "south",
+        target: 6 * 60,
+      },
+    ];
+    for (const { location, timeZone, today, hemisphere, target } of cases) {
+      const context = createAstronomyContext(location, timeZone);
+      const winter = context.getPreviousSeasonDateParts(today, hemisphere, "winter");
+      const summer = context.getNextSeasonDateParts(winter, hemisphere, "summer");
+      const matches = await context.findStableSunriseThresholdsAsync(winter, summer, [target]);
+      const match = matches.get(target);
+      expect(match).toBeDefined();
+      const clockChange = context.findNextDaylightSavingsStart(winter);
+      expect(compareDateParts(match, clockChange)).toBe(1);
+      const sunrise = context.getSunEvents(match).sunrise;
+      expect(getMinutesSinceMidnight(sunrise.date, timeZone)).toBeLessThan(target);
+    }
+  });
+
+  it("omits sunrise thresholds already met all winter and works without DST", async () => {
+    const location = { latitude: 33.45, longitude: -112.07 };
+    const context = createAstronomyContext(location, "America/Phoenix");
+    const winter = context.getPreviousSeasonDateParts(
+      { year: 2026, month: 2, day: 1 },
+      "north",
+      "winter"
+    );
+    const summer = context.getNextSeasonDateParts(winter, "north", "summer");
+    const matches = await context.findStableSunriseThresholdsAsync(winter, summer, [
+      8 * 60,
+      7 * 60,
+    ]);
+    expect(matches.has(8 * 60)).toBe(false);
+    expect(matches.get(7 * 60)).toBeDefined();
+  });
+
+  it("only picks actual sunrise days around polar night and midnight sun", async () => {
+    const context = createAstronomyContext(
+      { latitude: 71.29058, longitude: -156.78873 },
+      "America/Anchorage"
+    );
+    const today = { year: 2026, month: 2, day: 1 };
+    const winter = context.getPreviousSeasonDateParts(today, "north", "winter");
+    const summer = context.getNextSeasonDateParts(winter, "north", "summer");
+    const matches = await context.findStableSunriseThresholdsAsync(winter, summer, [
+      8 * 60,
+      7 * 60,
+      6 * 60,
+    ]);
+    for (const dateParts of matches.values()) {
+      expect(context.getSunEvents(dateParts).sunrise).not.toBe(null);
+    }
+  });
   it("finds a close daylight twin on the other side of summer in both hemispheres", async () => {
     const cases = [
       {

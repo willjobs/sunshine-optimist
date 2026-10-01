@@ -19,6 +19,7 @@ import { createAstronomyContext } from "../utils/astronomy-utils.js";
 import {
   DAYLIGHT_DURATION_MILESTONES,
   DAYLIGHT_GAIN_MILESTONES,
+  SUNRISE_THRESHOLD_MILESTONES,
   SUNSET_THRESHOLD_MILESTONES,
 } from "../milestones.js";
 import { clampValue } from "../utils/utils.js";
@@ -603,6 +604,42 @@ const withMilestoneOffset = (milestoneItem, todayParts) => {
   return { ...milestoneItem, offsetDays };
 };
 
+export const getUpcomingSunriseThresholdsAsync = async (astronomy, todayParts, hemisphere) => {
+  const targets = SUNRISE_THRESHOLD_MILESTONES.map(({ minutes }) => minutes);
+  const previousWinter = astronomy.getPreviousSeasonDateParts(todayParts, hemisphere, "winter");
+  if (!previousWinter) {
+    return new Map();
+  }
+  const currentSummer = astronomy.getNextSeasonDateParts(previousWinter, hemisphere, "summer");
+  const current = await astronomy.findStableSunriseThresholdsAsync(
+    previousWinter,
+    currentSummer,
+    targets
+  );
+  const upcoming = new Map(
+    [...current].filter(([, dateParts]) => compareDateParts(dateParts, todayParts) >= 0)
+  );
+  const missingTargets = targets.filter((target) => !upcoming.has(target));
+  if (!missingTargets.length) {
+    return upcoming;
+  }
+
+  const nextWinter = astronomy.getNextSeasonDateParts(todayParts, hemisphere, "winter");
+  if (!nextWinter || compareDateParts(nextWinter, previousWinter) <= 0) {
+    return upcoming;
+  }
+  const nextSummer = astronomy.getNextSeasonDateParts(nextWinter, hemisphere, "summer");
+  const next = await astronomy.findStableSunriseThresholdsAsync(
+    nextWinter,
+    nextSummer,
+    missingTargets
+  );
+  for (const [target, dateParts] of next) {
+    upcoming.set(target, dateParts);
+  }
+  return upcoming;
+};
+
 /**
  * Build milestone candidates and filter to upcoming milestones.
  * Returns todayMilestone (if any) and sorted upcoming milestones.
@@ -614,7 +651,8 @@ export const buildUpcomingMilestones = (
   hemisphere,
   timeZone,
   formatTimeFromMinutes,
-  polarState = "normal"
+  polarState = "normal",
+  sunriseThresholdDates = new Map()
 ) => {
   const { todaySunsetMinutes, yearlyExtremes } = metrics;
   const { earliestSunsetDateParts, shortestDayDateParts, longestDayDateParts } = yearlyExtremes;
@@ -623,6 +661,15 @@ export const buildUpcomingMilestones = (
   const addMilestone = (milestoneItem) => {
     if (milestoneItem) milestoneCandidates.push(milestoneItem);
   };
+
+  SUNRISE_THRESHOLD_MILESTONES.forEach((config) => {
+    addMilestone(
+      buildMilestone({
+        ...config,
+        dateParts: sunriseThresholdDates.get(config.minutes),
+      })
+    );
+  });
 
   let nextYearExtremes = null;
   const resolveNextExtreme = (key) => {
@@ -903,6 +950,12 @@ export const updateDaylightForLocation = async ({
   updateStatsUI(dom, metrics, deltas, timeZone, formatters, polarState);
 
   // 5. Build milestones (with polar state for first sunrise/sunset milestones)
+  const sunriseThresholdDates = await getUpcomingSunriseThresholdsAsync(
+    astronomy,
+    todayParts,
+    hemisphere
+  );
+  if (thisGeneration !== updateGeneration) return;
   const { todayMilestone, upcoming } = buildUpcomingMilestones(
     astronomy,
     todayParts,
@@ -910,7 +963,8 @@ export const updateDaylightForLocation = async ({
     hemisphere,
     timeZone,
     formatters.formatTimeFromMinutes,
-    polarState
+    polarState,
+    sunriseThresholdDates
   );
   const optimisticControls = {
     container: dom.optimisticMessage,

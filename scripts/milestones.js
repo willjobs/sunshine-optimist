@@ -50,6 +50,14 @@ export const SUNSET_THRESHOLD_MILESTONES = [
   },
 ];
 
+export const SUNRISE_THRESHOLD_MILESTONES = [8, 7, 6].map((hour) => ({
+  id: `sunrise-before-${hour}`,
+  title: `First sustained sunrise before ${hour}am`,
+  minutes: hour * 60,
+  todayHeadline: `Sunrise is staying before ${hour}am!`,
+  todayLede: "Brighter mornings are here.",
+}));
+
 export const DAYLIGHT_GAIN_MILESTONES = [
   {
     id: "gain-30",

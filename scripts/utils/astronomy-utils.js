@@ -44,6 +44,7 @@ const getLocationCache = (locationKey) => {
     sunEvents: new Map(),
     yearSummary: new Map(),
     seasonParts: new Map(),
+    sunriseSeasons: new Map(),
     averageWinter: new Map(),
   };
   locationCaches.set(locationKey, cache);
@@ -85,6 +86,7 @@ export const createAstronomyContext = (location, timeZone) => {
       getWeeksWithSunsetAfter: () => null,
       getDaylightDailyGainThisWeekMin: () => null,
       findDaylightTwinAsync: async () => null,
+      findStableSunriseThresholdsAsync: async () => new Map(),
       getNextHalfHour: () => null,
       findNextSunsetThreshold: () => null,
       findNextDaylightSavingsStart: () => null,
@@ -234,6 +236,41 @@ export const createAstronomyContext = (location, timeZone) => {
       }
     }
     return smallestDifference <= 3 ? closest : null;
+  };
+
+  const findStableSunriseThresholdsAsync = async (winterParts, summerParts, targets) => {
+    if (!winterParts || !summerParts) {
+      return new Map();
+    }
+    const cacheKey = `${formatDateInputValue(winterParts)}:${formatDateInputValue(summerParts)}:${targets.join(",")}`;
+    if (cache.sunriseSeasons.has(cacheKey)) {
+      return cache.sunriseSeasons.get(cacheKey);
+    }
+
+    const matches = new Map();
+    const seenLaterSunrise = new Set();
+    const days = getDaysBetweenDateParts(winterParts, summerParts);
+    for (let offset = 0; offset <= days; offset += 1) {
+      if (offset > 0 && offset % CHUNK_SIZE === 0) {
+        await yieldToMain();
+      }
+      const dateParts = addDaysToDateParts(winterParts, offset);
+      const sunrise = getSunEvents(dateParts).sunrise;
+      if (!sunrise) {
+        continue;
+      }
+      const minutes = getMinutesSinceMidnight(sunrise.date, timeZone);
+      for (const target of targets) {
+        if (minutes >= target) {
+          seenLaterSunrise.add(target);
+          matches.delete(target);
+        } else if (seenLaterSunrise.has(target) && !matches.has(target)) {
+          matches.set(target, dateParts);
+        }
+      }
+    }
+    cache.sunriseSeasons.set(cacheKey, matches);
+    return matches;
   };
 
   const buildYearSummaryCore = (year, yieldFn) => {
@@ -701,6 +738,7 @@ export const createAstronomyContext = (location, timeZone) => {
     getWeeksWithSunsetAfter,
     getDaylightDailyGainThisWeekMin,
     findDaylightTwinAsync,
+    findStableSunriseThresholdsAsync,
     getNextHalfHour,
     findNextSunsetThreshold,
     findNextDaylightSavingsStart,
