@@ -80,6 +80,15 @@ const fillMessageTemplate = (text, value) => {
 
 export const OPTIMISTIC_MESSAGES = [
   {
+    group: null,
+    headline: "Today's daylight has a twin on {daylight_twin_date}.",
+    lede: "Same amount of sunlight, a different chapter of the year.",
+    months: [8, 9, 10],
+    useCalendarMonth: true,
+    data_needs: ["daylight_twin_date"],
+    additional_requirements: null,
+  },
+  {
     group: "sunset_comparison",
     headline: "Today's sunset is {## minutes} later than it was at its earliest.",
     lede: "Enjoy the extra evening light!",
@@ -529,7 +538,7 @@ export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMil
   };
 
   const candidates = OPTIMISTIC_MESSAGES.filter((message) =>
-    message.months.includes(adjustedMonth)
+    message.months.includes(message.useCalendarMonth ? month : adjustedMonth)
   );
   const validMessages = candidates
     .map((message) => {
@@ -564,6 +573,7 @@ export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMil
     let lede = fillMessageTemplate(entry.message.lede, entry.value);
     // Replace data placeholders like {next_milestone_title}
     headline = headline.replace(/\{next_milestone_title\}/g, (milestoneTitle || "").toLowerCase());
+    headline = headline.replace(/\{daylight_twin_date\}/g, enrichedData.daylight_twin_date || "");
     lede = lede.replace(/\{next_milestone_title\}/g, milestoneTitle || "");
     return {
       headline,

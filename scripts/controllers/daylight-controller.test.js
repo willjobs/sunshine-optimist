@@ -2,6 +2,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   buildUpcomingMilestones,
+  getUpcomingSunriseThresholdsAsync,
+  getUpcomingLatestSunriseAsync,
+  getUpcomingFastestGainAsync,
   calculateSunMetrics,
   calculateDeltas,
   updateStatsUI,
@@ -235,6 +238,139 @@ describe("daylight-controller", () => {
       "polar-night"
     );
     expect(upcoming.some((milestone) => milestone.id === "first-sunrise")).toBe(true);
+  });
+
+  it("adds stable morning thresholds to the milestone card", () => {
+    const todayParts = { year: 2026, month: 3, day: 1 };
+    const thresholdDay = { year: 2026, month: 3, day: 25 };
+    const astronomy = buildAstronomyStub();
+    const metrics = {
+      todaySunsetMinutes: null,
+      yearlyExtremes: {
+        earliestSunsetDateParts: null,
+        shortestDayDateParts: null,
+        longestDayDateParts: null,
+      },
+    };
+    const { upcoming } = buildUpcomingMilestones(
+      astronomy,
+      todayParts,
+      metrics,
+      "north",
+      "UTC",
+      () => "",
+      "normal",
+      new Map([[7 * 60, thresholdDay]])
+    );
+    expect(upcoming.find((milestone) => milestone.id === "sunrise-before-7")?.dateParts).toEqual(
+      thresholdDay
+    );
+  });
+
+  it("celebrates the day after the latest winter sunrise", () => {
+    const todayParts = { year: 2026, month: 1, day: 8 };
+    const astronomy = buildAstronomyStub();
+    const metrics = {
+      todaySunsetMinutes: null,
+      yearlyExtremes: {
+        earliestSunsetDateParts: null,
+        shortestDayDateParts: null,
+        longestDayDateParts: null,
+      },
+    };
+    const { todayMilestone } = buildUpcomingMilestones(
+      astronomy,
+      todayParts,
+      metrics,
+      "north",
+      "UTC",
+      () => "",
+      "normal",
+      new Map(),
+      todayParts
+    );
+    expect(todayMilestone?.id).toBe("latest-sunrise-passed");
+    expect(todayMilestone?.todayHeadline).toContain("latest sunrise");
+  });
+
+  it("uses next winter's latest-sunrise date after this year's turn", async () => {
+    const previousWinter = { year: 2025, month: 12, day: 21 };
+    const nextWinter = { year: 2026, month: 12, day: 21 };
+    const astronomy = {
+      getPreviousSeasonDateParts: () => previousWinter,
+      getNextSeasonDateParts: () => nextWinter,
+      findLatestSunrisePassedAsync: vi.fn(async (winter) =>
+        isSameDateParts(winter, previousWinter)
+          ? { year: 2026, month: 1, day: 8 }
+          : { year: 2027, month: 1, day: 9 }
+      ),
+    };
+    expect(
+      await getUpcomingLatestSunriseAsync(astronomy, { year: 2026, month: 10, day: 1 }, "north")
+    ).toEqual({ year: 2027, month: 1, day: 9 });
+  });
+
+  it("includes the fastest-gaining day as a milestone", () => {
+    const todayParts = { year: 2026, month: 3, day: 20 };
+    const metrics = {
+      todaySunsetMinutes: null,
+      yearlyExtremes: {
+        earliestSunsetDateParts: null,
+        shortestDayDateParts: null,
+        longestDayDateParts: null,
+      },
+    };
+    const { todayMilestone } = buildUpcomingMilestones(
+      buildAstronomyStub(),
+      todayParts,
+      metrics,
+      "north",
+      "UTC",
+      () => "",
+      "normal",
+      new Map(),
+      null,
+      todayParts
+    );
+    expect(todayMilestone?.id).toBe("fastest-daylight-gain");
+  });
+
+  it("gets next year's fastest gain after this year's has passed", async () => {
+    const astronomy = {
+      getYearlySunExtremesAsync: vi.fn(async () => ({
+        maxDailyGainMinutes: 3,
+        maxDailyGainDateParts: { year: 2027, month: 3, day: 18 },
+      })),
+    };
+    const current = {
+      maxDailyGainMinutes: 2,
+      maxDailyGainDateParts: { year: 2026, month: 3, day: 19 },
+    };
+    expect(
+      await getUpcomingFastestGainAsync(astronomy, { year: 2026, month: 10, day: 1 }, current)
+    ).toEqual({ year: 2027, month: 3, day: 18 });
+    expect(astronomy.getYearlySunExtremesAsync).toHaveBeenCalledWith(2027, null);
+  });
+
+  it("looks to the next brightening season after a threshold has passed", async () => {
+    const previousWinter = { year: 2025, month: 12, day: 21 };
+    const nextWinter = { year: 2026, month: 12, day: 21 };
+    const astronomy = {
+      getPreviousSeasonDateParts: () => previousWinter,
+      getNextSeasonDateParts: (_dateParts, _hemisphere, season) =>
+        season === "winter" ? nextWinter : { year: 2027, month: 6, day: 21 },
+      findStableSunriseThresholdsAsync: vi.fn(async (winter) =>
+        isSameDateParts(winter, previousWinter)
+          ? new Map([[7 * 60, { year: 2026, month: 3, day: 25 }]])
+          : new Map([[7 * 60, { year: 2027, month: 3, day: 24 }]])
+      ),
+    };
+    const upcoming = await getUpcomingSunriseThresholdsAsync(
+      astronomy,
+      { year: 2026, month: 10, day: 1 },
+      "north"
+    );
+    expect(upcoming.get(7 * 60)).toEqual({ year: 2027, month: 3, day: 24 });
   });
 
   it("adds the first sunset milestone during polar day", () => {

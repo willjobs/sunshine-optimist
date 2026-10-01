@@ -2,6 +2,7 @@ import { beforeAll, describe, it, expect } from "vitest";
 import { createAstronomyContext } from "./astronomy-utils.js";
 import {
   addDaysToDateParts,
+  compareDateParts,
   getDaysBetweenDateParts,
   getDaysInYear,
   getLocalDateParts,
@@ -19,6 +20,182 @@ beforeAll(async () => {
 });
 
 describe("astronomy-utils", () => {
+  it("bases peak daylight gain on duration rather than DST clock jumps", async () => {
+    for (const { location, timeZone, hemisphere } of [
+      {
+        location: { latitude: 40.71, longitude: -74.01 },
+        timeZone: "America/New_York",
+        hemisphere: "north",
+      },
+      {
+        location: { latitude: -33.87, longitude: 151.21 },
+        timeZone: "Australia/Sydney",
+        hemisphere: "south",
+      },
+    ]) {
+      const context = createAstronomyContext(location, timeZone);
+      const peak = await context.getYearlySunExtremesAsync(2026, null);
+      const dst = context.findNextDaylightSavingsStart(
+        context.getPreviousSeasonDateParts(peak.maxDailyGainDateParts, hemisphere, "winter")
+      );
+      expect(peak.maxDailyGainMinutes).toBeGreaterThan(0);
+      expect(compareDateParts(peak.maxDailyGainDateParts, dst)).not.toBe(0);
+    }
+  });
+  it("finds the winter latest-sunrise turning point across hemispheres", async () => {
+    const cases = [
+      {
+        location: { latitude: 40.71, longitude: -74.01 },
+        timeZone: "America/New_York",
+        today: { year: 2026, month: 1, day: 1 },
+        hemisphere: "north",
+        expectedMonth: 1,
+      },
+      {
+        location: { latitude: 25.76, longitude: -80.19 },
+        timeZone: "America/New_York",
+        today: { year: 2026, month: 1, day: 1 },
+        hemisphere: "north",
+        expectedMonth: 1,
+      },
+      {
+        location: { latitude: -33.87, longitude: 151.21 },
+        timeZone: "Australia/Sydney",
+        today: { year: 2026, month: 7, day: 1 },
+        hemisphere: "south",
+        expectedMonth: 7,
+      },
+    ];
+    for (const { location, timeZone, today, hemisphere, expectedMonth } of cases) {
+      const context = createAstronomyContext(location, timeZone);
+      const winter = context.getPreviousSeasonDateParts(today, hemisphere, "winter");
+      const passed = await context.findLatestSunrisePassedAsync(winter);
+      expect(passed?.month).toBe(expectedMonth);
+      expect(context.getSunEvents(passed).sunrise).not.toBe(null);
+    }
+  });
+
+  it("omits the latest-sunrise peak when polar night interrupts the winter window", async () => {
+    const context = createAstronomyContext(
+      { latitude: 71.29058, longitude: -156.78873 },
+      "America/Anchorage"
+    );
+    const winter = context.getPreviousSeasonDateParts(
+      { year: 2026, month: 12, day: 21 },
+      "north",
+      "winter"
+    );
+    expect(await context.findLatestSunrisePassedAsync(winter)).toBe(null);
+  });
+  it("finds sustained sunrise thresholds after spring clock changes", async () => {
+    const cases = [
+      {
+        location: { latitude: 40.71, longitude: -74.01 },
+        timeZone: "America/New_York",
+        today: { year: 2026, month: 3, day: 1 },
+        hemisphere: "north",
+        target: 7 * 60,
+      },
+      {
+        location: { latitude: -33.87, longitude: 151.21 },
+        timeZone: "Australia/Sydney",
+        today: { year: 2026, month: 9, day: 1 },
+        hemisphere: "south",
+        target: 6 * 60,
+      },
+    ];
+    for (const { location, timeZone, today, hemisphere, target } of cases) {
+      const context = createAstronomyContext(location, timeZone);
+      const winter = context.getPreviousSeasonDateParts(today, hemisphere, "winter");
+      const summer = context.getNextSeasonDateParts(winter, hemisphere, "summer");
+      const matches = await context.findStableSunriseThresholdsAsync(winter, summer, [target]);
+      const match = matches.get(target);
+      expect(match).toBeDefined();
+      const clockChange = context.findNextDaylightSavingsStart(winter);
+      expect(compareDateParts(match, clockChange)).toBe(1);
+      const sunrise = context.getSunEvents(match).sunrise;
+      expect(getMinutesSinceMidnight(sunrise.date, timeZone)).toBeLessThan(target);
+    }
+  });
+
+  it("omits sunrise thresholds already met all winter and works without DST", async () => {
+    const location = { latitude: 33.45, longitude: -112.07 };
+    const context = createAstronomyContext(location, "America/Phoenix");
+    const winter = context.getPreviousSeasonDateParts(
+      { year: 2026, month: 2, day: 1 },
+      "north",
+      "winter"
+    );
+    const summer = context.getNextSeasonDateParts(winter, "north", "summer");
+    const matches = await context.findStableSunriseThresholdsAsync(winter, summer, [
+      8 * 60,
+      7 * 60,
+    ]);
+    expect(matches.has(8 * 60)).toBe(false);
+    expect(matches.get(7 * 60)).toBeDefined();
+  });
+
+  it("only picks actual sunrise days around polar night and midnight sun", async () => {
+    const context = createAstronomyContext(
+      { latitude: 71.29058, longitude: -156.78873 },
+      "America/Anchorage"
+    );
+    const today = { year: 2026, month: 2, day: 1 };
+    const winter = context.getPreviousSeasonDateParts(today, "north", "winter");
+    const summer = context.getNextSeasonDateParts(winter, "north", "summer");
+    const matches = await context.findStableSunriseThresholdsAsync(winter, summer, [
+      8 * 60,
+      7 * 60,
+      6 * 60,
+    ]);
+    for (const dateParts of matches.values()) {
+      expect(context.getSunEvents(dateParts).sunrise).not.toBe(null);
+    }
+  });
+  it("finds a close daylight twin on the other side of summer in both hemispheres", async () => {
+    const cases = [
+      {
+        location: { latitude: 42.36, longitude: -71.06 },
+        timeZone: "America/New_York",
+        today: { year: 2026, month: 9, day: 15 },
+        hemisphere: "north",
+        expectedSide: "before",
+      },
+      {
+        location: { latitude: -33.87, longitude: 151.21 },
+        timeZone: "Australia/Sydney",
+        today: { year: 2026, month: 9, day: 15 },
+        hemisphere: "south",
+        expectedSide: "after",
+      },
+    ];
+    for (const { location, timeZone, today, hemisphere, expectedSide } of cases) {
+      const context = createAstronomyContext(location, timeZone);
+      const twin = await context.findDaylightTwinAsync(today, hemisphere);
+      const summer =
+        expectedSide === "before"
+          ? context.getPreviousSeasonDateParts(today, hemisphere, "summer")
+          : context.getNextSeasonDateParts(today, hemisphere, "summer");
+      expect(twin).not.toBe(null);
+      expect(compareDateParts(twin, summer)).toBe(expectedSide === "before" ? -1 : 1);
+      expect(
+        Math.abs(
+          context.getDaylightMinutesForDateParts(today) -
+            context.getDaylightMinutesForDateParts(twin)
+        )
+      ).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("omits a daylight twin during polar day or night", async () => {
+    const context = createAstronomyContext(
+      { latitude: 71.29058, longitude: -156.78873 },
+      "America/Anchorage"
+    );
+    expect(await context.findDaylightTwinAsync({ year: 2026, month: 6, day: 21 }, "north")).toBe(
+      null
+    );
+  });
   it("returns fallback values when Astronomy is unavailable", async () => {
     const original = globalThis.Astronomy;
     try {

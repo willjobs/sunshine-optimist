@@ -44,6 +44,8 @@ const getLocationCache = (locationKey) => {
     sunEvents: new Map(),
     yearSummary: new Map(),
     seasonParts: new Map(),
+    sunriseSeasons: new Map(),
+    latestSunrise: new Map(),
     averageWinter: new Map(),
   };
   locationCaches.set(locationKey, cache);
@@ -84,6 +86,9 @@ export const createAstronomyContext = (location, timeZone) => {
       getDaysUntilSunsetAfter: () => null,
       getWeeksWithSunsetAfter: () => null,
       getDaylightDailyGainThisWeekMin: () => null,
+      findDaylightTwinAsync: async () => null,
+      findStableSunriseThresholdsAsync: async () => new Map(),
+      findLatestSunrisePassedAsync: async () => null,
       getNextHalfHour: () => null,
       findNextSunsetThreshold: () => null,
       findNextDaylightSavingsStart: () => null,
@@ -198,6 +203,77 @@ export const createAstronomyContext = (location, timeZone) => {
   };
 
   const getDaylightMinutesForDateParts = (dateParts) => getDaylightMinutes(getSunEvents(dateParts));
+
+  const findDaylightTwinAsync = async (todayParts, hemisphere) => {
+    const todayDaylight = getDaylightMinutesForDateParts(todayParts);
+    if (!Number.isFinite(todayDaylight)) {
+      return null;
+    }
+
+    // August-October is after summer in the north and before it in the south.
+    const direction = hemisphere === "south" ? 1 : -1;
+    const summer =
+      direction === 1
+        ? getNextSeasonDateParts(todayParts, hemisphere, "summer")
+        : getPreviousSeasonDateParts(todayParts, hemisphere, "summer");
+    if (!summer) {
+      return null;
+    }
+
+    let closest = null;
+    let smallestDifference = Infinity;
+    for (let offset = 1; offset <= 183; offset += 1) {
+      if (offset % CHUNK_SIZE === 0) {
+        await yieldToMain();
+      }
+      const candidate = addDaysToDateParts(summer, direction * offset);
+      const daylight = getDaylightMinutesForDateParts(candidate);
+      if (!Number.isFinite(daylight)) {
+        continue;
+      }
+      const difference = Math.abs(daylight - todayDaylight);
+      if (difference < smallestDifference) {
+        closest = candidate;
+        smallestDifference = difference;
+      }
+    }
+    return smallestDifference <= 3 ? closest : null;
+  };
+
+  const findStableSunriseThresholdsAsync = async (winterParts, summerParts, targets) => {
+    if (!winterParts || !summerParts) {
+      return new Map();
+    }
+    const cacheKey = `${formatDateInputValue(winterParts)}:${formatDateInputValue(summerParts)}:${targets.join(",")}`;
+    if (cache.sunriseSeasons.has(cacheKey)) {
+      return cache.sunriseSeasons.get(cacheKey);
+    }
+
+    const matches = new Map();
+    const seenLaterSunrise = new Set();
+    const days = getDaysBetweenDateParts(winterParts, summerParts);
+    for (let offset = 0; offset <= days; offset += 1) {
+      if (offset > 0 && offset % CHUNK_SIZE === 0) {
+        await yieldToMain();
+      }
+      const dateParts = addDaysToDateParts(winterParts, offset);
+      const sunrise = getSunEvents(dateParts).sunrise;
+      if (!sunrise) {
+        continue;
+      }
+      const minutes = getMinutesSinceMidnight(sunrise.date, timeZone);
+      for (const target of targets) {
+        if (minutes >= target) {
+          seenLaterSunrise.add(target);
+          matches.delete(target);
+        } else if (seenLaterSunrise.has(target) && !matches.has(target)) {
+          matches.set(target, dateParts);
+        }
+      }
+    }
+    cache.sunriseSeasons.set(cacheKey, matches);
+    return matches;
+  };
 
   const buildYearSummaryCore = (year, yieldFn) => {
     if (cache.yearSummary.has(year)) {
@@ -515,6 +591,44 @@ export const createAstronomyContext = (location, timeZone) => {
     return getTimeZoneOffsetMinutes(date, timeZone);
   };
 
+  const findLatestSunrisePassedAsync = async (winterParts) => {
+    if (!winterParts) {
+      return null;
+    }
+    const cacheKey = formatDateInputValue(winterParts);
+    if (cache.latestSunrise.has(cacheKey)) {
+      return cache.latestSunrise.get(cacheKey);
+    }
+    const winterOffset = getOffsetMinutesForDateParts(winterParts);
+    let latestMinutes = -Infinity;
+    let latestDate = null;
+    let finalMinutes = null;
+    const windowStart = addDaysToDateParts(winterParts, -30);
+    for (let offset = 0; offset <= 120; offset += 1) {
+      if (offset > 0 && offset % CHUNK_SIZE === 0) {
+        await yieldToMain();
+      }
+      const dateParts = addDaysToDateParts(windowStart, offset);
+      const sunrise = getSunEvents(dateParts).sunrise;
+      if (!sunrise) {
+        cache.latestSunrise.set(cacheKey, null);
+        return null;
+      }
+      // Put every sunrise on the winter clock so a DST jump cannot create a false peak.
+      const clockMinutes = getMinutesSinceMidnight(sunrise.date, timeZone);
+      const clockOffset = getTimeZoneOffsetMinutes(sunrise.date, timeZone);
+      const standardMinutes = clockMinutes - (clockOffset - winterOffset);
+      finalMinutes = standardMinutes;
+      if (standardMinutes >= latestMinutes) {
+        latestMinutes = standardMinutes;
+        latestDate = dateParts;
+      }
+    }
+    const passed = finalMinutes < latestMinutes - 0.1 ? addDaysToDateParts(latestDate, 1) : null;
+    cache.latestSunrise.set(cacheKey, passed);
+    return passed;
+  };
+
   const findNextDaylightSavingsStart = (startParts, limitDays = 370) => {
     if (!timeZone || !startParts) {
       return null;
@@ -663,6 +777,9 @@ export const createAstronomyContext = (location, timeZone) => {
     getDaysUntilSunsetAfter,
     getWeeksWithSunsetAfter,
     getDaylightDailyGainThisWeekMin,
+    findDaylightTwinAsync,
+    findStableSunriseThresholdsAsync,
+    findLatestSunrisePassedAsync,
     getNextHalfHour,
     findNextSunsetThreshold,
     findNextDaylightSavingsStart,

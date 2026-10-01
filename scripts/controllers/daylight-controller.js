@@ -19,6 +19,7 @@ import { createAstronomyContext } from "../utils/astronomy-utils.js";
 import {
   DAYLIGHT_DURATION_MILESTONES,
   DAYLIGHT_GAIN_MILESTONES,
+  SUNRISE_THRESHOLD_MILESTONES,
   SUNSET_THRESHOLD_MILESTONES,
 } from "../milestones.js";
 import { clampValue } from "../utils/utils.js";
@@ -400,7 +401,7 @@ export const buildMessageData = async (
   deltas,
   hemisphere,
   timeZone,
-  _formatTimeFromMinutes
+  formatShortDateFromParts
 ) => {
   const {
     todaySunsetMinutes,
@@ -536,6 +537,9 @@ export const buildMessageData = async (
   );
   const todayDate = getLocalNoonDateFromParts(todayParts, timeZone);
   const earliestSunsetDate = getLocalNoonDateFromParts(earliestSunsetDateParts, timeZone);
+  const daylightTwin = [8, 9, 10].includes(todayParts.month)
+    ? await astronomy.findDaylightTwinAsync(todayParts, hemisphere)
+    : null;
 
   const messageData = {
     sunset_today: todaySunsetMinutes,
@@ -574,6 +578,9 @@ export const buildMessageData = async (
     date_of_earliest_sunset: earliestSunsetDate,
     average_winter_daylight: averageWinterDaylight,
     daylight_loss_this_week: daylightLossThisWeek,
+    daylight_twin_date: daylightTwin
+      ? formatShortDateFromParts(daylightTwin, timeZone, todayParts.year)
+      : null,
   };
 
   return { messageData, daylightGainToday };
@@ -597,6 +604,71 @@ const withMilestoneOffset = (milestoneItem, todayParts) => {
   return { ...milestoneItem, offsetDays };
 };
 
+export const getUpcomingSunriseThresholdsAsync = async (astronomy, todayParts, hemisphere) => {
+  const targets = SUNRISE_THRESHOLD_MILESTONES.map(({ minutes }) => minutes);
+  const previousWinter = astronomy.getPreviousSeasonDateParts(todayParts, hemisphere, "winter");
+  if (!previousWinter) {
+    return new Map();
+  }
+  const currentSummer = astronomy.getNextSeasonDateParts(previousWinter, hemisphere, "summer");
+  const current = await astronomy.findStableSunriseThresholdsAsync(
+    previousWinter,
+    currentSummer,
+    targets
+  );
+  const upcoming = new Map(
+    [...current].filter(([, dateParts]) => compareDateParts(dateParts, todayParts) >= 0)
+  );
+  const missingTargets = targets.filter((target) => !upcoming.has(target));
+  if (!missingTargets.length) {
+    return upcoming;
+  }
+
+  const nextWinter = astronomy.getNextSeasonDateParts(todayParts, hemisphere, "winter");
+  if (!nextWinter || compareDateParts(nextWinter, previousWinter) <= 0) {
+    return upcoming;
+  }
+  const nextSummer = astronomy.getNextSeasonDateParts(nextWinter, hemisphere, "summer");
+  const next = await astronomy.findStableSunriseThresholdsAsync(
+    nextWinter,
+    nextSummer,
+    missingTargets
+  );
+  for (const [target, dateParts] of next) {
+    upcoming.set(target, dateParts);
+  }
+  return upcoming;
+};
+
+export const getUpcomingLatestSunriseAsync = async (astronomy, todayParts, hemisphere) => {
+  const previousWinter = astronomy.getPreviousSeasonDateParts(todayParts, hemisphere, "winter");
+  if (!previousWinter) {
+    return null;
+  }
+  const current = await astronomy.findLatestSunrisePassedAsync(previousWinter);
+  if (current && compareDateParts(current, todayParts) >= 0) {
+    return current;
+  }
+  const nextWinter = astronomy.getNextSeasonDateParts(todayParts, hemisphere, "winter");
+  if (!nextWinter || compareDateParts(nextWinter, previousWinter) <= 0) {
+    return null;
+  }
+  return astronomy.findLatestSunrisePassedAsync(nextWinter);
+};
+
+export const getUpcomingFastestGainAsync = async (astronomy, todayParts, yearlyExtremes) => {
+  const currentDate = yearlyExtremes.maxDailyGainDateParts;
+  if (
+    yearlyExtremes.maxDailyGainMinutes > 0 &&
+    currentDate &&
+    compareDateParts(currentDate, todayParts) >= 0
+  ) {
+    return currentDate;
+  }
+  const nextYear = await astronomy.getYearlySunExtremesAsync(todayParts.year + 1, null);
+  return nextYear.maxDailyGainMinutes > 0 ? nextYear.maxDailyGainDateParts : null;
+};
+
 /**
  * Build milestone candidates and filter to upcoming milestones.
  * Returns todayMilestone (if any) and sorted upcoming milestones.
@@ -608,7 +680,10 @@ export const buildUpcomingMilestones = (
   hemisphere,
   timeZone,
   formatTimeFromMinutes,
-  polarState = "normal"
+  polarState = "normal",
+  sunriseThresholdDates = new Map(),
+  latestSunrisePassedDate = null,
+  fastestGainDate = null
 ) => {
   const { todaySunsetMinutes, yearlyExtremes } = metrics;
   const { earliestSunsetDateParts, shortestDayDateParts, longestDayDateParts } = yearlyExtremes;
@@ -617,6 +692,33 @@ export const buildUpcomingMilestones = (
   const addMilestone = (milestoneItem) => {
     if (milestoneItem) milestoneCandidates.push(milestoneItem);
   };
+
+  SUNRISE_THRESHOLD_MILESTONES.forEach((config) => {
+    addMilestone(
+      buildMilestone({
+        ...config,
+        dateParts: sunriseThresholdDates.get(config.minutes),
+      })
+    );
+  });
+  addMilestone(
+    buildMilestone({
+      id: "latest-sunrise-passed",
+      title: "Latest sunrise passed",
+      dateParts: latestSunrisePassedDate,
+      todayHeadline: "Winter's latest sunrise is behind you!",
+      todayLede: "Brighter mornings are on their way.",
+    })
+  );
+  addMilestone(
+    buildMilestone({
+      id: "fastest-daylight-gain",
+      title: "Fastest-gaining day of the year",
+      dateParts: fastestGainDate,
+      todayHeadline: "Today is the year's fastest-gaining day!",
+      todayLede: "The daylight gains are at full speed.",
+    })
+  );
 
   let nextYearExtremes = null;
   const resolveNextExtreme = (key) => {
@@ -897,6 +999,24 @@ export const updateDaylightForLocation = async ({
   updateStatsUI(dom, metrics, deltas, timeZone, formatters, polarState);
 
   // 5. Build milestones (with polar state for first sunrise/sunset milestones)
+  const sunriseThresholdDates = await getUpcomingSunriseThresholdsAsync(
+    astronomy,
+    todayParts,
+    hemisphere
+  );
+  if (thisGeneration !== updateGeneration) return;
+  const latestSunrisePassedDate = await getUpcomingLatestSunriseAsync(
+    astronomy,
+    todayParts,
+    hemisphere
+  );
+  if (thisGeneration !== updateGeneration) return;
+  const fastestGainDate = await getUpcomingFastestGainAsync(
+    astronomy,
+    todayParts,
+    metrics.yearlyExtremes
+  );
+  if (thisGeneration !== updateGeneration) return;
   const { todayMilestone, upcoming } = buildUpcomingMilestones(
     astronomy,
     todayParts,
@@ -904,7 +1024,10 @@ export const updateDaylightForLocation = async ({
     hemisphere,
     timeZone,
     formatters.formatTimeFromMinutes,
-    polarState
+    polarState,
+    sunriseThresholdDates,
+    latestSunrisePassedDate,
+    fastestGainDate
   );
   const optimisticControls = {
     container: dom.optimisticMessage,
@@ -928,7 +1051,7 @@ export const updateDaylightForLocation = async ({
     deltas,
     hemisphere,
     timeZone,
-    formatters.formatTimeFromMinutes
+    formatters.formatShortDateFromParts
   );
 
   // Discard stale results if a newer update has started
