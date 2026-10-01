@@ -4,6 +4,7 @@ import {
   buildUpcomingMilestones,
   getUpcomingSunriseThresholdsAsync,
   getUpcomingLatestSunriseAsync,
+  getUpcomingFastestGainAsync,
   calculateSunMetrics,
   calculateDeltas,
   updateStatsUI,
@@ -307,6 +308,48 @@ describe("daylight-controller", () => {
     expect(
       await getUpcomingLatestSunriseAsync(astronomy, { year: 2026, month: 10, day: 1 }, "north")
     ).toEqual({ year: 2027, month: 1, day: 9 });
+  });
+
+  it("includes the fastest-gaining day as a milestone", () => {
+    const todayParts = { year: 2026, month: 3, day: 20 };
+    const metrics = {
+      todaySunsetMinutes: null,
+      yearlyExtremes: {
+        earliestSunsetDateParts: null,
+        shortestDayDateParts: null,
+        longestDayDateParts: null,
+      },
+    };
+    const { todayMilestone } = buildUpcomingMilestones(
+      buildAstronomyStub(),
+      todayParts,
+      metrics,
+      "north",
+      "UTC",
+      () => "",
+      "normal",
+      new Map(),
+      null,
+      todayParts
+    );
+    expect(todayMilestone?.id).toBe("fastest-daylight-gain");
+  });
+
+  it("gets next year's fastest gain after this year's has passed", async () => {
+    const astronomy = {
+      getYearlySunExtremesAsync: vi.fn(async () => ({
+        maxDailyGainMinutes: 3,
+        maxDailyGainDateParts: { year: 2027, month: 3, day: 18 },
+      })),
+    };
+    const current = {
+      maxDailyGainMinutes: 2,
+      maxDailyGainDateParts: { year: 2026, month: 3, day: 19 },
+    };
+    expect(
+      await getUpcomingFastestGainAsync(astronomy, { year: 2026, month: 10, day: 1 }, current)
+    ).toEqual({ year: 2027, month: 3, day: 18 });
+    expect(astronomy.getYearlySunExtremesAsync).toHaveBeenCalledWith(2027, null);
   });
 
   it("looks to the next brightening season after a threshold has passed", async () => {

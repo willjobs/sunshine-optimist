@@ -656,6 +656,19 @@ export const getUpcomingLatestSunriseAsync = async (astronomy, todayParts, hemis
   return astronomy.findLatestSunrisePassedAsync(nextWinter);
 };
 
+export const getUpcomingFastestGainAsync = async (astronomy, todayParts, yearlyExtremes) => {
+  const currentDate = yearlyExtremes.maxDailyGainDateParts;
+  if (
+    yearlyExtremes.maxDailyGainMinutes > 0 &&
+    currentDate &&
+    compareDateParts(currentDate, todayParts) >= 0
+  ) {
+    return currentDate;
+  }
+  const nextYear = await astronomy.getYearlySunExtremesAsync(todayParts.year + 1, null);
+  return nextYear.maxDailyGainMinutes > 0 ? nextYear.maxDailyGainDateParts : null;
+};
+
 /**
  * Build milestone candidates and filter to upcoming milestones.
  * Returns todayMilestone (if any) and sorted upcoming milestones.
@@ -669,7 +682,8 @@ export const buildUpcomingMilestones = (
   formatTimeFromMinutes,
   polarState = "normal",
   sunriseThresholdDates = new Map(),
-  latestSunrisePassedDate = null
+  latestSunrisePassedDate = null,
+  fastestGainDate = null
 ) => {
   const { todaySunsetMinutes, yearlyExtremes } = metrics;
   const { earliestSunsetDateParts, shortestDayDateParts, longestDayDateParts } = yearlyExtremes;
@@ -694,6 +708,15 @@ export const buildUpcomingMilestones = (
       dateParts: latestSunrisePassedDate,
       todayHeadline: "Winter's latest sunrise is behind you!",
       todayLede: "Brighter mornings are on their way.",
+    })
+  );
+  addMilestone(
+    buildMilestone({
+      id: "fastest-daylight-gain",
+      title: "Fastest-gaining day of the year",
+      dateParts: fastestGainDate,
+      todayHeadline: "Today is the year's fastest-gaining day!",
+      todayLede: "The daylight gains are at full speed.",
     })
   );
 
@@ -988,6 +1011,12 @@ export const updateDaylightForLocation = async ({
     hemisphere
   );
   if (thisGeneration !== updateGeneration) return;
+  const fastestGainDate = await getUpcomingFastestGainAsync(
+    astronomy,
+    todayParts,
+    metrics.yearlyExtremes
+  );
+  if (thisGeneration !== updateGeneration) return;
   const { todayMilestone, upcoming } = buildUpcomingMilestones(
     astronomy,
     todayParts,
@@ -997,7 +1026,8 @@ export const updateDaylightForLocation = async ({
     formatters.formatTimeFromMinutes,
     polarState,
     sunriseThresholdDates,
-    latestSunrisePassedDate
+    latestSunrisePassedDate,
+    fastestGainDate
   );
   const optimisticControls = {
     container: dom.optimisticMessage,

@@ -20,6 +20,28 @@ beforeAll(async () => {
 });
 
 describe("astronomy-utils", () => {
+  it("bases peak daylight gain on duration rather than DST clock jumps", async () => {
+    for (const { location, timeZone, hemisphere } of [
+      {
+        location: { latitude: 40.71, longitude: -74.01 },
+        timeZone: "America/New_York",
+        hemisphere: "north",
+      },
+      {
+        location: { latitude: -33.87, longitude: 151.21 },
+        timeZone: "Australia/Sydney",
+        hemisphere: "south",
+      },
+    ]) {
+      const context = createAstronomyContext(location, timeZone);
+      const peak = await context.getYearlySunExtremesAsync(2026, null);
+      const dst = context.findNextDaylightSavingsStart(
+        context.getPreviousSeasonDateParts(peak.maxDailyGainDateParts, hemisphere, "winter")
+      );
+      expect(peak.maxDailyGainMinutes).toBeGreaterThan(0);
+      expect(compareDateParts(peak.maxDailyGainDateParts, dst)).not.toBe(0);
+    }
+  });
   it("finds the winter latest-sunrise turning point across hemispheres", async () => {
     const cases = [
       {
