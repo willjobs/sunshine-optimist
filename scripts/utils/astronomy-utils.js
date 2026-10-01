@@ -45,6 +45,7 @@ const getLocationCache = (locationKey) => {
     yearSummary: new Map(),
     seasonParts: new Map(),
     sunriseSeasons: new Map(),
+    latestSunrise: new Map(),
     averageWinter: new Map(),
   };
   locationCaches.set(locationKey, cache);
@@ -87,6 +88,7 @@ export const createAstronomyContext = (location, timeZone) => {
       getDaylightDailyGainThisWeekMin: () => null,
       findDaylightTwinAsync: async () => null,
       findStableSunriseThresholdsAsync: async () => new Map(),
+      findLatestSunrisePassedAsync: async () => null,
       getNextHalfHour: () => null,
       findNextSunsetThreshold: () => null,
       findNextDaylightSavingsStart: () => null,
@@ -589,6 +591,44 @@ export const createAstronomyContext = (location, timeZone) => {
     return getTimeZoneOffsetMinutes(date, timeZone);
   };
 
+  const findLatestSunrisePassedAsync = async (winterParts) => {
+    if (!winterParts) {
+      return null;
+    }
+    const cacheKey = formatDateInputValue(winterParts);
+    if (cache.latestSunrise.has(cacheKey)) {
+      return cache.latestSunrise.get(cacheKey);
+    }
+    const winterOffset = getOffsetMinutesForDateParts(winterParts);
+    let latestMinutes = -Infinity;
+    let latestDate = null;
+    let finalMinutes = null;
+    const windowStart = addDaysToDateParts(winterParts, -30);
+    for (let offset = 0; offset <= 120; offset += 1) {
+      if (offset > 0 && offset % CHUNK_SIZE === 0) {
+        await yieldToMain();
+      }
+      const dateParts = addDaysToDateParts(windowStart, offset);
+      const sunrise = getSunEvents(dateParts).sunrise;
+      if (!sunrise) {
+        cache.latestSunrise.set(cacheKey, null);
+        return null;
+      }
+      // Put every sunrise on the winter clock so a DST jump cannot create a false peak.
+      const clockMinutes = getMinutesSinceMidnight(sunrise.date, timeZone);
+      const clockOffset = getTimeZoneOffsetMinutes(sunrise.date, timeZone);
+      const standardMinutes = clockMinutes - (clockOffset - winterOffset);
+      finalMinutes = standardMinutes;
+      if (standardMinutes >= latestMinutes) {
+        latestMinutes = standardMinutes;
+        latestDate = dateParts;
+      }
+    }
+    const passed = finalMinutes < latestMinutes - 0.1 ? addDaysToDateParts(latestDate, 1) : null;
+    cache.latestSunrise.set(cacheKey, passed);
+    return passed;
+  };
+
   const findNextDaylightSavingsStart = (startParts, limitDays = 370) => {
     if (!timeZone || !startParts) {
       return null;
@@ -739,6 +779,7 @@ export const createAstronomyContext = (location, timeZone) => {
     getDaylightDailyGainThisWeekMin,
     findDaylightTwinAsync,
     findStableSunriseThresholdsAsync,
+    findLatestSunrisePassedAsync,
     getNextHalfHour,
     findNextSunsetThreshold,
     findNextDaylightSavingsStart,

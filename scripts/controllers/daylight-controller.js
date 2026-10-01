@@ -640,6 +640,22 @@ export const getUpcomingSunriseThresholdsAsync = async (astronomy, todayParts, h
   return upcoming;
 };
 
+export const getUpcomingLatestSunriseAsync = async (astronomy, todayParts, hemisphere) => {
+  const previousWinter = astronomy.getPreviousSeasonDateParts(todayParts, hemisphere, "winter");
+  if (!previousWinter) {
+    return null;
+  }
+  const current = await astronomy.findLatestSunrisePassedAsync(previousWinter);
+  if (current && compareDateParts(current, todayParts) >= 0) {
+    return current;
+  }
+  const nextWinter = astronomy.getNextSeasonDateParts(todayParts, hemisphere, "winter");
+  if (!nextWinter || compareDateParts(nextWinter, previousWinter) <= 0) {
+    return null;
+  }
+  return astronomy.findLatestSunrisePassedAsync(nextWinter);
+};
+
 /**
  * Build milestone candidates and filter to upcoming milestones.
  * Returns todayMilestone (if any) and sorted upcoming milestones.
@@ -652,7 +668,8 @@ export const buildUpcomingMilestones = (
   timeZone,
   formatTimeFromMinutes,
   polarState = "normal",
-  sunriseThresholdDates = new Map()
+  sunriseThresholdDates = new Map(),
+  latestSunrisePassedDate = null
 ) => {
   const { todaySunsetMinutes, yearlyExtremes } = metrics;
   const { earliestSunsetDateParts, shortestDayDateParts, longestDayDateParts } = yearlyExtremes;
@@ -670,6 +687,15 @@ export const buildUpcomingMilestones = (
       })
     );
   });
+  addMilestone(
+    buildMilestone({
+      id: "latest-sunrise-passed",
+      title: "Latest sunrise passed",
+      dateParts: latestSunrisePassedDate,
+      todayHeadline: "Winter's latest sunrise is behind you!",
+      todayLede: "Brighter mornings are on their way.",
+    })
+  );
 
   let nextYearExtremes = null;
   const resolveNextExtreme = (key) => {
@@ -956,6 +982,12 @@ export const updateDaylightForLocation = async ({
     hemisphere
   );
   if (thisGeneration !== updateGeneration) return;
+  const latestSunrisePassedDate = await getUpcomingLatestSunriseAsync(
+    astronomy,
+    todayParts,
+    hemisphere
+  );
+  if (thisGeneration !== updateGeneration) return;
   const { todayMilestone, upcoming } = buildUpcomingMilestones(
     astronomy,
     todayParts,
@@ -964,7 +996,8 @@ export const updateDaylightForLocation = async ({
     timeZone,
     formatters.formatTimeFromMinutes,
     polarState,
-    sunriseThresholdDates
+    sunriseThresholdDates,
+    latestSunrisePassedDate
   );
   const optimisticControls = {
     container: dom.optimisticMessage,
