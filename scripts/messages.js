@@ -81,7 +81,7 @@ const fillMessageTemplate = (text, value) => {
 export const OPTIMISTIC_MESSAGES = [
   {
     group: null,
-    headline: "Today's daylight has a twin on {daylight_twin_date}.",
+    headline: "Today has as much daylight as {daylight_twin_date}. They're twins!",
     lede: "Same amount of sunlight, a different chapter of the year.",
     months: [8, 9, 10],
     useCalendarMonth: true,

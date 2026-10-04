@@ -191,14 +191,19 @@ export const createDateFormatter = (localeSource) => {
     }).format(date);
   };
 
-  const formatShortDateFromParts = (parts, timeZone, referenceYear = null) => {
+  const formatShortDateFromParts = (
+    parts,
+    timeZone,
+    referenceYear = null,
+    monthStyle = "short"
+  ) => {
     if (!parts) {
       return "";
     }
     const date = zonedTimeToUtc(parts.year, parts.month, parts.day, 12, 0, 0, timeZone);
     const options = {
       timeZone,
-      month: "short",
+      month: monthStyle,
       day: "numeric",
     };
     if (referenceYear !== null && parts.year !== referenceYear) {

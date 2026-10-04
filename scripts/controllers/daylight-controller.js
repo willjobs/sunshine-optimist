@@ -579,7 +579,7 @@ export const buildMessageData = async (
     average_winter_daylight: averageWinterDaylight,
     daylight_loss_this_week: daylightLossThisWeek,
     daylight_twin_date: daylightTwin
-      ? formatShortDateFromParts(daylightTwin, timeZone, todayParts.year)
+      ? formatShortDateFromParts(daylightTwin, timeZone, todayParts.year, "long")
       : null,
   };
 
