@@ -12,6 +12,7 @@ import {
   getDaysBetweenDateParts,
   getDaysInMonth,
   getDaysInYear,
+  getAdjustedMonth,
   getLocalNoonDateFromParts,
 } from "../utils/date-utils.js";
 import { setText } from "../utils/dom-utils.js";
@@ -537,7 +538,7 @@ export const buildMessageData = async (
   );
   const todayDate = getLocalNoonDateFromParts(todayParts, timeZone);
   const earliestSunsetDate = getLocalNoonDateFromParts(earliestSunsetDateParts, timeZone);
-  const daylightTwin = [8, 9, 10].includes(todayParts.month)
+  const daylightTwin = [8, 9].includes(getAdjustedMonth(todayParts.month, hemisphere))
     ? await astronomy.findDaylightTwinAsync(todayParts, hemisphere)
     : null;
 

@@ -164,9 +164,9 @@ describe("astronomy-utils", () => {
       {
         location: { latitude: -33.87, longitude: 151.21 },
         timeZone: "Australia/Sydney",
-        today: { year: 2026, month: 9, day: 15 },
+        today: { year: 2026, month: 3, day: 15 },
         hemisphere: "south",
-        expectedSide: "after",
+        expectedSide: "before",
       },
     ];
     for (const { location, timeZone, today, hemisphere, expectedSide } of cases) {

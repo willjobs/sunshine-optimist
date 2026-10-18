@@ -2,16 +2,19 @@ import { describe, it, expect } from "vitest";
 import { getOptimisticMessageOptions } from "./messages.js";
 
 describe("messages", () => {
-  it("shows the daylight twin only in calendar August through October in either hemisphere", () => {
+  it("shows the daylight twin only in August–September north and February–March south", () => {
     const data = { daylight_twin_date: "March 18" };
     for (const hemisphere of ["north", "south"]) {
-      for (const month of [8, 9, 10]) {
+      const allowedMonths = hemisphere === "south" ? [2, 3] : [8, 9];
+      for (const month of allowedMonths) {
         expect(getOptimisticMessageOptions(data, month, hemisphere)[0]?.headline).toContain(
           "March 18"
         );
       }
-      for (const month of [7, 11]) {
-        expect(getOptimisticMessageOptions(data, month, hemisphere)).toHaveLength(0);
+      for (let month = 1; month <= 12; month += 1) {
+        if (!allowedMonths.includes(month)) {
+          expect(getOptimisticMessageOptions(data, month, hemisphere)).toHaveLength(0);
+        }
       }
     }
     expect(getOptimisticMessageOptions({}, 9, "north")).toHaveLength(0);

@@ -210,12 +210,8 @@ export const createAstronomyContext = (location, timeZone) => {
       return null;
     }
 
-    // August-October is after summer in the north and before it in the south.
-    const direction = hemisphere === "south" ? 1 : -1;
-    const summer =
-      direction === 1
-        ? getNextSeasonDateParts(todayParts, hemisphere, "summer")
-        : getPreviousSeasonDateParts(todayParts, hemisphere, "summer");
+    // Fall dates match daylight on the spring side of the previous summer.
+    const summer = getPreviousSeasonDateParts(todayParts, hemisphere, "summer");
     if (!summer) {
       return null;
     }
@@ -226,7 +222,7 @@ export const createAstronomyContext = (location, timeZone) => {
       if (offset % CHUNK_SIZE === 0) {
         await yieldToMain();
       }
-      const candidate = addDaysToDateParts(summer, direction * offset);
+      const candidate = addDaysToDateParts(summer, -offset);
       const daylight = getDaylightMinutesForDateParts(candidate);
       if (!Number.isFinite(daylight)) {
         continue;
