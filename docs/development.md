@@ -149,3 +149,15 @@ If you change `index.html` ids/classes:
 - Share modal (preview, privacy toggle, copy, social links)
 - Different hemispheres and seasons
 - Polar day/night edge cases
+
+## Release checks
+
+CI runs lint, formatting, unit tests, Chromium UI tests, and offline tests. It also
+rejects runtime asset changes that reuse the base commit's service-worker cache
+version. Before committing runtime changes, run `bash scripts/git-hooks/pre-commit`
+to update and stage the version in `sw.js` and the matching URLs in `index.html`.
+The gate runs independently of whether the local Git hook is installed.
+
+To check locally, set `RELEASE_BASE_SHA` to the base commit and run
+`npm run check:release`. Module graph tests also check that every imported runtime
+module has a matching versioned import-map entry and is precached for offline use.

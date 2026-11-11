@@ -366,3 +366,50 @@ describe("polar region daylight calculations", () => {
     );
   });
 });
+
+describe("polar aggregate daylight", () => {
+  it("includes 0/1440 minute days in extrema, percentile and winter means", async () => {
+    const context = createAstronomyContext(
+      { latitude: 78.2232, longitude: 15.6469 },
+      "Arctic/Longyearbyen"
+    );
+    const today = { year: 2026, month: 9, day: 1 };
+    const duration = context.getDaylightMinutesForDateParts(today);
+    const extrema = await context.getYearlySunExtremesAsync(2026, duration);
+    expect(extrema.shortestDayMinutes).toBe(0);
+    expect(extrema.longestDayMinutes).toBe(1440);
+    // Independent sum of complete normal days and event-free polar days/nights.
+    const measured = (parts) => {
+      const value = context.getDaylightMinutesForDateParts(parts);
+      if (value !== null) return value;
+      const events = context.getSunEvents(parts);
+      if (events.sunrise || events.sunset) return null;
+      return context.getPolarState(parts) === "polar-day" ? 1440 : 0;
+    };
+    let lower = 0;
+    for (let day = 0; day < 365; day += 1) {
+      const value = measured(addDaysToDateParts({ year: 2026, month: 1, day: 1 }, day));
+      if (value !== null && value < duration) lower += 1;
+    }
+    expect(extrema.daysWithLessDaylight).toBe(lower);
+    expect(lower).toBeGreaterThan(200);
+    let total = 0;
+    let count = 0;
+    for (let day = 0; day < 90; day += 1) {
+      const value = measured(addDaysToDateParts({ year: 2026, month: 12, day: 1 }, day));
+      if (value !== null) {
+        total += value;
+        count += 1;
+      }
+    }
+    const average = await context.getAverageWinterDaylightAsync(
+      { year: 2026, month: 12, day: 21 },
+      "north"
+    );
+    expect(count).toBe(90);
+    expect(average).toBeCloseTo(total / count, 8);
+    expect(average).toBeLessThan(50);
+    // Raw event API still distinguishes a polar night from a normal measured day.
+    expect(context.getDaylightMinutesForDateParts({ year: 2026, month: 12, day: 21 })).toBe(null);
+  });
+});

@@ -55,7 +55,7 @@ const optimisticNavState = {
 
 export const OPTIMISTIC_POLAR_COPY = {
   headline: "Sunlight looks different here.",
-  lede: "No sunrise or sunset today.",
+  lede: "Sunrise and sunset don’t both occur today.",
 };
 
 export const OPTIMISTIC_POLAR_DAY_COPY = {

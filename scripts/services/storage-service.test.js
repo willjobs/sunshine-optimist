@@ -15,7 +15,7 @@ beforeEach(() => {
 
 describe("storage-service", () => {
   it("saves and loads recent locations", () => {
-    const items = [{ name: "Boston", latitude: 1, longitude: 2 }];
+    const items = [{ name: "Boston", latitude: 1, longitude: 2, timezone: "America/New_York" }];
     saveRecentLocations(items);
     expect(loadRecentLocations()).toEqual(items);
   });
@@ -30,6 +30,7 @@ describe("storage-service", () => {
   it("saves and loads stored location safely", () => {
     const location = {
       name: "Seattle",
+      timezone: "America/Los_Angeles",
       latitude: 1,
       longitude: 2,
       reverseGeocodeFailed: true,
@@ -37,6 +38,7 @@ describe("storage-service", () => {
     saveStoredLocation(location);
     expect(loadStoredLocation()).toEqual({
       name: "Seattle",
+      timezone: "America/Los_Angeles",
       latitude: 1,
       longitude: 2,
     });
@@ -65,7 +67,12 @@ describe("storage-service", () => {
   });
 
   it("discards malformed recent locations while keeping valid entries", () => {
-    const valid = { name: "Seattle", latitude: 47.6062, longitude: -122.3321 };
+    const valid = {
+      timezone: "America/Los_Angeles",
+      name: "Seattle",
+      latitude: 47.6062,
+      longitude: -122.3321,
+    };
     window.localStorage.setItem(
       "sunshine-optimist:recent-locations",
       JSON.stringify([valid, null, { name: "Bad", latitude: 120, longitude: 0 }])
@@ -79,3 +86,16 @@ describe("storage-service", () => {
     expect(loadSharePrivacyPreference()).toBe(true);
   });
 });
+
+it.each([undefined, null, "", " "])(
+  "rejects missing stored timezone %s in active and recent locations",
+  (timezone) => {
+    const location = { name: "Boston", latitude: 42.36, longitude: -71.06, timezone };
+    saveStoredLocation(location);
+    saveRecentLocations([location]);
+    expect(loadStoredLocation()).toBe(null);
+    expect(loadRecentLocations()).toEqual([]);
+    expect(localStorage.getItem("sunshine-optimist:active-location")).toBe(null);
+    expect(JSON.parse(localStorage.getItem("sunshine-optimist:recent-locations"))).toEqual([]);
+  }
+);

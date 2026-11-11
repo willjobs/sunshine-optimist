@@ -74,3 +74,34 @@ test("a freshly installed app reloads from Cache Storage while offline", async (
   await expect(page.locator("#daylight-duration")).not.toHaveText("—");
   expect(pageErrors).toEqual([]);
 });
+
+test("service worker activation preserves the selected custom date", async ({ page }) => {
+  await page.addInitScript(() => {
+    const register = navigator.serviceWorker.register.bind(navigator.serviceWorker);
+    navigator.serviceWorker.register = (...args) =>
+      new Promise((resolve, reject) => {
+        window.releaseWorkerInstall = () => {
+          register(...args).then(resolve, reject);
+        };
+      });
+  });
+  await page.addInitScript((location) => {
+    localStorage.setItem("sunshine-optimist:active-location", JSON.stringify(location));
+  }, BOSTON);
+  await page.goto("/");
+  await expect(page.locator("#share")).toBeEnabled();
+  await page.locator("#date-input").fill("2026-12-01");
+  await page.locator("#date-input").press("Enter");
+  await expect(page.locator("#date-reset")).toBeEnabled();
+  const reloaded = page.waitForEvent("load");
+  await page.waitForFunction(() => typeof window.releaseWorkerInstall === "function");
+  await page.evaluate(() => window.releaseWorkerInstall());
+  await reloaded;
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await expect(page.locator("#date-input")).toHaveValue("2026-12-01");
+  await expect(page.locator("#date-reset")).toBeEnabled();
+  await expect(page.locator("#share")).toBeEnabled();
+  // The handoff is consumed once; a later ordinary reload returns to live mode.
+  await page.reload();
+  await expect(page.locator("#date-reset")).toBeDisabled();
+});

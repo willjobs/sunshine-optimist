@@ -2,7 +2,7 @@
  * Open-Meteo Geocoding API service for city search
  */
 
-import { fetchWithTimeout } from "./fetch-service.js";
+import { fetchJsonWithTimeout } from "./fetch-service.js";
 
 const GEOCODING_API_URL = "https://geocoding-api.open-meteo.com/v1/search";
 
@@ -34,11 +34,10 @@ export const searchCities = async (nameQuery, languageCode, signal) => {
     nameQuery
   )}&count=20&language=${encodeURIComponent(languageCode)}&format=json`;
 
-  const response = await fetchWithTimeout(url, { signal });
-  if (!response.ok) {
-    throw new Error("Failed to fetch city suggestions.");
-  }
-  const data = await response.json();
+  const data = await fetchJsonWithTimeout(url, {
+    signal,
+    errorMessage: "Failed to fetch city suggestions.",
+  });
   return mapGeocodingResults(data);
 };
 
@@ -52,11 +51,9 @@ export const fetchDefaultLocationData = async (languageCode) => {
     languageCode
   )}&format=json`;
 
-  const response = await fetchWithTimeout(url);
-  if (!response.ok) {
-    throw new Error("Failed to fetch default location.");
-  }
-  const data = await response.json();
+  const data = await fetchJsonWithTimeout(url, {
+    errorMessage: "Failed to fetch default location.",
+  });
   const results = mapGeocodingResults(data);
 
   // Try to find Boston, MA specifically

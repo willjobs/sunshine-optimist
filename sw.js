@@ -5,7 +5,7 @@
  * Uses a cache-first strategy for static assets.
  */
 
-const CACHE_VERSION = "v186-1ef54f0";
+const CACHE_VERSION = "v187-22f821f";
 const STATIC_CACHE_NAME = `sunshine-optimist-static-${CACHE_VERSION}`;
 const FONT_CACHE_NAME = "sunshine-optimist-fonts-v1";
 const FONT_ORIGINS = ["https://fonts.googleapis.com", "https://fonts.gstatic.com"];
@@ -28,6 +28,7 @@ const STATIC_ASSETS = [
   "/scripts/controllers/milestone-explorer-controller.js",
   "/scripts/controllers/optimistic-controller.js",
   "/scripts/services/geocoding-service.js",
+  "/scripts/services/service-worker-service.js",
   "/scripts/services/fetch-service.js",
   "/scripts/services/milestone-scanner-service.js",
   "/scripts/services/seasonal-insights-service.js",

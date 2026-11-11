@@ -1,4 +1,4 @@
-import { fetchWithTimeout } from "./fetch-service.js";
+import { fetchJsonWithTimeout } from "./fetch-service.js";
 
 const FORECAST_API_URL = "https://api.open-meteo.com/v1/forecast";
 
@@ -26,11 +26,8 @@ export const fetchCoordinateTimeZone = async ({ latitude, longitude }) => {
   const url = `${FORECAST_API_URL}?latitude=${encodeURIComponent(
     latitude
   )}&longitude=${encodeURIComponent(longitude)}&timezone=auto&forecast_days=1`;
-  const response = await fetchWithTimeout(url);
-  if (!response.ok) {
-    throw new Error("Failed to resolve location timezone.");
-  }
-
-  const data = await response.json();
+  const data = await fetchJsonWithTimeout(url, {
+    errorMessage: "Failed to resolve location timezone.",
+  });
   return isValidTimeZone(data?.timezone) ? data.timezone : null;
 };

@@ -236,7 +236,7 @@ export const buildShareMessage = async (
   );
   const progressLine = buildShareProgressLine(snapshot);
   const daylightText = formatShareDaylight(snapshot);
-  const milestoneLine = buildShareMilestoneLine();
+  const milestoneLine = snapshot?.milestoneLine || "";
 
   const lines = [`☀️ ${locationLabel} — ${dateLabel}`, "", headlineText, ""];
   if (progressLine) {
@@ -268,6 +268,7 @@ export const captureShareSnapshot = (headline, lede) => {
     ...baseSnapshot,
     headline: getText(headline),
     lede: getText(lede),
+    milestoneLine: buildShareMilestoneLine(),
   });
 };
 
@@ -275,7 +276,9 @@ export const captureShareSnapshot = (headline, lede) => {
  * Update share snapshot with daylight data
  */
 export const updateShareSnapshot = (data) => {
-  setShareSnapshot(data);
+  setShareSnapshot(
+    data ? { ...data, location: { ...data.location }, dateParts: { ...data.dateParts } } : null
+  );
 };
 
 /**
@@ -337,9 +340,10 @@ export const openShareModal = (
   languageCode,
   fallbackTimeZone
 ) => {
-  if (!shareModal) {
+  if (!shareModal || !getShareSnapshot()) {
     return;
   }
+  invalidateStoryPreview();
   captureShareSnapshot(headline, lede);
   if (typeof shareModal.showModal === "function") {
     if (!shareModal.open) {
@@ -365,6 +369,9 @@ export const closeShareModal = (shareModal) => {
   if (!shareModal) {
     return;
   }
+  sharePreviewGeneration += 1;
+  invalidateStoryPreview();
+  setShareText("");
   setModalSnapshot(null);
   setShareMode("story");
   if (typeof shareModal.close === "function") {
@@ -532,27 +539,56 @@ export const flashActionLabel = (button, message, feedbackElement) => {
 /**
  * Refresh story preview image
  */
-export const refreshStoryPreview = async (imgElement, headline, _lede, languageCode) => {
-  if (!imgElement) {
-    return;
-  }
+const setStoryActionsReady = (ready) => {
+  document
+    .querySelectorAll('#share-download-button, [data-share="web-story"]')
+    .forEach((button) => {
+      button.disabled = !ready;
+    });
+};
+
+export const invalidateStoryPreview = (
+  imgElement = document.getElementById("share-story-image")
+) => {
   storyPreviewGeneration += 1;
+  setLastGeneratedCanvas(null);
+  if (imgElement) {
+    imgElement.removeAttribute("src");
+    imgElement.hidden = true;
+  }
+  setStoryActionsReady(false);
+  const status = document.getElementById("share-story-status");
+  if (status) {
+    status.hidden = false;
+    status.textContent = "Preparing your image…";
+  }
+};
+
+export const refreshStoryPreview = async (imgElement, headline, _lede, languageCode) => {
+  if (!imgElement) return;
+  invalidateStoryPreview(imgElement);
   const thisGeneration = storyPreviewGeneration;
   const snapshot = getModalSnapshot() || getShareSnapshot();
-  const locationLabel = await resolveShareLocationLabel(
-    snapshot?.location || getActiveLocation(),
-    languageCode
-  );
-  const headlineText = snapshot?.headline || getText(headline) || "Sunshine Optimist";
-
-  const generatedCanvas = await generateStoryCanvas(headlineText, locationLabel);
-  if (thisGeneration !== storyPreviewGeneration) {
-    return;
+  try {
+    const locationLabel = await resolveShareLocationLabel(
+      snapshot?.location || getActiveLocation(),
+      languageCode
+    );
+    if (thisGeneration !== storyPreviewGeneration) return;
+    const headlineText = snapshot?.headline || getText(headline) || "Sunshine Optimist";
+    const generatedCanvas = await generateStoryCanvas(headlineText, locationLabel);
+    if (thisGeneration !== storyPreviewGeneration) return;
+    const imageUrl = generatedCanvas.toDataURL("image/png");
+    setLastGeneratedCanvas(generatedCanvas);
+    imgElement.src = imageUrl;
+    imgElement.hidden = false;
+    setStoryActionsReady(true);
+    const status = document.getElementById("share-story-status");
+    if (status) status.hidden = true;
+  } catch (error) {
+    if (thisGeneration !== storyPreviewGeneration) return;
+    console.warn("Story preview failed:", error);
+    const status = document.getElementById("share-story-status");
+    if (status) status.textContent = "Unable to prepare your image. Please try again.";
   }
-
-  // Store the canvas for download functionality
-  setLastGeneratedCanvas(generatedCanvas);
-
-  // Convert canvas to data URL and set as img src for native long-press save
-  imgElement.src = generatedCanvas.toDataURL("image/png");
 };
