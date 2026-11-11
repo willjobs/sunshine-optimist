@@ -16,6 +16,20 @@ const percentageRegained = ({ daylight_today, daylight_minimum, daylight_maximum
 // Constraints use raw values. Formatting happens only after a message qualifies.
 export const OPTIMISTIC_MESSAGES = [
   {
+    id: "evening-light-left",
+    group: null,
+    headline: (minutes) =>
+      minutes < 1
+        ? "Less than a minute of evening light left to lose."
+        : `Only ${formatPlaceholderValue("minutes", Math.ceil(minutes))} of evening light left to lose.`,
+    lede: "Then sunsets start getting later again.",
+    months: [10, 11, 12],
+    data_needs: ["sunset_minutes_left_to_lose"],
+    getValue: (d) => d.sunset_minutes_left_to_lose,
+    min: 0,
+    when: (d) => d.sunset_minutes_left_to_lose > 0 && d.sunset_minutes_left_to_lose < 20,
+  },
+  {
     id: "daylight-twin",
     group: null,
     headline: "Today has as much daylight as {daylight_twin_date}. They're twins!",
@@ -298,7 +312,7 @@ const isValidDataValue = (value) =>
       : Number.isFinite(value);
 
 const fill = (template, value, data) =>
-  (template || "")
+  ((typeof template === "function" ? template(value) : template) || "")
     .replace(/\{##([^}]*)\}/g, (_match, token) => formatPlaceholderValue(token, value))
     .replace(/\{daylight_twin_date\}/g, data.daylight_twin_date || "")
     .replace(/\bOnly less than\b/g, "Less than");

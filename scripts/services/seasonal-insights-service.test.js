@@ -8,6 +8,7 @@ import {
 } from "../utils/date-utils.js";
 import {
   getDaylightAfter5pm,
+  getSunsetMinutesLeftToLose,
   getRateFacts,
   getSeasonalContextAsync,
 } from "./seasonal-insights-service.js";
@@ -184,5 +185,67 @@ describe("seasonal winter insights with real astronomy", () => {
     }
     // Existing statistics still expose absent events as unknown.
     expect(a.getDaylightMinutesForDateParts(winter)).toBeNull();
+  });
+});
+
+describe("evening light left to lose", () => {
+  it.each([
+    ["Boston", 42.3601, -71.0589, "America/New_York", "north", { year: 2026, month: 11, day: 10 }],
+    ["Sydney", -33.87, 151.21, "Australia/Sydney", "south", { year: 2026, month: 5, day: 15 }],
+  ])(
+    "uses the upcoming winter in %s",
+    async (_label, latitude, longitude, zone, hemisphere, today) => {
+      const astronomy = createAstronomyContext({ latitude, longitude }, zone);
+      const context = await getSeasonalContextAsync(astronomy, today, hemisphere);
+      const season = context.upcomingSunset;
+      expect(compareDateParts(season.earliestSunsetDateParts, today)).toBe(1);
+      const gap = getSunsetMinutesLeftToLose(astronomy, today, zone, season);
+      expect(gap).toBeGreaterThan(0);
+      expect(gap).toBeLessThan(20);
+      if (_label === "Boston") expect(gap).toBeGreaterThan(13);
+      expect(
+        getSunsetMinutesLeftToLose(astronomy, season.earliestSunsetDateParts, zone, season)
+      ).toBeNull();
+      expect(
+        getSunsetMinutesLeftToLose(astronomy, season.laterSunsetsDateParts, zone, season)
+      ).toBeNull();
+    }
+  );
+  const today = { year: 2026, month: 10, day: 31 };
+  const season = {
+    earliestSunsetDateParts: { year: 2026, month: 11, day: 3 },
+    laterSunsetsDateParts: { year: 2026, month: 11, day: 4 },
+  };
+  const fakeEvents = (overrides = {}) => ({
+    getSunEvents: (parts) => {
+      const key = formatDateInputValue(parts);
+      const sunset = overrides[key] ?? `${key}T17:00:00Z`;
+      return {
+        sunrise: utcEvent(`${key}T07:00:00Z`),
+        sunset: sunset === "missing" ? null : utcEvent(sunset),
+      };
+    },
+  });
+  it("rejects a clock change even if the sunset gap is under 20 minutes", () => {
+    const astronomy = fakeEvents({
+      "2026-10-30": "2026-10-30T21:15:00Z",
+      "2026-10-31": "2026-10-31T21:14:00Z",
+      "2026-11-03": "2026-11-03T22:00:00Z",
+    });
+    expect(getSunsetMinutesLeftToLose(astronomy, today, "America/New_York", season)).toBeNull();
+  });
+  it("rejects missing sunsets and sunsets already getting later", () => {
+    expect(
+      getSunsetMinutesLeftToLose(fakeEvents({ "2026-10-31": "missing" }), today, "UTC", season)
+    ).toBeNull();
+    expect(
+      getSunsetMinutesLeftToLose(
+        fakeEvents({ "2026-10-30": "2026-10-30T16:59:00Z" }),
+        today,
+        "UTC",
+        season
+      )
+    ).toBeNull();
+    expect(getSunsetMinutesLeftToLose(fakeEvents(), today, "UTC", null)).toBeNull();
   });
 });

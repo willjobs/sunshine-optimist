@@ -266,3 +266,18 @@ test("a one-event polar transition describes the missing pair accurately", async
   await expect(page.locator("#sunset-time")).not.toHaveText("—");
   await expect(page.locator("#lede")).toHaveText("Sunrise and sunset don’t both occur today.");
 });
+
+test("Boston celebrates how little earlier sunset can move, then switches to the turnaround", async ({
+  page,
+}) => {
+  await load(page, "2026-11-10");
+  const copy = await show(page, "evening-light-left");
+  expect(copy.headline).toMatch(/^Only 1[45] minutes of evening light left to lose\.$/);
+  await expect(page.locator("#lede")).toHaveText("Then sunsets start getting later again.");
+  const text = await shareText(page);
+  expect(text).toContain(copy.headline);
+  await page.getByRole("button", { name: "Close share dialog" }).click();
+  await page.locator("#date-input").fill("2026-12-09");
+  await page.locator("#date-input").press("Enter");
+  await expect(page.locator("#headline")).toHaveText("Sunsets are getting later again!");
+});

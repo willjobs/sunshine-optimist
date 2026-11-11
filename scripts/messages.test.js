@@ -266,3 +266,27 @@ describe("milestone countdowns in messages", () => {
     expect(options(data).length).toBeLessThanOrEqual(10);
   });
 });
+
+describe("remaining evening light message", () => {
+  it.each([0, -1, 20, 20.001, null, undefined, NaN])("does not appear for %s minutes", (gap) => {
+    expect(find("evening-light-left", { sunset_minutes_left_to_lose: gap }, 11)).toBeUndefined();
+  });
+  it.each([
+    [14, "Only 14 minutes"],
+    [1, "Only 1 minute"],
+    [0.001, "Less than a minute"],
+    [19.99, "Only 20 minutes"],
+  ])("formats %s minutes without understating the loss", (gap, phrase) => {
+    const message = find("evening-light-left", { sunset_minutes_left_to_lose: gap }, 11);
+    expect(message.headline).toBe(`${phrase} of evening light left to lose.`);
+    expect(message.lede).toBe("Then sunsets start getting later again.");
+  });
+  it("uses local winter months in the southern hemisphere", () => {
+    expect(
+      find("evening-light-left", { sunset_minutes_left_to_lose: 14 }, 5, "south")
+    ).toBeDefined();
+    expect(
+      find("evening-light-left", { sunset_minutes_left_to_lose: 14 }, 5, "north")
+    ).toBeUndefined();
+  });
+});
