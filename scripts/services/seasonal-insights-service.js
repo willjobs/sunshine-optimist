@@ -3,6 +3,8 @@ import {
   compareDateParts,
   formatDateInputValue,
   getDaysBetweenDateParts,
+  getMinutesSinceMidnight,
+  getTimeZoneOffsetMinutes,
   zonedTimeToUtc,
 } from "../utils/date-utils.js";
 
@@ -62,6 +64,7 @@ export const getSeasonalContextAsync = async (astronomy, todayParts, hemisphere)
       : null,
     pastDaylight: nearest(seasons, "shortestDayDateParts", todayParts, false),
     pastSunset: nearest(seasons, "earliestSunsetDateParts", todayParts, false),
+    upcomingSunset: nearest(seasons, "laterSunsetsDateParts", todayParts, true),
     nextLongerDays:
       nearest(seasons, "longerDaysDateParts", todayParts, true)?.longerDaysDateParts || null,
     nextLaterSunsets:
@@ -101,3 +104,38 @@ export const getRateFacts = (astronomy, todayParts, todayDaylight, weekDaylight)
 
 export const daysUntil = (todayParts, target) =>
   target ? getDaysBetweenDateParts(todayParts, target) : null;
+
+/** Remaining evening-clock shift to this winter's minimum, only while sunsets fall. */
+export const getSunsetMinutesLeftToLose = (astronomy, todayParts, timeZone, season) => {
+  const minimum = season?.earliestSunsetDateParts;
+  const turnaround = season?.laterSunsetsDateParts;
+  if (
+    !minimum ||
+    !turnaround ||
+    compareDateParts(todayParts, minimum) > 0 ||
+    compareDateParts(todayParts, turnaround) >= 0
+  )
+    return null;
+  const sunsetAt = (parts) => {
+    const events = astronomy.getSunEvents(parts);
+    return events.sunrise && events.sunset ? events.sunset.date : null;
+  };
+  const today = sunsetAt(todayParts);
+  const yesterdayParts = addDaysToDateParts(todayParts, -1);
+  const yesterday = sunsetAt(yesterdayParts);
+  const earliest = sunsetAt(minimum);
+  if (!today || !yesterday || !earliest) return null;
+  const clockMinutes = (date) =>
+    getMinutesSinceMidnight(date, timeZone) + date.getUTCMilliseconds() / 60000;
+  const gap = clockMinutes(today) - clockMinutes(earliest);
+  if (!(gap > 0 && gap < 20) || clockMinutes(today) >= clockMinutes(yesterday)) return null;
+  const offset = getTimeZoneOffsetMinutes(today, timeZone);
+  // These events are already cached by the seasonal/year scans. Check the whole
+  // interval so an intervening clock change cannot masquerade as evening loss.
+  const count = getDaysBetweenDateParts(yesterdayParts, minimum);
+  for (let day = 0; day <= count; day += 1) {
+    const sunset = sunsetAt(addDaysToDateParts(yesterdayParts, day));
+    if (!sunset || getTimeZoneOffsetMinutes(sunset, timeZone) !== offset) return null;
+  }
+  return gap;
+};

@@ -26,6 +26,7 @@ import {
 } from "../milestones.js";
 import {
   getSeasonalContextAsync,
+  getSunsetMinutesLeftToLose,
   getDaylightAfter5pm,
   getRateFacts,
   daysUntil,
@@ -464,6 +465,12 @@ export const buildMessageData = async (
   return {
     daylightGainToday,
     messageData: {
+      sunset_minutes_left_to_lose: getSunsetMinutesLeftToLose(
+        astronomy,
+        todayParts,
+        timeZone,
+        context.upcomingSunset
+      ),
       sunset_today: todaySunsetMinutes,
       sunset_earliest: context.pastSunset?.earliestSunsetMinutes ?? null,
       sunset_start_of_year: astronomy.getSunsetMinutesForDateParts({
