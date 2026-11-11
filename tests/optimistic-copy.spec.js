@@ -272,7 +272,7 @@ test("Boston celebrates how little earlier sunset can move, then switches to the
 }) => {
   await load(page, "2026-11-10");
   const copy = await show(page, "evening-light-left");
-  expect(copy.headline).toMatch(/^Only 1[45] minutes of evening light left to lose\.$/);
+  expect(copy.headline).toBe("Only 16 minutes of evening light left to lose.");
   await expect(page.locator("#lede")).toHaveText("Then sunsets start getting later again.");
   const text = await shareText(page);
   expect(text).toContain(copy.headline);
