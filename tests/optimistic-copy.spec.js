@@ -107,7 +107,7 @@ test("quantifies both loss progress and slowdown", async ({ page }) => {
   expect(data.daylight_loss_slowdown_percent).toBeGreaterThanOrEqual(25);
   await show(page, "loss-behind");
   await expect(page.locator("#headline")).toHaveText(
-    /\d+% of the annual daylight decrease is behind you\./
+    /You’ve made it through \d+% of the year’s daylight loss\./
   );
   await show(page, "loss-slowdown");
   await expect(page.locator("#headline")).toHaveText(
