@@ -17,15 +17,12 @@ test.describe.configure({ mode: "serial" });
  * This addresses Firefox timing issues with dialog element rendering
  */
 const openShareModalAndWait = async (page) => {
-  // Wait for page to be fully loaded and interactive
-  await expect(page.locator("#headline")).not.toHaveAttribute("data-loading", "true", {
-    timeout: 15000,
-  });
-
   const shareButton = page.getByRole("button", { name: /Share Your Sunlight/i });
   // Ensure button is ready and stable before clicking
   await shareButton.waitFor({ state: "visible" });
-  await expect(shareButton).toBeEnabled();
+  // Sharing becomes ready only after the complete calculation commits. Allow
+  // slower browser engines time to finish a cold location scan under test load.
+  await expect(shareButton).toBeEnabled({ timeout: 20000 });
   await shareButton.click();
 
   // Wait for dialog to have the 'open' attribute (native dialog behavior)
