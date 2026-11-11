@@ -71,7 +71,7 @@ export const formatDaysValue = (value) => {
   if (rounded > 14) {
     const weeks = Math.ceil(rounded / 7);
     const weekLabel = weeks === 1 ? "week" : "weeks";
-    return `less than ${weeks} ${weekLabel}`;
+    return `${rounded % 7 === 0 ? "" : "less than "}${weeks} ${weekLabel}`;
   }
   const dayLabel = rounded === 1 ? "day" : "days";
   return `${rounded} ${dayLabel}`;
@@ -135,7 +135,35 @@ export const formatPercentValue = (value) => {
   if (!Number.isFinite(value)) {
     return "";
   }
-  return `${Math.round(value)}%`;
+  return `${Math.floor(value)}%`;
+};
+
+/** A full countdown sentence, independent of the compact milestone card title. */
+export const formatMilestoneCountdown = (milestone) => {
+  if (
+    !milestone ||
+    milestone.informationalOnly ||
+    !Number.isFinite(milestone.offsetDays) ||
+    milestone.offsetDays <= 0
+  )
+    return "";
+  let phrase = milestone.countdownTitle;
+  if (!phrase) {
+    phrase = lowerCaseFirstLetter((milestone.title || "").trim());
+    if (/^(gained|finished)\b/i.test(phrase)) phrase = `you've ${phrase}`;
+    else if (
+      /^(first|earliest|shortest|longest|next)\b|^(spring|summer|fall|autumn|winter)\s+(equinox|solstice)\b/i.test(
+        phrase
+      )
+    )
+      phrase = `the ${phrase}`;
+  }
+  if (!phrase) return "";
+  const duration = formatDaysValue(milestone.offsetDays);
+  return `${duration.startsWith("less than") ? "" : "Only "}${duration} until ${phrase}!`.replace(
+    /^less/,
+    "Less"
+  );
 };
 
 /**

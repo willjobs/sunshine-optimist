@@ -80,6 +80,16 @@ describe("share-modal-ui", () => {
     }));
   });
 
+  it("does not round unfinished annual loss progress to 100%", () => {
+    const line = buildShareProgressLine({
+      daylightGainToday: -0.1,
+      fractionOfLossCompleted: 0.99987,
+      dateParts: { month: 12 },
+      hemisphere: "north",
+    });
+    expect(line).toContain("99%");
+    expect(line).not.toContain("100%");
+  });
   it("builds progress lines for max and shortest modes", () => {
     const maxLine = buildShareProgressLine({
       daylightGainToday: 5,
@@ -93,15 +103,15 @@ describe("share-modal-ui", () => {
 
     const shortestLine = buildShareProgressLine({
       daylightGainToday: -5,
-      fractionOfLossCompleted: 0.25,
+      fractionOfLossCompleted: 0.75,
       dateParts: { month: 11 },
       hemisphere: "north",
       todayDaylight: 600,
       longestDayMinutes: 800,
       shortestDayMinutes: 400,
     });
-    expect(shortestLine).toContain("Progress towards shortest day");
-    expect(shortestLine).toContain("25%");
+    expect(shortestLine).toContain("of the annual daylight decrease is behind you");
+    expect(shortestLine).toContain("75%");
 
     const noneLine = buildShareProgressLine({
       daylightGainToday: -5,

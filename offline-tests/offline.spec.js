@@ -26,14 +26,12 @@ test("a freshly installed app reloads from Cache Storage while offline", async (
   await page.goto("/");
   await expect(page.getByRole("combobox", { name: "City" })).toHaveValue("Boston, MA");
 
-  await expect
-    .poll(() =>
-      page.evaluate(async () => {
-        await navigator.serviceWorker.ready;
-        return Boolean(navigator.serviceWorker.controller);
-      })
-    )
-    .toBe(true);
+  // First activation intentionally reloads the document. waitForFunction keeps
+  // evaluating through that navigation instead of racing a destroyed context.
+  await page.waitForFunction(() => {
+    const headline = document.querySelector("#headline");
+    return navigator.serviceWorker.controller && headline && !headline.hasAttribute("data-loading");
+  });
 
   const cacheAudit = await page.evaluate(async () => {
     const cacheName = (await caches.keys()).find((name) =>
@@ -48,11 +46,15 @@ test("a freshly installed app reloads from Cache Storage while offline", async (
       "/scripts/app.js",
       "/scripts/services/fetch-service.js",
       "/scripts/services/milestone-scanner-service.js",
+      "/scripts/services/seasonal-insights-service.js",
       "/scripts/services/timezone-service.js",
       "/scripts/data/major-cities.js",
     ];
     const results = await Promise.all(
-      required.map(async (asset) => [asset, Boolean(await cache.match(asset))])
+      required.map(async (asset) => [
+        asset,
+        Boolean(await cache.match(asset, { ignoreSearch: true })),
+      ])
     );
     return {
       cacheName,

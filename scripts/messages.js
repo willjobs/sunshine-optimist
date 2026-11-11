@@ -1,582 +1,367 @@
 import { clampValue } from "./utils/utils.js";
 import { getAdjustedMonth } from "./utils/date-utils.js";
-import { formatPlaceholderValue, lowerCaseFirstLetter } from "./formatters/formatters.js";
-
-const PLACEHOLDER_PATTERN = /\{##[^}]*\}/;
-const PLACEHOLDER_PATTERN_GLOBAL = /\{##([^}]*)\}/g;
+import { formatPlaceholderValue, formatMilestoneCountdown } from "./formatters/formatters.js";
 
 const MAX_MESSAGES = 10;
-const GROUP_PICK_LOWEST = new Set(["sunset_countdown", "milestone_countdown"]);
-
-const getPositiveNumber = (value, allowZero = false) => {
-  if (!Number.isFinite(value)) {
-    return null;
-  }
-  if (allowZero ? value < 0 : value <= 0) {
-    return null;
-  }
-  return value;
+const delta = (current, previous) =>
+  Number.isFinite(current) && Number.isFinite(previous) ? current - previous : null;
+const percentageRegained = ({ daylight_today, daylight_minimum, daylight_maximum }) => {
+  if (![daylight_today, daylight_minimum, daylight_maximum].every(Number.isFinite)) return null;
+  const range = daylight_maximum - daylight_minimum;
+  return range >= 60
+    ? clampValue((100 * (daylight_today - daylight_minimum)) / range, 0, 100)
+    : null;
 };
 
-const getDelta = (current, previous, allowZero = false) => {
-  if (!Number.isFinite(current) || !Number.isFinite(previous)) {
-    return null;
-  }
-  const delta = current - previous;
-  return getPositiveNumber(delta, allowZero);
-};
-
-const removeOnlyBeforeLessThan = (text) => {
-  if (!text) {
-    return "";
-  }
-  return text
-    .replace(/\bOnly\s+less than\b/g, "Less than")
-    .replace(/\bonly\s+less than\b/g, "less than");
-};
-
-// Patterns that read better with a definite article in countdown copy.
-const COUNTDOWN_ARTICLE_PATTERNS = [
-  /^(first|earliest|shortest|longest|next)\b/i,
-  /^(spring|summer|fall|autumn|winter)\s+(equinox|solstice)\b/i,
-];
-
-const needsCountdownArticle = (title) =>
-  COUNTDOWN_ARTICLE_PATTERNS.some((pattern) => pattern.test(title));
-
-// Normalize milestone titles so countdowns read grammatically (e.g., "until the shortest day").
-const formatMilestoneCountdownTitle = (title) => {
-  if (!title) {
-    return "";
-  }
-  const trimmed = title.trim();
-  if (!trimmed) {
-    return "";
-  }
-  if (/^gained\b/i.test(trimmed)) {
-    return `you've ${lowerCaseFirstLetter(trimmed)}`;
-  }
-  if (/^finished\b/i.test(trimmed)) {
-    return `you've ${lowerCaseFirstLetter(trimmed)}`;
-  }
-  if (/^(the|a|an)\b/i.test(trimmed)) {
-    return trimmed;
-  }
-  if (needsCountdownArticle(trimmed)) {
-    return `the ${lowerCaseFirstLetter(trimmed)}`;
-  }
-  return trimmed;
-};
-
-const fillMessageTemplate = (text, value) => {
-  if (!text) {
-    return "";
-  }
-  const filled = text.replace(PLACEHOLDER_PATTERN_GLOBAL, (_match, token) =>
-    formatPlaceholderValue(token, value)
-  );
-  return removeOnlyBeforeLessThan(filled);
-};
-
+// Constraints use raw values. Formatting happens only after a message qualifies.
 export const OPTIMISTIC_MESSAGES = [
   {
+    id: "daylight-twin",
     group: null,
     headline: "Today has as much daylight as {daylight_twin_date}. They're twins!",
     lede: "Same amount of sunlight, a different chapter of the year.",
     months: [8, 9],
     data_needs: ["daylight_twin_date"],
-    additional_requirements: null,
   },
   {
+    id: "sunset-earliest",
     group: "sunset_comparison",
-    headline: "Today's sunset is {## minutes} later than it was at its earliest.",
+    headline: "Sunset is {## minutes} later than winter's earliest sunset.",
     lede: "Enjoy the extra evening light!",
     months: [1, 2, 3, 4, 12],
     data_needs: ["sunset_today", "sunset_earliest"],
-    additional_requirements: "sunset_today > sunset_earliest",
-    getValue: ({ sunset_today, sunset_earliest }) => getDelta(sunset_today, sunset_earliest, true),
+    getValue: (d) => delta(d.sunset_today, d.sunset_earliest),
+    min: 10,
+    when: (d) => d.after_sunset_turnaround === 1,
   },
   {
+    id: "sunset-start-of-year",
     group: "sunset_comparison",
     headline: "Today's sunset is {## minutes} later than it was at the start of the year.",
     lede: "It's so nice to have some evening light.",
     months: [2, 3, 4, 5, 6, 7, 8, 9],
     data_needs: ["sunset_today", "sunset_start_of_year"],
-    additional_requirements: null,
-    getValue: ({ sunset_today, sunset_start_of_year }) =>
-      getDelta(sunset_today, sunset_start_of_year, true),
+    getValue: (d) => delta(d.sunset_today, d.sunset_start_of_year),
+    min: 30,
   },
   {
+    id: "sunset-month",
     group: "sunset_comparison",
-    headline: "Today's sunset is {## minutes} later than it was one month ago.",
+    headline: "Sunset is {## minutes} later than a month ago.",
     lede: "The days are definitely getting longer!",
     months: [2, 3, 4, 5],
     data_needs: ["sunset_today", "sunset_one_month_ago"],
-    additional_requirements: "sunset_one_month_ago < sunset_today",
-    getValue: ({ sunset_today, sunset_one_month_ago }) =>
-      getDelta(sunset_today, sunset_one_month_ago),
+    getValue: (d) => delta(d.sunset_today, d.sunset_one_month_ago),
+    min: 15,
+    when: (d) => d.after_winter_solstice === 1 && d.days_are_lengthening === 1,
   },
   {
+    id: "month-end",
     group: "daylight_gained",
-    headline:
-      "By the end of this month, days will be {## minutes} longer than the winter solstice.",
+    headline: "By month's end, you'll have {## minutes} more daylight than on the shortest day.",
     lede: "Woohoo!",
     months: [1, 2, 3, 4],
-    data_needs: ["daylight_minimum", "daylight_at_end_of_month"],
-    additional_requirements: null,
-    getValue: ({ daylight_at_end_of_month, daylight_minimum }) =>
-      getDelta(daylight_at_end_of_month, daylight_minimum),
+    data_needs: ["daylight_minimum", "daylight_at_end_of_month", "daylight_today"],
+    getValue: (d) => delta(d.daylight_at_end_of_month, d.daylight_minimum),
+    min: 30,
+    when: (d) =>
+      d.days_until_month_end > 0 && delta(d.daylight_at_end_of_month, d.daylight_today) >= 10,
   },
   {
+    id: "since-shortest",
     group: "daylight_gained",
-    headline: "You've gained {## minutes} of daylight since the winter solstice.",
+    headline: "You've gained {## minutes} of daylight since the shortest day.",
     lede: "Loving that extra light 😎",
     months: [1, 2, 3, 4, 5],
     data_needs: ["daylight_today", "daylight_minimum"],
-    additional_requirements: null,
-    getValue: ({ daylight_today, daylight_minimum }) => getDelta(daylight_today, daylight_minimum),
+    getValue: (d) => delta(d.daylight_today, d.daylight_minimum),
+    min: 15,
+    when: (d) => d.days_are_lengthening === 1,
   },
   {
+    id: "after-5pm",
     group: null,
-    headline: "You have {## minutes} of daylight after 5pm.",
+    headline: "Enjoy {## minutes} of daylight after 5pm today.",
     lede: "Enjoy the extra evening light!",
     months: [2, 3, 4, 5, 6, 7, 8, 9],
     data_needs: ["daylight_after_5pm_today"],
-    additional_requirements: "daylight_after_5pm_today > 0",
-    getValue: ({ daylight_after_5pm_today }) => getPositiveNumber(daylight_after_5pm_today, true),
+    getValue: (d) => d.daylight_after_5pm_today,
+    min: 30,
   },
   {
+    id: "daylight-month",
     group: "daylight_gained",
     headline: "You've gained {## minutes} of daylight in the last month.",
     lede: "Way to go!",
     months: [2, 3, 4, 5],
     data_needs: ["daylight_today", "daylight_one_month_ago"],
-    additional_requirements: null,
-    getValue: ({ daylight_today, daylight_one_month_ago }) =>
-      getDelta(daylight_today, daylight_one_month_ago),
+    getValue: (d) => delta(d.daylight_today, d.daylight_one_month_ago),
+    min: 15,
   },
   {
+    id: "above-shortest",
     group: null,
-    headline: "You still have {## minutes} more daylight than the winter solstice.",
+    headline: "Today has {## minutes} more daylight than the shortest day.",
     lede: "Plenty of time to enjoy the outdoors 🙂",
     months: [7, 8, 9, 10],
     data_needs: ["daylight_today", "daylight_minimum"],
-    additional_requirements: null,
-    getValue: ({ daylight_today, daylight_minimum }) => getDelta(daylight_today, daylight_minimum),
+    getValue: (d) => delta(d.daylight_today, d.daylight_minimum),
+    min: 90,
   },
   {
+    id: "loss-behind",
     group: null,
-    headline: "Only {## minutes} of daylight remain to lose before the turnaround.",
-    lede: "You can do this!",
+    headline: "{##%} of the annual daylight decrease is behind you.",
+    lede: "The days will start getting longer again!",
     months: [11, 12],
-    data_needs: ["daylight_today", "daylight_minimum"],
-    additional_requirements: "today_date < winter_solstice_date",
-    getValue: ({ daylight_today, daylight_minimum }) => getDelta(daylight_today, daylight_minimum),
+    data_needs: ["fraction_of_loss_completed"],
+    getValue: (d) => d.fraction_of_loss_completed * 100,
+    min: 75,
+    max: 100,
+    when: (d) => d.daylight_gain_today < 0,
   },
   {
-    group: null,
-    headline: "Most of the daylight loss is already behind you.",
-    lede: "The days will start getting longer before you know it!",
-    months: [11, 12],
-    data_needs: ["winter_solstice_date", "today_date"],
-    additional_requirements: "today_date < winter_solstice_date",
-  },
-  {
-    group: "gain_rate",
-    headline: "Each day this week adds at least {## minutes} more daylight than the day before.",
-    lede: "The pace of daylight gain is picking up!",
-    months: [2, 3, 4],
-    data_needs: ["daylight_daily_gain_this_week_min"],
-    additional_requirements: null,
-    getValue: ({ daylight_daily_gain_this_week_min }) =>
-      getPositiveNumber(daylight_daily_gain_this_week_min),
-  },
-  {
+    id: "two-weeks",
     group: null,
     headline: "In two weeks, you'll have {## minutes} more daylight.",
     lede: null,
     months: [1, 2, 3, 4, 12],
     data_needs: ["daylight_today", "daylight_in_14_days"],
-    additional_requirements: null,
-    getValue: ({ daylight_in_14_days, daylight_today }) =>
-      getDelta(daylight_in_14_days, daylight_today),
+    getValue: (d) => delta(d.daylight_in_14_days, d.daylight_today),
+    min: 15,
   },
   {
+    id: "accelerating",
     group: "gain_rate",
+    priority: 1,
     headline: "Daylight gains are accelerating, with {## minutes} added this week.",
     lede: "Enjoy the extra light!",
     months: [1, 2, 3],
-    data_needs: ["daylight_gain_this_week", "spring_equinox_date", "today_date"],
-    additional_requirements: "today_date < spring_equinox_date",
-    getValue: ({ daylight_gain_this_week }) => getPositiveNumber(daylight_gain_this_week),
+    data_needs: ["daylight_gain_this_week"],
+    getValue: (d) => d.daylight_gain_this_week,
+    min: 10,
+    when: (d) =>
+      d.before_spring_equinox === 1 &&
+      d.after_winter_solstice === 1 &&
+      d.gains_are_accelerating === 1,
   },
   {
+    id: "daily-gain",
     group: "gain_rate",
-    headline: "Each day you're gaining {## minutes} of daylight.",
-    lede: "You deserve it for making it through winter!",
+    headline: "Today has {## minutes} more daylight than yesterday.",
+    lede: "Enjoy the extra light!",
     months: [2, 3, 4, 5],
     data_needs: ["daylight_gain_today"],
-    additional_requirements: null,
-    getValue: ({ daylight_gain_today }) => getPositiveNumber(daylight_gain_today),
+    getValue: (d) => d.daylight_gain_today,
+    min: 1,
   },
   {
+    id: "weekly-gain",
     group: "gain_rate",
-    headline: "You're gaining over {## minutes} of daylight per week right now.",
+    headline: "You've gained {## minutes} of daylight over the past week!",
     lede: "Now we're talking!",
     months: [2, 3, 4, 5],
     data_needs: ["daylight_gain_this_week"],
-    additional_requirements: null,
-    getValue: ({ daylight_gain_this_week }) => getPositiveNumber(daylight_gain_this_week),
+    getValue: (d) => d.daylight_gain_this_week,
+    min: 10,
   },
   {
+    id: "loss-slowdown",
     group: null,
-    headline: "Daylight loss is slowing down.",
+    headline: "Daylight loss is {##%} slower than a month ago.",
     lede: "The turnaround is coming!",
-    months: [10, 11],
-    data_needs: ["daylight_loss_this_month", "daylight_loss_last_month"],
-    additional_requirements: "daylight_loss_this_month < daylight_loss_last_month",
+    months: [10, 11, 12],
+    data_needs: ["daylight_loss_slowdown_percent"],
+    getValue: (d) => d.daylight_loss_slowdown_percent,
+    min: 25,
+    max: 100,
+    when: (d) => d.daylight_gain_today < 0,
   },
   {
+    id: "largest-increase",
     group: "milestone_countdown",
-    headline: "The largest daily increase in daylight is only {## days} away.",
-    lede: "Hang in there!",
+    headline: "The largest increase in daylight is {## days} away.",
+    lede: "Enjoy the growing daylight!",
     months: [2, 3],
     data_needs: ["days_until_max_daily_gain"],
-    additional_requirements: "days_until_max_daily_gain > 0",
-    getValue: ({ days_until_max_daily_gain }) => getPositiveNumber(days_until_max_daily_gain),
+    getValue: (d) => d.days_until_max_daily_gain,
+    min: 1,
+    max: 42,
   },
   {
+    id: "late-summer-evenings",
     group: null,
-    headline: "You still have over {## weeks} of sunset after 7pm.",
+    headline: "You have around {## weeks} of sunset after 7pm.",
     lede: "Enjoy those long summer evenings!",
     months: [7, 8, 9],
     data_needs: ["weeks_with_sunset_after_7pm_remaining"],
-    additional_requirements: "weeks_with_sunset_after_7pm_remaining > 0",
-    getValue: ({ weeks_with_sunset_after_7pm_remaining }) =>
-      getPositiveNumber(weeks_with_sunset_after_7pm_remaining),
+    getValue: (d) => d.weeks_with_sunset_after_7pm_remaining,
+    min: 2,
   },
   {
+    id: "longer-days-countdown",
     group: "milestone_countdown",
-    headline: "Only {## days} remain until daylight loss stops entirely.",
-    lede: "The turnaround is near!",
+    headline: "Only {## days} until days start getting longer again!",
+    lede: "Longer days are on their way.",
     months: [11, 12],
-    data_needs: ["days_until_winter_solstice"],
-    additional_requirements: "days_until_winter_solstice > 0",
-    getValue: ({ days_until_winter_solstice }) => getPositiveNumber(days_until_winter_solstice),
+    data_needs: ["days_until_longer_days"],
+    getValue: (d) => d.days_until_longer_days,
+    min: 1,
+    max: 35,
   },
   {
+    id: "later-sunsets-countdown",
     group: "milestone_countdown",
-    headline: "The earliest sunset is only {## days} away.",
-    lede: "You can do this!",
+    headline: "Only {## days} until sunsets start getting later again!",
+    lede: "Brighter evenings are on their way.",
     months: [11, 12],
-    data_needs: ["days_until_earliest_sunset"],
-    additional_requirements: "days_until_earliest_sunset > 0",
-    getValue: ({ days_until_earliest_sunset }) => getPositiveNumber(days_until_earliest_sunset),
+    data_needs: ["days_until_later_sunsets"],
+    getValue: (d) => d.days_until_later_sunsets,
+    min: 1,
+    max: 35,
   },
   {
+    id: "regained",
     group: null,
-    headline: "You've regained {##%} of the daylight lost in winter.",
+    headline: "You've regained {##%} of the daylight lost since summer.",
     lede: "It feels better every day!",
     months: [2, 3, 4, 5],
     data_needs: ["daylight_today", "daylight_minimum", "daylight_maximum"],
-    additional_requirements: null,
-    getValue: ({ daylight_today, daylight_minimum, daylight_maximum }) => {
-      if (
-        !Number.isFinite(daylight_today) ||
-        !Number.isFinite(daylight_minimum) ||
-        !Number.isFinite(daylight_maximum)
-      ) {
-        return null;
-      }
-      const range = daylight_maximum - daylight_minimum;
-      if (range <= 0) {
-        return null;
-      }
-      const ratio = (daylight_today - daylight_minimum) / range;
-      return clampValue(ratio * 100, 0, 100);
-    },
+    getValue: percentageRegained,
+    min: 25,
+    max: 100,
+    when: (d) => d.days_are_lengthening === 1,
   },
   {
+    id: "daylight-percentile",
     group: null,
-    headline: "You're {##%} of the way to the shortest day.",
-    lede: "Then things get longer again; hang in there!",
-    months: [9, 10, 11, 12],
-    data_needs: ["summer_solstice_date", "winter_solstice_date", "today_date"],
-    additional_requirements: "today_date < winter_solstice_date",
-    getValue: ({ summer_solstice_date, winter_solstice_date, today_date }) => {
-      if (
-        !(summer_solstice_date instanceof Date) ||
-        !(winter_solstice_date instanceof Date) ||
-        !(today_date instanceof Date)
-      ) {
-        return null;
-      }
-      const total = winter_solstice_date.getTime() - summer_solstice_date.getTime();
-      if (total <= 0) {
-        return null;
-      }
-      const progress = today_date.getTime() - summer_solstice_date.getTime();
-      return clampValue((progress / total) * 100, 0, 100);
-    },
-  },
-  {
-    group: null,
-    headline: "Today has more daylight than {##%} of the year.",
+    headline: "Today has more daylight than {##%} of days this year.",
     lede: "Pretty amazing, right?",
     months: [5, 6, 7, 8, 9],
-    data_needs: ["days_with_less_daylight"],
-    additional_requirements: null,
-    getValue: ({ days_with_less_daylight, days_in_year }) => {
-      if (!Number.isFinite(days_with_less_daylight) || !Number.isFinite(days_in_year)) {
-        return null;
-      }
-      if (days_in_year <= 0) {
-        return null;
-      }
-      return clampValue((days_with_less_daylight / days_in_year) * 100, 0, 100);
-    },
+    data_needs: ["days_with_less_daylight", "days_in_year"],
+    getValue: (d) =>
+      d.days_in_year > 0
+        ? clampValue((100 * d.days_with_less_daylight) / d.days_in_year, 0, 100)
+        : null,
+    min: 60,
   },
   {
+    id: "near-longest",
     group: null,
-    headline: "Daylight is within {## minutes} of its yearly maximum.",
-    lede: "The payoff for making it through winter!",
+    headline: "Today is just {## minutes} shy of the year's longest day.",
+    lede: "Enjoy the long days!",
     months: [5, 6],
     data_needs: ["daylight_today", "daylight_maximum"],
-    additional_requirements: null,
-    getValue: ({ daylight_today, daylight_maximum }) => {
-      if (!Number.isFinite(daylight_today) || !Number.isFinite(daylight_maximum)) {
-        return null;
-      }
-      return getPositiveNumber(Math.abs(daylight_maximum - daylight_today), true);
-    },
+    getValue: (d) => delta(d.daylight_maximum, d.daylight_today),
+    min: 0.5,
+    max: 30,
+    when: (d) => d.before_summer_solstice === 1,
   },
   {
+    id: "brightest-weeks",
     group: null,
-    headline: "You're in the 10 brightest weeks of the year",
+    headline: "You're in the 10 weeks with the most daylight of the year.",
     lede: "Keep those sunglasses handy.",
     months: [5, 6, 7],
-    data_needs: ["days_from_summer_solstice"],
-    additional_requirements: "days_from_summer_solstice <= 35",
+    data_needs: ["is_in_brightest_70_days"],
+    when: (d) => d.is_in_brightest_70_days === 1,
   },
   {
+    id: "rear-view",
     group: null,
-    headline: "Sunsets are getting later again!",
+    headline: "The shortest day is in your rear-view mirror ({## days} ago).",
     lede: null,
-    months: [12],
-    data_needs: ["date_today", "date_of_earliest_sunset"],
-    additional_requirements: "date_today > date_of_earliest_sunset",
+    months: [12, 1],
+    data_needs: ["days_since_shortest_day"],
+    getValue: (d) => d.days_since_shortest_day,
+    min: 1,
+    max: 14,
+    when: (d) => d.days_are_lengthening === 1,
   },
   {
+    id: "above-winter-average",
     group: null,
-    headline: "The shortest day is behind you!",
-    lede: null,
-    months: [12],
-    data_needs: ["date_today", "winter_solstice_date"],
-    additional_requirements: "date_today > winter_solstice_date",
-  },
-  {
-    group: null,
-    headline: "Today still has {## minutes} more daylight than the average winter day.",
-    lede: "I'll take it!",
+    headline: "Today has {## minutes} more daylight than the average winter day.",
+    lede: "Enjoy the extra daylight!",
     months: [9, 10, 11],
     data_needs: ["daylight_today", "average_winter_daylight"],
-    additional_requirements: null,
-    getValue: ({ daylight_today, average_winter_daylight }) =>
-      getDelta(daylight_today, average_winter_daylight),
-  },
-  {
-    group: null,
-    headline: "You're losing less than {## minutes} of daylight per week now.",
-    lede: "You're doing great!",
-    months: [10, 11, 12],
-    data_needs: ["daylight_loss_this_week"],
-    additional_requirements: null,
-    getValue: ({ daylight_loss_this_week }) => getPositiveNumber(daylight_loss_this_week),
-  },
-  {
-    group: null,
-    headline: "Only {## days} until {next_milestone_title}!",
-    lede: "You're almost there :)",
-    months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-    data_needs: ["next_milestone_days", "next_milestone_title"],
-    additional_requirements: "next_milestone_days > 0",
-    getValue: ({ next_milestone_days }) => getPositiveNumber(next_milestone_days),
+    getValue: (d) => delta(d.daylight_today, d.average_winter_daylight),
+    min: 90,
   },
 ];
 
-const isValidDataValue = (value) => {
-  if (value === null) {
-    return false;
-  }
-  if (value instanceof Date) {
-    return Number.isFinite(value.getTime());
-  }
-  if (typeof value === "string") {
-    return value.length > 0;
-  }
-  return Number.isFinite(value);
-};
+const isValidDataValue = (value) =>
+  value instanceof Date
+    ? Number.isFinite(value.getTime())
+    : typeof value === "string"
+      ? value.length > 0
+      : Number.isFinite(value);
 
-const resolveRequirementValue = (token, data) => {
-  if (Object.prototype.hasOwnProperty.call(data, token)) {
-    return data[token];
-  }
-  const numeric = Number(token);
-  return Number.isFinite(numeric) ? numeric : null;
-};
-
-const compareRequirementValues = (left, operator, right) => {
-  const leftValue = left instanceof Date ? left.getTime() : left;
-  const rightValue = right instanceof Date ? right.getTime() : right;
-  if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
-    return false;
-  }
-  switch (operator) {
-    case ">":
-      return leftValue > rightValue;
-    case "<":
-      return leftValue < rightValue;
-    case ">=":
-      return leftValue >= rightValue;
-    case "<=":
-      return leftValue <= rightValue;
-    case "==":
-      return leftValue === rightValue;
-    case "===":
-      return leftValue === rightValue;
-    default:
-      return false;
-  }
-};
-
-const evaluateRequirement = (requirement, data) => {
-  if (!requirement) {
-    return true;
-  }
-  const match = requirement.match(/^([a-z0-9_]+)\s*(<=|>=|<|>|===|==)\s*([a-z0-9_.-]+)$/i);
-  if (!match) {
-    return false;
-  }
-  const left = resolveRequirementValue(match[1], data);
-  const right = resolveRequirementValue(match[3], data);
-  return compareRequirementValues(left, match[2], right);
-};
-
-const hasPlaceholder = (text) => PLACEHOLDER_PATTERN.test(text || "");
-
-/**
- * Get the fallback lede message based on upcoming milestones
- * @param {Array} upcomingMilestones - Array of upcoming milestones with offsetDays and title
- * @returns {string|null} The fallback lede message or null if no milestones
- */
-const getMilestoneFallbackLede = (upcomingMilestones) => {
-  if (!Array.isArray(upcomingMilestones) || upcomingMilestones.length === 0) {
-    return null;
-  }
-  const nextMilestone = upcomingMilestones[0];
-  if (!nextMilestone || !Number.isFinite(nextMilestone.offsetDays) || !nextMilestone.title) {
-    return null;
-  }
-  const days = nextMilestone.offsetDays;
-  const title = formatMilestoneCountdownTitle(nextMilestone.title).toLowerCase();
-  return `Only ${days} ${days === 1 ? "day" : "days"} until ${title}!`;
-};
-
-const deduplicateByGroup = (entries) => {
-  const bestByGroup = new Map();
-  for (const entry of entries) {
-    const group = entry.message.group;
-    if (!group) {
-      continue;
-    }
-    const existing = bestByGroup.get(group);
-    if (!existing) {
-      bestByGroup.set(group, entry);
-      continue;
-    }
-    const pickLowest = GROUP_PICK_LOWEST.has(group);
-    const existingVal = existing.value ?? (pickLowest ? Infinity : -Infinity);
-    const newVal = entry.value ?? (pickLowest ? Infinity : -Infinity);
-    if (pickLowest ? newVal < existingVal : newVal > existingVal) {
-      bestByGroup.set(group, entry);
-    }
-  }
-  const emitted = new Set();
-  return entries.filter((entry) => {
-    const group = entry.message.group;
-    if (!group) {
-      return true;
-    }
-    if (emitted.has(group)) {
-      return false;
-    }
-    if (bestByGroup.get(group) === entry) {
-      emitted.add(group);
-      return true;
-    }
-    return false;
-  });
-};
+const fill = (template, value, data) =>
+  (template || "")
+    .replace(/\{##([^}]*)\}/g, (_match, token) => formatPlaceholderValue(token, value))
+    .replace(/\{daylight_twin_date\}/g, data.daylight_twin_date || "")
+    .replace(/\bOnly less than\b/g, "Less than");
 
 export const getOptimisticMessageOptions = (data, month, hemisphere, upcomingMilestones = []) => {
   const adjustedMonth = getAdjustedMonth(month, hemisphere);
-
-  // Only show milestones as messages if they're within 5 weeks
-  const MAX_MILESTONE_MESSAGE_DAYS = 35;
-  const nearbyMilestones = Array.isArray(upcomingMilestones)
-    ? upcomingMilestones.filter((m) => m.offsetDays <= MAX_MILESTONE_MESSAGE_DAYS)
-    : [];
-
-  // Inject milestone data into the data object
-  const nextMilestone = nearbyMilestones.length > 0 ? nearbyMilestones[0] : null;
-  const enrichedData = {
-    ...data,
-    next_milestone_days:
-      nextMilestone && Number.isFinite(nextMilestone.offsetDays) ? nextMilestone.offsetDays : null,
-    next_milestone_title: nextMilestone?.title || null,
-  };
-
-  const candidates = OPTIMISTIC_MESSAGES.filter((message) =>
-    message.months.includes(message.useCalendarMonth ? month : adjustedMonth)
-  );
-  const validMessages = candidates
-    .map((message) => {
+  const nearby = (Array.isArray(upcomingMilestones) ? upcomingMilestones : [])
+    .filter(
+      (m) =>
+        !m.informationalOnly &&
+        Number.isFinite(m.offsetDays) &&
+        m.offsetDays > 0 &&
+        m.offsetDays <= 35
+    )
+    .sort((a, b) => a.offsetDays - b.offsetDays);
+  const countdown = formatMilestoneCountdown(nearby[0]);
+  const candidates = OPTIMISTIC_MESSAGES.filter((m) => m.months.includes(adjustedMonth)).flatMap(
+    (message) => {
       if (
-        !message.data_needs.every((key) => isValidDataValue(enrichedData[key])) ||
-        (message.additional_requirements &&
-          !evaluateRequirement(message.additional_requirements, enrichedData))
-      ) {
-        return null;
-      }
-      const needsValue = hasPlaceholder(message.headline) || hasPlaceholder(message.lede);
-      if (!needsValue) {
-        return { message, value: null };
-      }
-      const value = message.getValue ? message.getValue(enrichedData) : null;
-      if (!Number.isFinite(value)) {
-        return null;
-      }
-      if (Math.round(Math.abs(value)) === 0) {
-        return null;
-      }
-      return { message, value };
-    })
-    .filter(Boolean);
-  const deduplicated = deduplicateByGroup(validMessages);
-  const capped =
-    deduplicated.length > MAX_MESSAGES ? deduplicated.slice(0, MAX_MESSAGES) : deduplicated;
-  const milestoneFallbackLede = getMilestoneFallbackLede(nearbyMilestones);
-  return capped.map((entry) => {
-    const milestoneTitle = formatMilestoneCountdownTitle(enrichedData.next_milestone_title);
-    let headline = fillMessageTemplate(entry.message.headline, entry.value);
-    let lede = fillMessageTemplate(entry.message.lede, entry.value);
-    // Replace data placeholders like {next_milestone_title}
-    headline = headline.replace(/\{next_milestone_title\}/g, (milestoneTitle || "").toLowerCase());
-    headline = headline.replace(/\{daylight_twin_date\}/g, enrichedData.daylight_twin_date || "");
-    lede = lede.replace(/\{next_milestone_title\}/g, milestoneTitle || "");
-    return {
-      headline,
-      lede: lede || milestoneFallbackLede || "",
-    };
-  });
+        !message.data_needs.every((key) => isValidDataValue(data[key])) ||
+        (message.when && !message.when(data))
+      )
+        return [];
+      const value = message.getValue ? message.getValue(data) : null;
+      if (
+        message.getValue &&
+        (!Number.isFinite(value) ||
+          value < (message.min ?? 0.5) ||
+          value > (message.max ?? Infinity))
+      )
+        return [];
+      return [{ message, value }];
+    }
+  );
+  const best = new Map();
+  for (const entry of candidates) {
+    const { group } = entry.message;
+    if (!group) continue;
+    const previous = best.get(group);
+    const prefer =
+      !previous ||
+      (entry.message.priority || 0) > (previous.message.priority || 0) ||
+      ((entry.message.priority || 0) === (previous.message.priority || 0) &&
+        (group === "milestone_countdown"
+          ? entry.value < previous.value
+          : entry.value > previous.value));
+    if (prefer) best.set(group, entry);
+  }
+  const options = candidates
+    .filter((entry) => !entry.message.group || best.get(entry.message.group) === entry)
+    .map(({ message, value }) => ({
+      id: message.id,
+      headline: fill(message.headline, value, data),
+      lede: fill(message.lede, value, data) || countdown,
+    }));
+  if (countdown && !options.some((option) => option.headline === countdown))
+    options.push({
+      id: "milestone-countdown",
+      headline: countdown,
+      lede: nearby[0].offsetDays <= 7 ? "You're almost there :)" : "Something to look forward to.",
+    });
+  // A milestone with identical dedicated countdown copy mustn't repeat underneath itself.
+  return options
+    .slice(0, MAX_MESSAGES)
+    .map((option) => ({ ...option, lede: option.lede === option.headline ? "" : option.lede }));
 };

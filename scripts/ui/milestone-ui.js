@@ -134,6 +134,7 @@ export const cycleToNextMilestone = (dom, formatLongDateFromParts, fallbackTimeZ
 export const celebrateMilestone = (confettiRoot, milestone) => {
   if (!milestone) {
     setLastCelebratedKey(null);
+    confettiRoot?.replaceChildren();
     return;
   }
   const key = getMilestoneKey(milestone);

@@ -14,6 +14,7 @@ import {
   getDaysInYear,
   getAdjustedMonth,
   getLocalNoonDateFromParts,
+  getMinutesSinceMidnight,
 } from "../utils/date-utils.js";
 import { setText } from "../utils/dom-utils.js";
 import { createAstronomyContext } from "../utils/astronomy-utils.js";
@@ -23,11 +24,18 @@ import {
   SUNRISE_THRESHOLD_MILESTONES,
   SUNSET_THRESHOLD_MILESTONES,
 } from "../milestones.js";
+import {
+  getSeasonalContextAsync,
+  getDaylightAfter5pm,
+  getRateFacts,
+  daysUntil,
+} from "../services/seasonal-insights-service.js";
 import { clampValue } from "../utils/utils.js";
 import {
   formatDuration,
   formatDeltaStatement,
   formatComparisonTooltip,
+  formatMinutesValue,
 } from "../formatters/formatters.js";
 import { updateDeltaTooltip } from "../ui/tooltip-ui.js";
 import {
@@ -402,8 +410,10 @@ export const buildMessageData = async (
   deltas,
   hemisphere,
   timeZone,
-  formatShortDateFromParts
+  formatShortDateFromParts,
+  seasonal = null
 ) => {
+  const context = seasonal || (await getSeasonalContextAsync(astronomy, todayParts, hemisphere));
   const {
     todaySunsetMinutes,
     monthSunsetMinutes,
@@ -412,187 +422,107 @@ export const buildMessageData = async (
     monthDaylight,
     yearlyExtremes,
   } = metrics;
-
-  const { fractionOfLossCompleted, daylightGainToday } = deltas;
-
-  const {
-    earliestSunsetMinutes,
-    earliestSunsetDateParts,
-    shortestDayMinutes,
-    longestDayMinutes,
-    maxDailyGainDateParts,
-    daysWithLessDaylight,
-  } = yearlyExtremes;
-
-  // Calculate additional data points for messages
-  const startOfYearParts = { year: todayParts.year, month: 1, day: 1 };
-  const sunsetStartOfYear = astronomy.getSunsetMinutesForDateParts(startOfYearParts);
-  const twoMonthsParts = addMonthsToDateParts(todayParts, -2);
-  const twoMonthsDaylight = astronomy.getDaylightMinutesForDateParts(twoMonthsParts);
+  const { daylightGainToday } = deltas;
+  const minimum = context.pastDaylight?.shortestDayMinutes ?? yearlyExtremes.shortestDayMinutes;
   const endOfMonthParts = {
     year: todayParts.year,
     month: todayParts.month,
     day: getDaysInMonth(todayParts.year, todayParts.month),
   };
-  const daylightAtEndOfMonth = astronomy.getDaylightMinutesForDateParts(endOfMonthParts);
-  const in14Parts = addDaysToDateParts(todayParts, 14);
-  const daylightIn14Days = astronomy.getDaylightMinutesForDateParts(in14Parts);
-  const daylightGainThisWeek =
-    todayDaylight !== null && weekDaylight !== null ? todayDaylight - weekDaylight : null;
-  const daylightLossThisWeek =
-    todayDaylight !== null && weekDaylight !== null ? weekDaylight - todayDaylight : null;
-  const daylightLossThisMonthRaw =
-    monthDaylight !== null && todayDaylight !== null ? monthDaylight - todayDaylight : null;
-  const daylightLossThisMonth =
-    daylightLossThisMonthRaw !== null && daylightLossThisMonthRaw > 0
-      ? daylightLossThisMonthRaw
-      : null;
-  const daylightLossLastMonthRaw =
-    twoMonthsDaylight !== null && monthDaylight !== null ? twoMonthsDaylight - monthDaylight : null;
-  const daylightLossLastMonth =
-    daylightLossLastMonthRaw !== null && daylightLossLastMonthRaw > 0
-      ? daylightLossLastMonthRaw
-      : null;
-  const daylightAfter5pm =
-    todaySunsetMinutes !== null ? Math.max(0, todaySunsetMinutes - 17 * 60) : null;
-
-  const daysUntilSunsetAfter5pm = astronomy.getDaysUntilSunsetAfter(
-    todayParts,
-    todaySunsetMinutes,
-    17 * 60
+  const beforeSummer = Boolean(
+    context.nextSummer && compareDateParts(todayParts, context.nextSummer) < 0
   );
-  const daysUntilSunsetAfter6pm = astronomy.getDaysUntilSunsetAfter(
-    todayParts,
-    todaySunsetMinutes,
-    18 * 60
+  const afterWinter = Boolean(
+    context.previousWinter &&
+    compareDateParts(todayParts, context.previousWinter) > 0 &&
+    beforeSummer
   );
-  const daysUntilSunsetAfter7pm = astronomy.getDaysUntilSunsetAfter(
-    todayParts,
-    todaySunsetMinutes,
-    19 * 60
+  const lengthening = afterWinter && daylightGainToday > 0;
+  const sunsetSummer = context.pastSunset
+    ? astronomy.getNextSeasonDateParts(context.pastSunset.winterParts, hemisphere, "summer")
+    : null;
+  const afterSunsetTurnaround = Boolean(
+    context.pastSunset?.laterSunsetsDateParts &&
+    compareDateParts(todayParts, context.pastSunset.laterSunsetsDateParts) >= 0 &&
+    sunsetSummer &&
+    compareDateParts(todayParts, sunsetSummer) < 0
   );
-  const daysUntilMaxDailyGain = maxDailyGainDateParts
-    ? getDaysBetweenDateParts(todayParts, maxDailyGainDateParts)
-    : null;
-
-  const currentSeasonParts = astronomy.getSeasonDatePartsForYear(todayParts.year, hemisphere);
-  const previousSummerSolsticeParts = astronomy.getPreviousSeasonDateParts(
-    todayParts,
-    hemisphere,
-    "summer"
-  );
-  const nextSummerSolsticeParts = astronomy.getNextSeasonDateParts(
-    todayParts,
-    hemisphere,
-    "summer"
-  );
-  const springEquinoxDate = getLocalNoonDateFromParts(currentSeasonParts.spring, timeZone);
-  const summerSolsticeDate = getLocalNoonDateFromParts(previousSummerSolsticeParts, timeZone);
-  const winterSolsticeDate = getLocalNoonDateFromParts(currentSeasonParts.winter, timeZone);
-
-  const daysUntilSummerSolsticeRaw = currentSeasonParts.summer
-    ? getDaysBetweenDateParts(todayParts, currentSeasonParts.summer)
-    : null;
-  const daysUntilSummerSolstice =
-    daysUntilSummerSolsticeRaw !== null && daysUntilSummerSolsticeRaw > 0
-      ? daysUntilSummerSolsticeRaw
-      : null;
-  const daysUntilWinterSolsticeRaw = currentSeasonParts.winter
-    ? getDaysBetweenDateParts(todayParts, currentSeasonParts.winter)
-    : null;
-  const daysUntilWinterSolstice =
-    daysUntilWinterSolsticeRaw !== null && daysUntilWinterSolsticeRaw > 0
-      ? daysUntilWinterSolsticeRaw
-      : null;
-  const daysUntilEarliestSunset = earliestSunsetDateParts
-    ? getDaysBetweenDateParts(todayParts, earliestSunsetDateParts)
-    : null;
-  const daysSincePreviousSummerSolstice = previousSummerSolsticeParts
-    ? getDaysBetweenDateParts(previousSummerSolsticeParts, todayParts)
-    : null;
-  const daysUntilNextSummerSolstice = nextSummerSolsticeParts
-    ? getDaysBetweenDateParts(todayParts, nextSummerSolsticeParts)
-    : null;
-  const daysFromSummerSolstice = (() => {
-    if (
-      Number.isFinite(daysSincePreviousSummerSolstice) &&
-      Number.isFinite(daysUntilNextSummerSolstice)
-    ) {
-      return Math.min(daysSincePreviousSummerSolstice, daysUntilNextSummerSolstice);
-    }
-    if (Number.isFinite(daysSincePreviousSummerSolstice)) {
-      return daysSincePreviousSummerSolstice;
-    }
-    if (Number.isFinite(daysUntilNextSummerSolstice)) {
-      return daysUntilNextSummerSolstice;
-    }
-    return null;
-  })();
-  const daysInYear = getDaysInYear(todayParts.year);
-
-  const weeksWithSunsetAfter7pmRemaining =
-    todaySunsetMinutes !== null ? astronomy.getWeeksWithSunsetAfter(todayParts, 19 * 60) : null;
+  const rates = getRateFacts(astronomy, todayParts, todayDaylight, weekDaylight);
+  const winterForAverage = astronomy.getNextSeasonDateParts(todayParts, hemisphere, "winter");
   const averageWinterDaylight = await astronomy.getAverageWinterDaylightAsync(
-    currentSeasonParts.winter,
+    winterForAverage,
     hemisphere
   );
-  const todayDate = getLocalNoonDateFromParts(todayParts, timeZone);
-  const earliestSunsetDate = getLocalNoonDateFromParts(earliestSunsetDateParts, timeZone);
   const daylightTwin = [8, 9].includes(getAdjustedMonth(todayParts.month, hemisphere))
     ? await astronomy.findDaylightTwinAsync(todayParts, hemisphere)
     : null;
-
-  const messageData = {
-    sunset_today: todaySunsetMinutes,
-    sunset_earliest: earliestSunsetMinutes,
-    sunset_start_of_year: sunsetStartOfYear,
-    sunset_one_month_ago: monthSunsetMinutes,
-    daylight_minimum: shortestDayMinutes,
-    daylight_at_end_of_month: daylightAtEndOfMonth,
-    daylight_today: todayDaylight,
-    daylight_after_5pm_today: daylightAfter5pm,
-    daylight_one_month_ago: monthDaylight,
-    fraction_of_loss_completed: fractionOfLossCompleted,
-    daylight_daily_gain_this_week_min: astronomy.getDaylightDailyGainThisWeekMin(todayParts),
-    daylight_in_14_days: daylightIn14Days,
-    daylight_gain_this_week: daylightGainThisWeek,
-    spring_equinox_date: springEquinoxDate,
-    today_date: todayDate,
-    daylight_gain_today: daylightGainToday,
-    daylight_loss_this_month: daylightLossThisMonth,
-    daylight_loss_last_month: daylightLossLastMonth,
-    days_until_sunset_after_5pm: daysUntilSunsetAfter5pm,
-    days_until_sunset_after_6pm: daysUntilSunsetAfter6pm,
-    days_until_sunset_after_7pm: daysUntilSunsetAfter7pm,
-    days_until_max_daily_gain: daysUntilMaxDailyGain,
-    days_until_summer_solstice: daysUntilSummerSolstice,
-    weeks_with_sunset_after_7pm_remaining: weeksWithSunsetAfter7pmRemaining,
-    days_until_winter_solstice: daysUntilWinterSolstice,
-    days_until_earliest_sunset: daysUntilEarliestSunset,
-    days_from_summer_solstice: daysFromSummerSolstice,
-    daylight_maximum: longestDayMinutes,
-    summer_solstice_date: summerSolsticeDate,
-    winter_solstice_date: winterSolsticeDate,
-    days_with_less_daylight: daysWithLessDaylight,
-    days_in_year: daysInYear,
-    date_today: todayDate,
-    date_of_earliest_sunset: earliestSunsetDate,
-    average_winter_daylight: averageWinterDaylight,
-    daylight_loss_this_week: daylightLossThisWeek,
-    daylight_twin_date: daylightTwin
-      ? formatShortDateFromParts(daylightTwin, timeZone, todayParts.year, "long")
-      : null,
+  const totalRange = yearlyExtremes.longestDayMinutes - yearlyExtremes.shortestDayMinutes;
+  const fractionLoss =
+    Number.isFinite(todayDaylight) && totalRange > 0
+      ? clampValue((yearlyExtremes.longestDayMinutes - todayDaylight) / totalRange, 0, 1)
+      : null;
+  return {
+    daylightGainToday,
+    messageData: {
+      sunset_today: todaySunsetMinutes,
+      sunset_earliest: context.pastSunset?.earliestSunsetMinutes ?? null,
+      sunset_start_of_year: astronomy.getSunsetMinutesForDateParts({
+        year: todayParts.year,
+        month: 1,
+        day: 1,
+      }),
+      sunset_one_month_ago: monthSunsetMinutes,
+      after_sunset_turnaround: Number(afterSunsetTurnaround),
+      after_winter_solstice: Number(afterWinter),
+      before_spring_equinox: Number(
+        afterWinter && context.nextSpring && compareDateParts(todayParts, context.nextSpring) < 0
+      ),
+      before_summer_solstice: Number(beforeSummer && afterWinter),
+      days_are_lengthening: Number(lengthening),
+      daylight_minimum: minimum,
+      daylight_maximum: yearlyExtremes.longestDayMinutes,
+      daylight_today: todayDaylight,
+      daylight_at_end_of_month: astronomy.getDaylightMinutesForDateParts(endOfMonthParts),
+      days_until_month_end: getDaysBetweenDateParts(todayParts, endOfMonthParts),
+      daylight_after_5pm_today: getDaylightAfter5pm(metrics.todayEvents, todayParts, timeZone),
+      daylight_one_month_ago: monthDaylight,
+      daylight_in_14_days: astronomy.getDaylightMinutesForDateParts(
+        addDaysToDateParts(todayParts, 14)
+      ),
+      daylight_gain_this_week: rates.weeklyGain,
+      gains_are_accelerating: Number(rates.gainsAccelerating),
+      daylight_loss_slowdown_percent: rates.lossSlowdownPercent,
+      daylight_gain_today: daylightGainToday,
+      fraction_of_loss_completed: fractionLoss,
+      days_until_max_daily_gain: daysUntil(
+        todayParts,
+        context.fastestGainDate || yearlyExtremes.maxDailyGainDateParts
+      ),
+      days_until_longer_days: daysUntil(todayParts, context.nextLongerDays),
+      days_until_later_sunsets: daysUntil(todayParts, context.nextLaterSunsets),
+      days_since_shortest_day: context.pastDaylight
+        ? getDaysBetweenDateParts(context.pastDaylight.shortestDayDateParts, todayParts)
+        : null,
+      weeks_with_sunset_after_7pm_remaining:
+        todaySunsetMinutes !== null ? astronomy.getWeeksWithSunsetAfter(todayParts, 19 * 60) : null,
+      days_with_less_daylight: yearlyExtremes.daysWithLessDaylight,
+      days_in_year: getDaysInYear(todayParts.year),
+      is_in_brightest_70_days: Number(context.isBrightest),
+      average_winter_daylight: averageWinterDaylight,
+      today_date: getLocalNoonDateFromParts(todayParts, timeZone),
+      daylight_twin_date: daylightTwin
+        ? formatShortDateFromParts(daylightTwin, timeZone, todayParts.year, "long")
+        : null,
+    },
   };
-
-  return { messageData, daylightGainToday };
 };
 
 /**
  * Build a milestone object
  */
-const buildMilestone = ({ id, title, dateParts, todayHeadline, todayLede }) => {
+const buildMilestone = ({ dateParts, ...copy }) => {
   if (!dateParts) return null;
-  return { id, title, dateParts, todayHeadline, todayLede };
+  return { ...copy, dateParts };
 };
 
 /**
@@ -684,271 +614,272 @@ export const buildUpcomingMilestones = (
   polarState = "normal",
   sunriseThresholdDates = new Map(),
   latestSunrisePassedDate = null,
-  fastestGainDate = null
+  fastestGainDate = null,
+  seasonal = {}
 ) => {
-  const { todaySunsetMinutes, yearlyExtremes } = metrics;
-  const { earliestSunsetDateParts, shortestDayDateParts, longestDayDateParts } = yearlyExtremes;
-
-  const milestoneCandidates = [];
-  const addMilestone = (milestoneItem) => {
-    if (milestoneItem) milestoneCandidates.push(milestoneItem);
+  const candidates = [];
+  const add = (config) => {
+    const item = buildMilestone(config);
+    if (item) candidates.push(item);
   };
+  const at14 = addDaysToDateParts(todayParts, 14);
+  const daylightNow = metrics.todayDaylight;
+  const daylightThen = astronomy.getDaylightMinutesForDateParts?.(at14);
+  const positiveOutlook = (value, template) =>
+    Number.isFinite(value) && value >= 0.5 ? template(formatMinutesValue(value)) : null;
+  const sunsetThen = astronomy.getSunsetMinutesForDateParts?.(at14);
+  const sunriseNow = astronomy.getSunEvents(todayParts).sunrise;
+  const sunriseThen = astronomy.getSunEvents(at14).sunrise;
+  const sunriseGain =
+    sunriseNow && sunriseThen
+      ? getMinutesSinceMidnight(sunriseNow.date, timeZone) -
+        getMinutesSinceMidnight(sunriseThen.date, timeZone)
+      : null;
+  const upcomingSeasonDate = (key) =>
+    (seasonal.seasons || [])
+      .map((season) => season[key])
+      .filter((date) => date && compareDateParts(date, todayParts) >= 0)
+      .sort(compareDateParts)[0] || null;
 
-  SUNRISE_THRESHOLD_MILESTONES.forEach((config) => {
-    addMilestone(
-      buildMilestone({
-        ...config,
-        dateParts: sunriseThresholdDates.get(config.minutes),
-      })
-    );
+  // Turnarounds take priority over other celebrations sharing their date.
+  add({
+    id: "earliest-sunset",
+    title: "Later sunsets begin",
+    countdownTitle: "sunsets start getting later again",
+    dateParts: upcomingSeasonDate("laterSunsetsDateParts"),
+    priority: 100,
+    todayHeadline: "Sunsets are getting later again!",
+    todayLede: positiveOutlook(
+      Number.isFinite(sunsetThen) && Number.isFinite(metrics.todaySunsetMinutes)
+        ? sunsetThen - metrics.todaySunsetMinutes
+        : null,
+      (value) => `In two weeks, sunset will be ${value} later.`
+    ),
   });
-  addMilestone(
-    buildMilestone({
-      id: "latest-sunrise-passed",
-      title: "Latest sunrise passed",
-      dateParts: latestSunrisePassedDate,
-      todayHeadline: "Winter's latest sunrise is behind you!",
-      todayLede: "Brighter mornings are on their way.",
-    })
-  );
-  addMilestone(
-    buildMilestone({
+  add({
+    id: "shortest-day",
+    title: "Longer days begin",
+    countdownTitle: "days start getting longer again",
+    dateParts: upcomingSeasonDate("longerDaysDateParts"),
+    priority: 90,
+    todayHeadline: "Days start getting longer today.",
+    todayLede: positiveOutlook(
+      Number.isFinite(daylightNow) && Number.isFinite(daylightThen)
+        ? daylightThen - daylightNow
+        : null,
+      (value) => `In two weeks, you'll have ${value} more daylight.`
+    ),
+  });
+  add({
+    id: "latest-sunrise-passed",
+    title: "Earlier sunrises begin",
+    countdownTitle: "sunrises start getting earlier",
+    dateParts: latestSunrisePassedDate,
+    priority: 80,
+    todayHeadline: "Sunrise starts getting earlier today.",
+    todayLede: positiveOutlook(
+      sunriseGain,
+      (value) => `In two weeks, sunrise will be ${value} earlier.`
+    ),
+  });
+  for (const config of SUNRISE_THRESHOLD_MILESTONES)
+    add({ ...config, dateParts: sunriseThresholdDates.get(config.minutes) });
+  const peakGain = fastestGainDate
+    ? astronomy.getDaylightMinutesForDateParts?.(fastestGainDate) -
+      astronomy.getDaylightMinutesForDateParts?.(addDaysToDateParts(fastestGainDate, -1))
+    : null;
+  if (peakGain >= 1)
+    add({
       id: "fastest-daylight-gain",
-      title: "Fastest-gaining day of the year",
+      title: "Biggest daylight gain",
+      countdownTitle: "the largest increase in daylight",
       dateParts: fastestGainDate,
-      todayHeadline: "Today is the year's fastest-gaining day!",
-      todayLede: "The daylight gains are at full speed.",
-    })
-  );
+      todayHeadline: `Today adds ${formatMinutesValue(peakGain)} of daylight—the year's biggest daily gain.`,
+      todayLede: "Enjoy the extra light!",
+    });
 
-  let nextYearExtremes = null;
-  const resolveNextExtreme = (key) => {
-    const current = { earliestSunsetDateParts, shortestDayDateParts, longestDayDateParts }[key];
-    if (current && compareDateParts(current, todayParts) >= 0) {
-      return current;
-    }
-    if (!nextYearExtremes) {
-      nextYearExtremes = astronomy.getYearlySunExtremes(todayParts.year + 1, null);
-    }
-    return nextYearExtremes[key] || null;
+  const yesterday = addDaysToDateParts(todayParts, -1);
+  const events = astronomy.getSunEvents(todayParts);
+  const yesterdayEvents = astronomy.getSunEvents(yesterday);
+  const previousPolarState = astronomy.getPolarState?.(yesterday);
+  const firstSunriseToday =
+    Boolean(events.sunrise) &&
+    !yesterdayEvents.sunrise &&
+    (!previousPolarState || previousPolarState === "polar-night");
+  const firstSunsetToday =
+    Boolean(events.sunset) &&
+    !yesterdayEvents.sunset &&
+    (!previousPolarState || previousPolarState === "polar-day");
+  if (polarState === "polar-night" || firstSunriseToday)
+    add({
+      id: "first-sunrise",
+      title: "Sunrise returns",
+      countdownTitle: "sunrise returns",
+      priority: 110,
+      dateParts: firstSunriseToday ? todayParts : astronomy.findFirstSunrise(todayParts)?.dateParts,
+      todayHeadline: Number.isFinite(daylightNow)
+        ? `The sun returns today, bringing ${formatMinutesValue(daylightNow)} of daylight.`
+        : "The sun returns today!",
+      todayLede: "Welcome back, sunshine.",
+    });
+  if (polarState === "polar-day" || firstSunsetToday)
+    add({
+      id: "first-sunset",
+      title: "First sunset after midnight sun",
+      informationalOnly: true,
+      dateParts: firstSunsetToday ? todayParts : astronomy.findFirstSunset(todayParts)?.dateParts,
+    });
+
+  const nextExtreme = (key) => {
+    const date = metrics.yearlyExtremes[key];
+    return date && compareDateParts(date, todayParts) >= 0
+      ? date
+      : astronomy.getYearlySunExtremes(todayParts.year + 1, null)[key];
   };
+  const nextSummerSolstice = astronomy.getNextSeasonDateParts(todayParts, hemisphere, "summer");
+  const longestDayParts =
+    nextSummerSolstice && astronomy.getPolarState?.(nextSummerSolstice) === "polar-day"
+      ? nextSummerSolstice
+      : nextExtreme("longestDayDateParts");
+  const longestDaylight = polarState === "polar-day" ? 1440 : daylightNow;
+  add({
+    id: "longest-day",
+    title: "Longest day of the year",
+    countdownTitle: "the longest day of the year",
+    dateParts: longestDayParts,
+    todayHeadline: Number.isFinite(longestDaylight)
+      ? `Enjoy ${formatMinutesValue(longestDaylight)} of daylight today!`
+      : "Enjoy the daylight today!",
+    todayLede: "Soak up the sunshine.",
+  });
+  add({
+    id: "spring-equinox",
+    title: "Spring begins",
+    countdownTitle: "spring begins",
+    dateParts: astronomy.getNextSeasonDateParts(todayParts, hemisphere, "spring"),
+    todayHeadline: Number.isFinite(daylightNow)
+      ? `Spring begins today, with ${formatMinutesValue(daylightNow)} of daylight.`
+      : "Spring begins today!",
+    todayLede: null,
+  });
+  add({
+    id: "dst-start",
+    title: "Daylight saving time starts",
+    countdownTitle: "daylight saving time starts",
+    dateParts: astronomy.findNextDaylightSavingsStart(todayParts),
+    todayHeadline: "Daylight Saving Time starts today.",
+    todayLede: "Don't forget to spring forward.",
+  });
 
-  const previousWinterSolsticeParts = astronomy.getPreviousSeasonDateParts(
-    todayParts,
-    hemisphere,
-    "winter"
-  );
-  const nextWinterSolsticeParts = astronomy.getNextSeasonDateParts(
-    todayParts,
-    hemisphere,
-    "winter"
-  );
-  const darkestWeeksOffsetDays = 35;
-  const darkestWeeksFromPrevious = previousWinterSolsticeParts
-    ? addDaysToDateParts(previousWinterSolsticeParts, darkestWeeksOffsetDays)
-    : null;
-  const darkestWeeksFromNext = nextWinterSolsticeParts
-    ? addDaysToDateParts(nextWinterSolsticeParts, darkestWeeksOffsetDays)
-    : null;
-  const darkestWeeksFinishedParts = (() => {
-    if (darkestWeeksFromPrevious && compareDateParts(darkestWeeksFromPrevious, todayParts) >= 0) {
-      return darkestWeeksFromPrevious;
-    }
-    return darkestWeeksFromNext || darkestWeeksFromPrevious || null;
-  })();
-
-  // Add polar-specific milestones (and include the return day even after polar state flips)
-  const yesterdayParts = addDaysToDateParts(todayParts, -1);
-  const todayEvents = astronomy.getSunEvents(todayParts);
-  const yesterdayEvents = astronomy.getSunEvents(yesterdayParts);
-  const isFirstSunriseToday = Boolean(todayEvents.sunrise) && !yesterdayEvents.sunrise;
-  const isFirstSunsetToday = Boolean(todayEvents.sunset) && !yesterdayEvents.sunset;
-
-  if (polarState === "polar-night" || isFirstSunriseToday) {
-    const firstSunrise = isFirstSunriseToday
-      ? { dateParts: todayParts }
-      : astronomy.findFirstSunrise(todayParts);
-    addMilestone(
-      buildMilestone({
-        id: "first-sunrise",
-        title: "First sunrise",
-        dateParts: firstSunrise?.dateParts,
-        todayHeadline: "The sun rises again today!",
-        todayLede: "Welcome back, sunshine.",
-      })
-    );
-  }
-
-  if (polarState === "polar-day" || isFirstSunsetToday) {
-    const firstSunset = isFirstSunsetToday
-      ? { dateParts: todayParts }
-      : astronomy.findFirstSunset(todayParts);
-    addMilestone(
-      buildMilestone({
-        id: "first-sunset",
-        title: "First sunset",
-        dateParts: firstSunset?.dateParts,
-        todayHeadline: "The first sunset in a while!",
-        todayLede: "Night is returning.",
-      })
-    );
-  }
-
-  const sunsetThresholdMatches = SUNSET_THRESHOLD_MILESTONES.map((milestoneConfig) => ({
-    ...milestoneConfig,
-    match: astronomy.findFirstSunsetAfter(previousWinterSolsticeParts, milestoneConfig.minutes),
+  // Scan both adjacent winters so thresholds reached before a solstice and those
+  // in the next brightening season are both discoverable.
+  const fallbackWinter = astronomy.getPreviousSeasonDateParts(todayParts, hemisphere, "winter");
+  const seasons = seasonal.seasons || [
+    { earliestSunsetDateParts: fallbackWinter, shortestDayDateParts: fallbackWinter },
+  ];
+  const seasonalMatch = (finder, baselineKey, minutes) => {
+    const matches = seasons.flatMap((season) => {
+      const baseline = season[baselineKey];
+      if (!baseline) return [];
+      const match = finder(baseline, minutes);
+      const summer = astronomy.getNextSeasonDateParts(
+        season.winterParts || baseline,
+        hemisphere,
+        "summer"
+      );
+      return match?.dateParts &&
+        compareDateParts(match.dateParts, todayParts) >= 0 &&
+        (!summer || compareDateParts(match.dateParts, summer) <= 0)
+        ? [match.dateParts]
+        : [];
+    });
+    return matches.sort(compareDateParts)[0] || null;
+  };
+  const sunsetMatches = SUNSET_THRESHOLD_MILESTONES.map((config) => ({
+    ...config,
+    dateParts: seasonalMatch(
+      astronomy.findFirstSunsetAfter,
+      "earliestSunsetDateParts",
+      config.minutes
+    ),
   }));
-
-  // Next half-hour sunset milestone
-  if (todaySunsetMinutes !== null) {
-    const targetMinutes = astronomy.getNextHalfHour(todaySunsetMinutes);
-    if (targetMinutes > 0) {
-      const targetLabel = formatTimeFromMinutes(targetMinutes, todayParts, timeZone);
-      const milestoneMatch = astronomy.findNextSunsetThreshold(todayParts, targetMinutes);
-      if (milestoneMatch) {
-        const isThresholdDuplicate = sunsetThresholdMatches.some(
-          (threshold) =>
-            threshold.minutes === targetMinutes &&
-            threshold.match?.dateParts &&
-            compareDateParts(threshold.match.dateParts, milestoneMatch.dateParts) === 0
+  sunsetMatches.forEach(add);
+  if (Number.isFinite(metrics.todaySunsetMinutes)) {
+    const previousSunset = astronomy.getSunsetMinutesForDateParts?.(yesterday);
+    const targets = new Set([astronomy.getNextHalfHour(metrics.todaySunsetMinutes)]);
+    if (Number.isFinite(previousSunset) && metrics.todaySunsetMinutes > previousSunset) {
+      targets.add(astronomy.getNextHalfHour(previousSunset));
+    }
+    for (const target of targets) {
+      if (target > 0) {
+        const match = seasonalMatch(
+          astronomy.findFirstSunsetAfter,
+          "earliestSunsetDateParts",
+          target
         );
-        if (!isThresholdDuplicate) {
-          addMilestone(
-            buildMilestone({
-              id: `next-sunset-${targetMinutes}`,
-              title: `Next ${targetLabel} Sunset`,
-              dateParts: milestoneMatch.dateParts,
-            })
-          );
+        if (
+          match &&
+          !sunsetMatches.some(
+            (m) => m.minutes === target && compareDateParts(m.dateParts, match) === 0
+          )
+        ) {
+          const label = formatTimeFromMinutes(target, todayParts, timeZone);
+          add({
+            id: `next-sunset-${target}`,
+            title: `Sunset after ${label}`,
+            countdownTitle: `sunset is after ${label}`,
+            dateParts: match,
+            todayHeadline: `Sunset is now after ${label}!`,
+            todayLede: "Enjoy the evening light!",
+          });
         }
       }
     }
   }
-
-  addMilestone(
-    buildMilestone({
-      id: "earliest-sunset",
-      title: "Earliest sunset",
-      dateParts: resolveNextExtreme("earliestSunsetDateParts"),
-      todayHeadline: "It's the earliest sunset of the year.",
-      todayLede: "Brighter evenings are on the way.",
-    })
-  );
-  addMilestone(
-    buildMilestone({
-      id: "shortest-day",
-      title: "Shortest day",
-      dateParts: resolveNextExtreme("shortestDayDateParts"),
-      todayHeadline: "Today is the shortest day of the year.",
-      todayLede: "Longer days start tomorrow.",
-    })
-  );
-  addMilestone(
-    buildMilestone({
-      id: "longest-day",
-      title: "Longest day",
-      dateParts: resolveNextExtreme("longestDayDateParts"),
-      todayHeadline: "Today is the longest day of the year.",
-      todayLede: "Soak up every extra minute.",
-    })
-  );
-  addMilestone(
-    buildMilestone({
-      id: "spring-equinox",
-      title: "Spring equinox",
-      dateParts: astronomy.getNextSeasonDateParts(todayParts, hemisphere, "spring"),
-      todayHeadline: "It's the spring equinox today.",
-      todayLede: null,
-    })
-  );
-  addMilestone(
-    buildMilestone({
-      id: "dst-start",
-      title: "Daylight savings time starts",
-      dateParts: astronomy.findNextDaylightSavingsStart(todayParts),
-      todayHeadline: "Daylight Savings Time starts today.",
-      todayLede: "Don't forget to spring forward.",
-    })
-  );
-
-  const firstTwelveHours = astronomy.findFirstDaylightAtLeast(previousWinterSolsticeParts, 12 * 60);
-  addMilestone(
-    buildMilestone({
+  for (const config of [
+    ...DAYLIGHT_DURATION_MILESTONES,
+    {
       id: "first-12-hours",
-      title: "First day with at least 12 hours of daylight",
-      dateParts: firstTwelveHours?.dateParts,
-      todayHeadline: "Today has at least 12 hours of daylight.",
-      todayLede: "A perfect balance of day and night.",
-    })
-  );
-
-  DAYLIGHT_DURATION_MILESTONES.forEach((milestoneConfig) => {
-    const match = astronomy.findFirstDaylightAtLeast(
-      previousWinterSolsticeParts,
-      milestoneConfig.minutes
-    );
-    addMilestone(
-      buildMilestone({
-        id: milestoneConfig.id,
-        title: milestoneConfig.title,
-        dateParts: match?.dateParts,
-        todayHeadline: milestoneConfig.todayHeadline,
-        todayLede: milestoneConfig.todayLede,
-      })
-    );
-  });
-
-  sunsetThresholdMatches.forEach((milestoneConfig) => {
-    addMilestone(
-      buildMilestone({
-        id: milestoneConfig.id,
-        title: milestoneConfig.title,
-        dateParts: milestoneConfig.match?.dateParts,
-        todayHeadline: milestoneConfig.todayHeadline,
-        todayLede: milestoneConfig.todayLede,
-      })
-    );
-  });
-
-  DAYLIGHT_GAIN_MILESTONES.forEach((milestoneConfig) => {
-    const match = astronomy.findFirstDaylightGain(
-      previousWinterSolsticeParts,
-      milestoneConfig.minutes
-    );
-    addMilestone(
-      buildMilestone({
-        id: milestoneConfig.id,
-        title: milestoneConfig.title,
-        dateParts: match?.dateParts,
-        todayHeadline: milestoneConfig.todayHeadline,
-        todayLede: milestoneConfig.todayLede,
-      })
-    );
-  });
-
-  addMilestone(
-    buildMilestone({
-      id: "darkest-weeks-finished",
-      title: "Finished the 10 darkest weeks of the year",
-      dateParts: darkestWeeksFinishedParts,
-      todayHeadline: "Finished the 10 darkest weeks of the year.",
-      todayLede: "The light keeps climbing from here.",
-    })
-  );
-
-  const milestoneOffsets = milestoneCandidates
-    .map((item) => withMilestoneOffset(item, todayParts))
-    .filter(Boolean);
-
-  const todayMilestone = milestoneOffsets.find((item) => item.offsetDays === 0);
-  const upcoming = milestoneOffsets
-    .filter((item) => item.offsetDays > 0)
-    .sort((a, b) => {
-      const dayDiff = a.offsetDays - b.offsetDays;
-      if (dayDiff !== 0) return dayDiff;
-      return a.title.localeCompare(b.title);
+      title: "12+ hours of daylight",
+      minutes: 720,
+      countdownTitle: "days reach 12 hours of daylight",
+      todayHeadline: "Today brings at least 12 hours of daylight.",
+      todayLede: "Enjoy the longer days!",
+    },
+  ])
+    add({
+      ...config,
+      dateParts: seasonalMatch(
+        astronomy.findFirstDaylightAtLeast,
+        "shortestDayDateParts",
+        config.minutes
+      ),
     });
+  for (const config of DAYLIGHT_GAIN_MILESTONES)
+    add({
+      ...config,
+      dateParts: seasonalMatch(
+        astronomy.findFirstDaylightGain,
+        "shortestDayDateParts",
+        config.minutes
+      ),
+    });
+  add({
+    id: "darkest-weeks-finished",
+    title: "10 darkest weeks behind you",
+    countdownTitle: "the 10 darkest weeks are behind you",
+    dateParts: seasonal.darkestWeeksFinished,
+    todayHeadline: "The 10 darkest weeks are behind you!",
+    todayLede: "Enjoy the returning light.",
+  });
 
+  const offsets = candidates.map((item) => withMilestoneOffset(item, todayParts)).filter(Boolean);
+  const todayMilestone = offsets
+    .filter((item) => item.offsetDays === 0 && !item.informationalOnly)
+    .sort((a, b) => (b.priority || 0) - (a.priority || 0))[0];
+  const upcoming = offsets
+    .filter((item) => item.offsetDays > 0 || (item.informationalOnly && item.offsetDays === 0))
+    .sort((a, b) => a.offsetDays - b.offsetDays || a.title.localeCompare(b.title));
   return { todayMilestone, upcoming };
 };
 
@@ -1018,6 +949,9 @@ export const updateDaylightForLocation = async ({
     metrics.yearlyExtremes
   );
   if (thisGeneration !== updateGeneration) return;
+  const seasonal = await getSeasonalContextAsync(astronomy, todayParts, hemisphere);
+  if (thisGeneration !== updateGeneration) return;
+  seasonal.fastestGainDate = fastestGainDate;
   const { todayMilestone, upcoming } = buildUpcomingMilestones(
     astronomy,
     todayParts,
@@ -1028,7 +962,8 @@ export const updateDaylightForLocation = async ({
     polarState,
     sunriseThresholdDates,
     latestSunrisePassedDate,
-    fastestGainDate
+    fastestGainDate,
+    seasonal
   );
   const optimisticControls = {
     container: dom.optimisticMessage,
@@ -1052,7 +987,8 @@ export const updateDaylightForLocation = async ({
     deltas,
     hemisphere,
     timeZone,
-    formatters.formatShortDateFromParts
+    formatters.formatShortDateFromParts,
+    seasonal
   );
 
   // Discard stale results if a newer update has started

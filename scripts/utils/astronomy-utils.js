@@ -14,14 +14,10 @@ import {
 const CHUNK_SIZE = 30;
 const MINUTES_PER_DAY = 24 * 60;
 
-const yieldToMain = () =>
-  new Promise((resolve) => {
-    if (typeof requestIdleCallback === "function") {
-      requestIdleCallback(() => resolve(), { timeout: 50 });
-    } else {
-      setTimeout(resolve, 0);
-    }
-  });
+// Give rendering/input a turn without making copy wait for an idle browser.
+// Several seasonal scans share cached data; idle deadlines would otherwise add
+// seconds of waiting even when each calculation chunk is inexpensive.
+const yieldToMain = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 const MAX_CACHED_LOCATIONS = 10;
 const locationCaches = new Map();
@@ -47,6 +43,7 @@ const getLocationCache = (locationKey) => {
     sunriseSeasons: new Map(),
     latestSunrise: new Map(),
     averageWinter: new Map(),
+    winterInsights: new Map(),
   };
   locationCaches.set(locationKey, cache);
   return cache;
@@ -89,6 +86,9 @@ export const createAstronomyContext = (location, timeZone) => {
       findDaylightTwinAsync: async () => null,
       findStableSunriseThresholdsAsync: async () => new Map(),
       findLatestSunrisePassedAsync: async () => null,
+      getWinterInsightsAsync: async () => null,
+      findWinterDaylightMinimum: () => null,
+      getBrightestDayDatesAsync: async () => [],
       getNextHalfHour: () => null,
       findNextSunsetThreshold: () => null,
       findNextDaylightSavingsStart: () => null,
@@ -185,7 +185,8 @@ export const createAstronomyContext = (location, timeZone) => {
     if (!sunset || !dateParts) {
       return null;
     }
-    const sunsetMinutes = getMinutesSinceMidnight(sunset.date, timeZone);
+    const sunsetMinutes =
+      getMinutesSinceMidnight(sunset.date, timeZone) + sunset.date.getUTCMilliseconds() / 60000;
     if (!Number.isFinite(sunsetMinutes)) {
       return null;
     }
@@ -383,6 +384,133 @@ export const createAstronomyContext = (location, timeZone) => {
 
   const getYearlySunExtremesAsync = async (year, todayDaylight) =>
     extractExtremes(await buildYearSummaryAsync(year), todayDaylight);
+
+  // Ranking includes full polar days/nights, but leaves incomplete transition
+  // days unknown. Keep the existing null model for the main daylight statistics.
+  const getRankingDaylight = (parts) => {
+    const daylight = getDaylightMinutesForDateParts(parts);
+    if (Number.isFinite(daylight)) return daylight;
+    const events = getSunEvents(parts);
+    if (events.sunrise || events.sunset) return null;
+    return getPolarState(parts) === "polar-day" ? MINUTES_PER_DAY : 0;
+  };
+
+  // A local descent finds the winter duration minimum without a year scan.
+  // Useful for the many-city explorer; daylight duration is unaffected by DST.
+  const findWinterDaylightMinimum = (winterParts) => {
+    if (!winterParts) return null;
+    let dateParts = winterParts;
+    let minutes = getRankingDaylight(dateParts);
+    if (!Number.isFinite(minutes)) return null;
+    for (let step = 0; step < 80; step += 1) {
+      const neighbors = [-1, 1]
+        .map((offset) => {
+          const date = addDaysToDateParts(dateParts, offset);
+          return { dateParts: date, minutes: getRankingDaylight(date) };
+        })
+        .filter((item) => Number.isFinite(item.minutes) && item.minutes < minutes);
+      if (!neighbors.length) return { dateParts, minutes };
+      const next = neighbors.sort((a, b) => a.minutes - b.minutes)[0];
+      dateParts = next.dateParts;
+      minutes = next.minutes;
+    }
+    return null;
+  };
+
+  const getBrightestDayDatesAsync = async (year) => {
+    const summary = await buildYearSummaryAsync(year);
+    if (!summary.brightestDates) {
+      const ranked = [];
+      for (let offset = 0; offset < getDaysInYear(year); offset += 1) {
+        if (offset > 0 && offset % CHUNK_SIZE === 0) await yieldToMain();
+        const dateParts = addDaysToDateParts({ year, month: 1, day: 1 }, offset);
+        const daylight = summary.daylightByDay[offset] ?? getRankingDaylight(dateParts);
+        if (Number.isFinite(daylight)) ranked.push({ dateParts, daylight });
+      }
+      ranked.sort((a, b) => b.daylight - a.daylight || compareDateParts(a.dateParts, b.dateParts));
+      summary.brightestDates = ranked
+        .slice(0, 70)
+        .map(({ dateParts }) => formatDateInputValue(dateParts));
+    }
+    return summary.brightestDates;
+  };
+
+  const getWinterInsightsAsync = async (winterParts, hemisphere) => {
+    if (!winterParts) return null;
+    const key = `${formatDateInputValue(winterParts)}:${hemisphere}`;
+    if (cache.winterInsights.has(key)) return cache.winterInsights.get(key);
+    const scan = (async () => {
+      const start = getPreviousSeasonDateParts(winterParts, hemisphere, "summer");
+      const end = getNextSeasonDateParts(winterParts, hemisphere, "summer");
+      const count = getDaysBetweenDateParts(start, end);
+      if (!(count > 0)) return null;
+      const days = [];
+      const winterOffset = getOffsetMinutesForDateParts(winterParts);
+      for (let offset = 0; offset < count; offset += 1) {
+        if (offset > 0 && offset % CHUNK_SIZE === 0) await yieldToMain();
+        const dateParts = addDaysToDateParts(start, offset);
+        const events = getSunEvents(dateParts);
+        const sunset = getSunsetMinutesForDateParts(dateParts);
+        const clockOffset = events.sunset
+          ? getTimeZoneOffsetMinutes(events.sunset.date, timeZone)
+          : null;
+        days.push({
+          dateParts,
+          daylight: getRankingDaylight(dateParts),
+          sunset,
+          // A clock change must not create the winter turning point.
+          standardSunset: Number.isFinite(sunset) ? sunset - (clockOffset - winterOffset) : null,
+        });
+      }
+      const ranked = days
+        .filter((day) => Number.isFinite(day.daylight))
+        .sort((a, b) => a.daylight - b.daylight || compareDateParts(b.dateParts, a.dateParts));
+      const darkestDates = ranked.slice(0, 70).map((day) => day.dateParts);
+      const lastDarkest = darkestDates.reduce(
+        (latest, date) => (!latest || compareDateParts(date, latest) > 0 ? date : latest),
+        null
+      );
+      // Winter's solar turning points occur near its solstice. Restrict sunset
+      // extrema to this window so tropical secondary minima cannot replace winter.
+      const winterDays = days.filter(
+        (day) => Math.abs(getDaysBetweenDateParts(winterParts, day.dateParts)) <= 80
+      );
+      const findTurn = (field) => {
+        const valid = (field === "daylight" ? days : winterDays).filter((day) =>
+          Number.isFinite(day[field])
+        );
+        if (!valid.length) return { minimum: null, turn: null };
+        const minimum = valid.reduce((best, day) => (day[field] <= best[field] ? day : best));
+        const index = days.indexOf(minimum);
+        const next = days[index + 1];
+        // Require adjacent observed values: missing polar events aren't a turn.
+        const turn =
+          next && Number.isFinite(next[field]) && next[field] > minimum[field] ? next : null;
+        return { minimum, turn };
+      };
+      const daylight = findTurn("daylight");
+      const sunset = findTurn("standardSunset");
+      return {
+        winterParts,
+        shortestDayDateParts: daylight.minimum?.dateParts || null,
+        shortestDayMinutes: daylight.minimum?.daylight ?? null,
+        longerDaysDateParts: daylight.turn?.dateParts || null,
+        earliestSunsetDateParts: sunset.minimum?.dateParts || null,
+        earliestSunsetMinutes: sunset.minimum?.sunset ?? null,
+        laterSunsetsDateParts: sunset.turn?.dateParts || null,
+        darkestDates,
+        darkestWeeksFinishedDateParts:
+          darkestDates.length === 70 ? addDaysToDateParts(lastDarkest, 1) : null,
+      };
+    })();
+    cache.winterInsights.set(key, scan);
+    try {
+      return await scan;
+    } catch (error) {
+      cache.winterInsights.delete(key);
+      throw error;
+    }
+  };
 
   const getSeasonDatePartsForYear = (year, hemisphere) => {
     const cacheKey = `${year}-${hemisphere}`;
@@ -776,6 +904,9 @@ export const createAstronomyContext = (location, timeZone) => {
     findDaylightTwinAsync,
     findStableSunriseThresholdsAsync,
     findLatestSunrisePassedAsync,
+    getWinterInsightsAsync,
+    findWinterDaylightMinimum,
+    getBrightestDayDatesAsync,
     getNextHalfHour,
     findNextSunsetThreshold,
     findNextDaylightSavingsStart,

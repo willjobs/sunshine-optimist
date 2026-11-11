@@ -8,11 +8,20 @@ import {
   getDaysInYear,
   compareDateParts,
   getMinutesSinceMidnight,
+  getTimeZoneOffsetMinutes,
   shiftMonth,
   getAdjustedMonth,
 } from "./date-utils.js";
 
 describe("date-utils", () => {
+  it("keeps timezone offsets independent of milliseconds", () => {
+    expect(getTimeZoneOffsetMinutes(new Date("2026-12-08T21:11:29.456Z"), "America/New_York")).toBe(
+      -300
+    );
+    expect(getTimeZoneOffsetMinutes(new Date("2026-06-08T21:11:29.456Z"), "America/New_York")).toBe(
+      -240
+    );
+  });
   it("formats and parses date input values", () => {
     expect(formatDateInputValue(null)).toBe("");
     expect(formatDateInputValue({ year: 2024, month: 5, day: 9 })).toBe("2024-05-09");

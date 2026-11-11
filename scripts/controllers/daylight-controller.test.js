@@ -90,6 +90,7 @@ const buildAstronomyStub = ({ sunriseDateParts = null, sunsetDateParts = null } 
   }),
   getNextHalfHour: () => null,
   findNextSunsetThreshold: () => null,
+  getDaylightMinutesForDateParts: () => 600,
   findFirstSunrise: () =>
     sunriseDateParts ? { dateParts: sunriseDateParts, offsetDays: 10 } : null,
   findFirstSunset: () => (sunsetDateParts ? { dateParts: sunsetDateParts, offsetDays: 10 } : null),
@@ -290,7 +291,7 @@ describe("daylight-controller", () => {
       todayParts
     );
     expect(todayMilestone?.id).toBe("latest-sunrise-passed");
-    expect(todayMilestone?.todayHeadline).toContain("latest sunrise");
+    expect(todayMilestone?.todayHeadline).toBe("Sunrise starts getting earlier today.");
   });
 
   it("uses next winter's latest-sunrise date after this year's turn", async () => {
@@ -321,7 +322,10 @@ describe("daylight-controller", () => {
       },
     };
     const { todayMilestone } = buildUpcomingMilestones(
-      buildAstronomyStub(),
+      {
+        ...buildAstronomyStub(),
+        getDaylightMinutesForDateParts: (parts) => (isSameDateParts(parts, todayParts) ? 603 : 600),
+      },
       todayParts,
       metrics,
       "north",
@@ -441,8 +445,10 @@ describe("daylight-controller", () => {
       () => "",
       "normal"
     );
-    expect(todayMilestone?.id).toBe("first-sunset");
-    expect(upcoming.some((milestone) => milestone.id === "first-sunset")).toBe(false);
+    expect(todayMilestone).toBeUndefined();
+    expect(upcoming.find((milestone) => milestone.id === "first-sunset")?.informationalOnly).toBe(
+      true
+    );
   });
 });
 

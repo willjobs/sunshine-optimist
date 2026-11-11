@@ -68,7 +68,7 @@ export const getTimeZoneOffsetMinutes = (date, timeZone) => {
     parts.minute,
     parts.second
   );
-  return (utcTime - date.getTime()) / 60000;
+  return (utcTime + date.getUTCMilliseconds() - date.getTime()) / 60000;
 };
 
 export const zonedTimeToUtc = (year, month, day, hour, minute, second, timeZone) => {

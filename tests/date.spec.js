@@ -17,6 +17,9 @@ test.beforeEach(async ({ page }) => {
 
 test("date input commits custom date and reset returns to live date", async ({ page }) => {
   await page.goto("/");
+  await expect(page.locator("#headline")).not.toHaveAttribute("data-loading", "true", {
+    timeout: 15000,
+  });
 
   const dateInput = page.locator("#date-input");
   const datePicker = page.locator(".date-picker");

@@ -6,7 +6,11 @@
  */
 
 import { createAstronomyContext } from "../utils/astronomy-utils.js";
-import { compareDateParts } from "../utils/date-utils.js";
+import {
+  addDaysToDateParts,
+  compareDateParts,
+  getDaysBetweenDateParts,
+} from "../utils/date-utils.js";
 import {
   SUNSET_THRESHOLD_MILESTONES,
   DAYLIGHT_DURATION_MILESTONES,
@@ -39,38 +43,43 @@ const shuffle = (array) => {
  * @returns {{ city: Object, milestone: Object } | null}
  */
 export const hasMilestoneToday = (city, getDateParts) => {
-  const todayParts = getDateParts(city.timezone);
+  const today = getDateParts(city.timezone);
   const astronomy = createAstronomyContext(city, city.timezone);
   const hemisphere = city.latitude < 0 ? "south" : "north";
-  const previousWinterSolsticeParts = astronomy.getPreviousSeasonDateParts(
-    todayParts,
-    hemisphere,
-    "winter"
-  );
-
-  if (!previousWinterSolsticeParts) return null;
-
-  const allMilestones = [
-    ...SUNSET_THRESHOLD_MILESTONES.map((m) => ({ ...m, type: "sunset" })),
-    ...DAYLIGHT_DURATION_MILESTONES.map((m) => ({ ...m, type: "duration" })),
-    ...DAYLIGHT_GAIN_MILESTONES.map((m) => ({ ...m, type: "gain" })),
-  ];
-
-  for (const milestone of allMilestones) {
-    let match = null;
-    if (milestone.type === "sunset") {
-      match = astronomy.findFirstSunsetAfter(previousWinterSolsticeParts, milestone.minutes);
-    } else if (milestone.type === "duration") {
-      match = astronomy.findFirstDaylightAtLeast(previousWinterSolsticeParts, milestone.minutes);
-    } else if (milestone.type === "gain") {
-      match = astronomy.findFirstDaylightGain(previousWinterSolsticeParts, milestone.minutes);
-    }
-
-    if (match && compareDateParts(match.dateParts, todayParts) === 0) {
-      return { city, milestone };
-    }
+  const previousWinter = astronomy.getPreviousSeasonDateParts(today, hemisphere, "winter");
+  if (!previousWinter) return null;
+  const previousSummer = astronomy.getPreviousSeasonDateParts(today, hemisphere, "summer");
+  const winter =
+    compareDateParts(previousWinter, previousSummer) > 0
+      ? previousWinter
+      : astronomy.getNextSeasonDateParts(today, hemisphere, "winter");
+  if (!winter) return null;
+  const summer = astronomy.getNextSeasonDateParts(winter, hemisphere, "summer");
+  if (!summer || compareDateParts(today, summer) > 0 || getDaysBetweenDateParts(today, winter) > 80)
+    return null;
+  const yesterday = addDaysToDateParts(today, -1);
+  const sunset = astronomy.getSunsetMinutesForDateParts(today);
+  const previousSunset = astronomy.getSunsetMinutesForDateParts(yesterday);
+  const daylight = astronomy.getDaylightMinutesForDateParts(today);
+  const previousDaylight = astronomy.getDaylightMinutesForDateParts(yesterday);
+  const crossing = (value, previous, target) =>
+    Number.isFinite(value) && Number.isFinite(previous) && previous < target && value >= target;
+  for (const milestone of SUNSET_THRESHOLD_MILESTONES) {
+    if (crossing(sunset, previousSunset, milestone.minutes)) return { city, milestone };
   }
-
+  for (const milestone of DAYLIGHT_DURATION_MILESTONES) {
+    if (crossing(daylight, previousDaylight, milestone.minutes)) return { city, milestone };
+  }
+  if (
+    !(Number.isFinite(daylight) && Number.isFinite(previousDaylight) && daylight > previousDaylight)
+  )
+    return null;
+  const minimum = astronomy.findWinterDaylightMinimum(winter);
+  if (!minimum || compareDateParts(today, minimum.dateParts) <= 0) return null;
+  for (const milestone of DAYLIGHT_GAIN_MILESTONES) {
+    if (crossing(daylight - minimum.minutes, previousDaylight - minimum.minutes, milestone.minutes))
+      return { city, milestone };
+  }
   return null;
 };
 
@@ -96,7 +105,8 @@ export const scanCitiesForMilestones = async (getDateParts, abortSignal) => {
 
     if (abortSignal?.aborted) break;
 
-    const result = hasMilestoneToday(cities[i], getDateParts);
+    const result = await hasMilestoneToday(cities[i], getDateParts);
+    if (abortSignal?.aborted) break;
     if (result) {
       results.push(result);
       if (results.length >= MAX_MILESTONE_CITIES) break;

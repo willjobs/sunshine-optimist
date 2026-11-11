@@ -18,7 +18,9 @@ test.describe.configure({ mode: "serial" });
  */
 const openShareModalAndWait = async (page) => {
   // Wait for page to be fully loaded and interactive
-  await page.waitForLoadState("networkidle");
+  await expect(page.locator("#headline")).not.toHaveAttribute("data-loading", "true", {
+    timeout: 15000,
+  });
 
   const shareButton = page.getByRole("button", { name: /Share Your Sunlight/i });
   // Ensure button is ready and stable before clicking
@@ -125,6 +127,10 @@ test("copy feedback appears visible and positioned correctly", async ({ page }) 
   await expect(copyButton).toBeVisible();
   await expect(feedback).toBeHidden();
 
+  // Pause only after the app is ready, so the brief feedback cannot expire
+  // while another browser project is using the CPU.
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 100));
   // Click copy button
   await copyButton.click();
 
@@ -148,7 +154,7 @@ test("copy feedback appears visible and positioned correctly", async ({ page }) 
   expect(Math.abs(feedbackCenterY - buttonCenterY)).toBeLessThan(10);
 
   // Feedback should disappear after the flash duration (~1200ms + transition)
-  await page.waitForTimeout(1500);
+  await page.clock.runFor(1500);
   await expect(feedback).not.toHaveClass(/is-visible/);
 });
 
@@ -233,6 +239,10 @@ test("download feedback appears visible and positioned correctly", async ({ page
   // Feedback should be hidden initially
   await expect(feedback).toBeHidden();
 
+  // Pause only after the app is ready, so the brief feedback cannot expire
+  // while another browser project is using the CPU.
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 100));
   // Click download button
   await downloadButton.click();
 
@@ -256,7 +266,7 @@ test("download feedback appears visible and positioned correctly", async ({ page
   expect(Math.abs(feedbackCenterY - buttonCenterY)).toBeLessThan(10);
 
   // Feedback should disappear after the flash duration (~1200ms + transition)
-  await page.waitForTimeout(1500);
+  await page.clock.runFor(1500);
   await expect(feedback).not.toHaveClass(/is-visible/);
 });
 
