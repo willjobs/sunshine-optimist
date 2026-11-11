@@ -129,6 +129,8 @@ Controllers communicate via callback registration (e.g., `setLocationChangeCallb
 
 GitHub Pages supplies the site's HTTP cache headers. Release URLs and service worker cache names provide invalidation without depending on custom `_headers` rules.
 
+**Lifecycle**: The first service worker claims the current page without reloading it. Updated workers install in the background and wait until all tabs using the previous worker close before activating and removing old caches. The next visit uses the new release. Neither installation nor a background update restarts daylight calculations or resets the current page's selections.
+
 **API requests** (network-only): Location search, reverse geocoding, and coordinate timezone requests require a connection. Each request has a bounded timeout, and stored location data lets the app continue to calculate daylight offline.
 
 **Google Fonts** (network-first with cache fallback): Font CSS and font files from `fonts.googleapis.com` and `fonts.gstatic.com` are cached in a dedicated font cache. On subsequent loads, the service worker tries the network first and updates the cache; offline, it falls back to the cached version.

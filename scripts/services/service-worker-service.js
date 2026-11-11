@@ -45,13 +45,8 @@ export const restoreDateAfterUpdate = () => {
 
 export const initializeServiceWorker = () => {
   if (!("serviceWorker" in navigator)) return;
-  let isRefreshing = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (isRefreshing) return;
-    isRefreshing = true;
-    preserveDateForUpdate();
-    window.location.reload();
-  });
+  // Initial installation claims this document without restarting the app.
+  // Later releases wait for existing tabs to close before activating (sw.js).
   const register = () =>
     navigator.serviceWorker
       .register("/sw.js", { updateViaCache: "none" })

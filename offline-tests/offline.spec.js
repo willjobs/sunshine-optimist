@@ -26,8 +26,7 @@ test("a freshly installed app reloads from Cache Storage while offline", async (
   await page.goto("/");
   await expect(page.getByRole("combobox", { name: "City" })).toHaveValue("Boston, MA");
 
-  // First activation intentionally reloads the document. waitForFunction keeps
-  // evaluating through that navigation instead of racing a destroyed context.
+  // First activation enables offline support without restarting the document.
   await page.waitForFunction(() => {
     const headline = document.querySelector("#headline");
     return navigator.serviceWorker.controller && headline && !headline.hasAttribute("data-loading");
@@ -93,10 +92,8 @@ test("service worker activation preserves the selected custom date", async ({ pa
   await page.locator("#date-input").fill("2026-12-01");
   await page.locator("#date-input").press("Enter");
   await expect(page.locator("#date-reset")).toBeEnabled();
-  const reloaded = page.waitForEvent("load");
   await page.waitForFunction(() => typeof window.releaseWorkerInstall === "function");
   await page.evaluate(() => window.releaseWorkerInstall());
-  await reloaded;
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   await expect(page.locator("#date-input")).toHaveValue("2026-12-01");
   await expect(page.locator("#date-reset")).toBeEnabled();
