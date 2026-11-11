@@ -77,7 +77,7 @@
       href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Manrope:wght@400..700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v186-1ef54f0" />
+    <link rel="stylesheet" href="styles.css?v=v187-22f821f" />
   </head>
   <body>
     <div class="confetti" id="confetti" aria-hidden="true"></div>
@@ -434,7 +434,7 @@
       </section>
 
       <div class="share">
-        <button class="cta" type="button" id="share">
+        <button class="cta" type="button" id="share" disabled>
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -481,6 +481,7 @@
               <pre id="share-preview"></pre>
             </div>
             <div class="share-story-preview" id="share-story-preview">
+              <p id="share-story-status" role="status" hidden></p>
               <img id="share-story-image" alt="Your daylight story image" />
             </div>
           </div>
@@ -637,62 +638,39 @@
     <script type="importmap">
       {
         "imports": {
-          "/scripts/messages.js": "/scripts/messages.js?v=v186-1ef54f0",
-          "/scripts/milestones.js": "/scripts/milestones.js?v=v186-1ef54f0",
-          "/scripts/formatters/formatters.js": "/scripts/formatters/formatters.js?v=v186-1ef54f0",
-          "/scripts/controllers/date-controller.js": "/scripts/controllers/date-controller.js?v=v186-1ef54f0",
-          "/scripts/controllers/daylight-controller.js": "/scripts/controllers/daylight-controller.js?v=v186-1ef54f0",
-          "/scripts/controllers/location-controller.js": "/scripts/controllers/location-controller.js?v=v186-1ef54f0",
-          "/scripts/controllers/milestone-explorer-controller.js": "/scripts/controllers/milestone-explorer-controller.js?v=v186-1ef54f0",
-          "/scripts/controllers/optimistic-controller.js": "/scripts/controllers/optimistic-controller.js?v=v186-1ef54f0",
-          "/scripts/services/geocoding-service.js": "/scripts/services/geocoding-service.js?v=v186-1ef54f0",
-          "/scripts/services/fetch-service.js": "/scripts/services/fetch-service.js?v=v186-1ef54f0",
-          "/scripts/services/milestone-scanner-service.js": "/scripts/services/milestone-scanner-service.js?v=v186-1ef54f0",
-          "/scripts/services/seasonal-insights-service.js": "/scripts/services/seasonal-insights-service.js?v=v186-1ef54f0",
-          "/scripts/services/reverse-geocode-service.js": "/scripts/services/reverse-geocode-service.js?v=v186-1ef54f0",
-          "/scripts/services/storage-service.js": "/scripts/services/storage-service.js?v=v186-1ef54f0",
-          "/scripts/services/timezone-service.js": "/scripts/services/timezone-service.js?v=v186-1ef54f0",
-          "/scripts/state/app-state.js": "/scripts/state/app-state.js?v=v186-1ef54f0",
-          "/scripts/data/major-cities.js": "/scripts/data/major-cities.js?v=v186-1ef54f0",
-          "/scripts/ui/confetti-ui.js": "/scripts/ui/confetti-ui.js?v=v186-1ef54f0",
-          "/scripts/ui/message-ui.js": "/scripts/ui/message-ui.js?v=v186-1ef54f0",
-          "/scripts/ui/milestone-ui.js": "/scripts/ui/milestone-ui.js?v=v186-1ef54f0",
-          "/scripts/ui/share-modal-ui.js": "/scripts/ui/share-modal-ui.js?v=v186-1ef54f0",
-          "/scripts/ui/story-image-ui.js": "/scripts/ui/story-image-ui.js?v=v186-1ef54f0",
-          "/scripts/ui/tooltip-ui.js": "/scripts/ui/tooltip-ui.js?v=v186-1ef54f0",
-          "/scripts/utils/astronomy-utils.js": "/scripts/utils/astronomy-utils.js?v=v186-1ef54f0",
-          "/scripts/utils/date-utils.js": "/scripts/utils/date-utils.js?v=v186-1ef54f0",
-          "/scripts/utils/dom-utils.js": "/scripts/utils/dom-utils.js?v=v186-1ef54f0",
-          "/scripts/utils/location-utils.js": "/scripts/utils/location-utils.js?v=v186-1ef54f0",
-          "/scripts/utils/utils.js": "/scripts/utils/utils.js?v=v186-1ef54f0"
+          "/scripts/messages.js": "/scripts/messages.js?v=v187-22f821f",
+          "/scripts/milestones.js": "/scripts/milestones.js?v=v187-22f821f",
+          "/scripts/formatters/formatters.js": "/scripts/formatters/formatters.js?v=v187-22f821f",
+          "/scripts/controllers/date-controller.js": "/scripts/controllers/date-controller.js?v=v187-22f821f",
+          "/scripts/controllers/daylight-controller.js": "/scripts/controllers/daylight-controller.js?v=v187-22f821f",
+          "/scripts/controllers/location-controller.js": "/scripts/controllers/location-controller.js?v=v187-22f821f",
+          "/scripts/controllers/milestone-explorer-controller.js": "/scripts/controllers/milestone-explorer-controller.js?v=v187-22f821f",
+          "/scripts/controllers/optimistic-controller.js": "/scripts/controllers/optimistic-controller.js?v=v187-22f821f",
+          "/scripts/services/geocoding-service.js": "/scripts/services/geocoding-service.js?v=v187-22f821f",
+          "/scripts/services/service-worker-service.js": "/scripts/services/service-worker-service.js?v=v187-22f821f",
+          "/scripts/services/fetch-service.js": "/scripts/services/fetch-service.js?v=v187-22f821f",
+          "/scripts/services/milestone-scanner-service.js": "/scripts/services/milestone-scanner-service.js?v=v187-22f821f",
+          "/scripts/services/seasonal-insights-service.js": "/scripts/services/seasonal-insights-service.js?v=v187-22f821f",
+          "/scripts/services/reverse-geocode-service.js": "/scripts/services/reverse-geocode-service.js?v=v187-22f821f",
+          "/scripts/services/storage-service.js": "/scripts/services/storage-service.js?v=v187-22f821f",
+          "/scripts/services/timezone-service.js": "/scripts/services/timezone-service.js?v=v187-22f821f",
+          "/scripts/state/app-state.js": "/scripts/state/app-state.js?v=v187-22f821f",
+          "/scripts/data/major-cities.js": "/scripts/data/major-cities.js?v=v187-22f821f",
+          "/scripts/ui/confetti-ui.js": "/scripts/ui/confetti-ui.js?v=v187-22f821f",
+          "/scripts/ui/message-ui.js": "/scripts/ui/message-ui.js?v=v187-22f821f",
+          "/scripts/ui/milestone-ui.js": "/scripts/ui/milestone-ui.js?v=v187-22f821f",
+          "/scripts/ui/share-modal-ui.js": "/scripts/ui/share-modal-ui.js?v=v187-22f821f",
+          "/scripts/ui/story-image-ui.js": "/scripts/ui/story-image-ui.js?v=v187-22f821f",
+          "/scripts/ui/tooltip-ui.js": "/scripts/ui/tooltip-ui.js?v=v187-22f821f",
+          "/scripts/utils/astronomy-utils.js": "/scripts/utils/astronomy-utils.js?v=v187-22f821f",
+          "/scripts/utils/date-utils.js": "/scripts/utils/date-utils.js?v=v187-22f821f",
+          "/scripts/utils/dom-utils.js": "/scripts/utils/dom-utils.js?v=v187-22f821f",
+          "/scripts/utils/location-utils.js": "/scripts/utils/location-utils.js?v=v187-22f821f",
+          "/scripts/utils/utils.js": "/scripts/utils/utils.js?v=v187-22f821f"
         }
       }
     </script>
-    <script src="astronomy-engine/astronomy.browser.min.js?v=v186-1ef54f0"></script>
-    <script type="module" src="scripts/app.js?v=v186-1ef54f0"></script>
-    <script>
-      // Register service worker for offline support
-      if ("serviceWorker" in navigator) {
-        let isRefreshing = false;
-        navigator.serviceWorker.addEventListener("controllerchange", () => {
-          if (isRefreshing) {
-            return;
-          }
-          isRefreshing = true;
-          window.location.reload();
-        });
-
-        window.addEventListener("load", () => {
-          navigator.serviceWorker
-            .register("/sw.js", { updateViaCache: "none" })
-            .then((registration) => {
-              console.log("Service Worker registered:", registration.scope);
-            })
-            .catch((error) => {
-              console.warn("Service Worker registration failed:", error);
-            });
-        });
-      }
-    </script>
+    <script src="astronomy-engine/astronomy.browser.min.js?v=v187-22f821f"></script>
+    <script type="module" src="scripts/app.js?v=v187-22f821f"></script>
   </body>
 </html>

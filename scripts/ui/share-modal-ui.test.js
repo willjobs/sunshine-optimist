@@ -17,6 +17,8 @@ vi.mock("./story-image-ui.js", () => ({
 import {
   _resetSharePreviewGenerations,
   buildShareMessage,
+  captureShareSnapshot,
+  closeShareModal,
   buildShareProgressLine,
   flashActionLabel,
   refreshSharePreview,
@@ -27,6 +29,8 @@ import {
   getShareMode,
   getShareText,
   setActiveLocation,
+  setUpcomingMilestones,
+  setMilestoneIndex,
   setLastGeneratedCanvas,
   setModalSnapshot,
   setShareMode,
@@ -272,8 +276,7 @@ describe("share-modal-ui", () => {
     fetchReverseGeocodeLocationMock.mockReturnValueOnce(deferred.promise);
 
     const privateCanvas = { toDataURL: () => "data:image/png;base64,private" };
-    const staleCanvas = { toDataURL: () => "data:image/png;base64,stale" };
-    generateStoryCanvasMock.mockResolvedValueOnce(privateCanvas).mockResolvedValueOnce(staleCanvas);
+    generateStoryCanvasMock.mockResolvedValueOnce(privateCanvas);
 
     const firstRefresh = refreshStoryPreview(storyImage, headline, null, "en");
 
@@ -294,11 +297,77 @@ describe("share-modal-ui", () => {
     });
     await firstRefresh;
 
-    expect(generateStoryCanvasMock).toHaveBeenCalledTimes(2);
+    expect(generateStoryCanvasMock).toHaveBeenCalledTimes(1);
     expect(generateStoryCanvasMock.mock.calls[0][1]).toBe("My Location");
-    expect(generateStoryCanvasMock.mock.calls[1][1]).toContain("Seattle");
     expect(getLastGeneratedCanvas()).toBe(privateCanvas);
     expect(storyImage.src).toContain("private");
     expect(storyImage.src).not.toContain("stale");
+  });
+});
+
+describe("share snapshot and preview lifecycle", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    _resetSharePreviewGenerations();
+    setSharePrivacyEnabled(false);
+    setModalSnapshot(null);
+    setShareSnapshot(buildShareSnapshot());
+    setLastGeneratedCanvas(null);
+    setUpcomingMilestones([]);
+    setMilestoneIndex(0);
+    document.body.innerHTML =
+      '<dialog id="share-modal"></dialog><img id="share-story-image" src="data:image/png;base64,old"><button id="share-download-button"></button><button data-share="web-story"></button>';
+  });
+  it("freezes the selected milestone before an async location lookup", async () => {
+    const deferred = createDeferred();
+    fetchReverseGeocodeLocationMock.mockReturnValueOnce(deferred.promise);
+    setUpcomingMilestones([{ title: "Sunsets get later", offsetDays: 5 }]);
+    const headline = document.createElement("h2");
+    headline.textContent = "Frozen headline";
+    captureShareSnapshot(headline, null);
+    const pending = buildShareMessage(headline, null, () => ({}), "en", "UTC");
+    setUpcomingMilestones([{ title: "Sunrises get earlier", offsetDays: 3 }]);
+    setShareSnapshot({ ...buildShareSnapshot(), dateParts: { year: 2030, month: 1, day: 1 } });
+    headline.textContent = "New headline";
+    deferred.resolve(null);
+    const message = await pending;
+    expect(message).toContain("Frozen headline");
+    expect(message).toContain("sunsets get later");
+    expect(message).not.toContain("sunrises get earlier");
+    expect(message).not.toContain("2030");
+  });
+  it("clears old exports while pending and prevents a closed preview from publishing", async () => {
+    const canvas = { toDataURL: () => "data:image/png;base64,new" };
+    setLastGeneratedCanvas(canvas);
+    const deferred = createDeferred();
+    fetchReverseGeocodeLocationMock.mockReturnValueOnce(deferred.promise);
+    const image = document.getElementById("share-story-image");
+    const pending = refreshStoryPreview(image, null, null, "en");
+    expect(getLastGeneratedCanvas()).toBe(null);
+    expect(image.hasAttribute("src")).toBe(false);
+    expect(image.hidden).toBe(true);
+    expect(document.getElementById("share-download-button").disabled).toBe(true);
+    expect(document.querySelector('[data-share="web-story"]').disabled).toBe(true);
+    closeShareModal(document.getElementById("share-modal"));
+    deferred.resolve(null);
+    await pending;
+    expect(getLastGeneratedCanvas()).toBe(null);
+    expect(generateStoryCanvasMock).not.toHaveBeenCalled();
+  });
+  it("keeps failed generation exports disabled and enables a completed preview", async () => {
+    fetchReverseGeocodeLocationMock.mockResolvedValue(null);
+    generateStoryCanvasMock.mockRejectedValueOnce(new Error("canvas failed"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const image = document.getElementById("share-story-image");
+    await refreshStoryPreview(image, null, null, "en");
+    expect(getLastGeneratedCanvas()).toBe(null);
+    expect(document.getElementById("share-download-button").disabled).toBe(true);
+    const canvas = { toDataURL: () => "data:image/png;base64,new" };
+    generateStoryCanvasMock.mockResolvedValueOnce(canvas);
+    await refreshStoryPreview(image, null, null, "en");
+    expect(getLastGeneratedCanvas()).toBe(canvas);
+    expect(image.src).toContain("base64,new");
+    expect(document.getElementById("share-download-button").disabled).toBe(false);
+    warn.mockRestore();
   });
 });

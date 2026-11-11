@@ -9,7 +9,12 @@ export class RequestTimeoutError extends Error {
 
 export const fetchWithTimeout = async (
   resource,
-  { signal, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, ...options } = {}
+  {
+    signal,
+    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+    consume = (response) => response,
+    ...options
+  } = {}
 ) => {
   const controller = new AbortController();
   let didTimeout = false;
@@ -33,10 +38,11 @@ export const fetchWithTimeout = async (
   }
 
   try {
-    return await fetch(resource, {
+    const response = await fetch(resource, {
       ...options,
       signal: controller.signal,
     });
+    return await consume(response);
   } catch (error) {
     if (didTimeout) {
       throw new RequestTimeoutError();
@@ -51,3 +57,16 @@ export const fetchWithTimeout = async (
     }
   }
 };
+
+/** Fetch and consume JSON under one deadline, including the response body. */
+export const fetchJsonWithTimeout = (
+  resource,
+  { errorMessage = "Request failed.", ...options } = {}
+) =>
+  fetchWithTimeout(resource, {
+    ...options,
+    consume: async (response) => {
+      if (!response.ok) throw new Error(errorMessage);
+      return response.json();
+    },
+  });

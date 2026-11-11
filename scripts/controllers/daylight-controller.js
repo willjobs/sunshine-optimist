@@ -908,6 +908,14 @@ export const updateDaylightForLocation = async ({
 
   updateGeneration += 1;
   const thisGeneration = updateGeneration;
+  updateShareSnapshot(null);
+  if (dom.shareButton) dom.shareButton.disabled = true;
+  stopOptimisticRotation(dom.headline, dom.lede, {
+    container: dom.optimisticMessage,
+    dots: dom.optimisticDots,
+    prevButton: dom.optimisticPrev,
+    nextButton: dom.optimisticNext,
+  });
 
   const timeZone = location.timezone || fallbackTimeZone;
   const hemisphere = location.latitude < 0 ? "south" : "north";
@@ -1049,4 +1057,5 @@ export const updateDaylightForLocation = async ({
     fractionOfLossCompleted: deltas.fractionOfLossCompleted,
     polarState,
   });
+  if (dom.shareButton) dom.shareButton.disabled = false;
 };

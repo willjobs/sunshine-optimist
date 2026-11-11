@@ -250,3 +250,19 @@ test("a dynamic half-hour sunset celebrates on its crossing day", async ({ page 
   await expect(page.locator("#headline")).toHaveText("Sunset is now after 7:30 PM!");
   await expect(page.locator("#confetti .confetti-piece")).toHaveCount(72);
 });
+
+test("a one-event polar transition describes the missing pair accurately", async ({ page }) => {
+  const alert = {
+    ...BOSTON,
+    name: "Alert",
+    country: "Canada",
+    country_code: "CA",
+    latitude: 82.5018,
+    longitude: -62.3481,
+    timezone: "America/Iqaluit",
+  };
+  await load(page, "2026-09-05", alert);
+  await expect(page.locator("#share")).toBeEnabled();
+  await expect(page.locator("#sunset-time")).not.toHaveText("—");
+  await expect(page.locator("#lede")).toHaveText("Sunrise and sunset don’t both occur today.");
+});

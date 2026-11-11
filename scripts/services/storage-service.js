@@ -21,7 +21,7 @@ const isValidStoredLocation = (location) =>
   Number.isFinite(location.longitude) &&
   location.longitude >= -180 &&
   location.longitude <= 180 &&
-  (isMissing(location.timezone) || isValidTimeZone(location.timezone)) &&
+  isValidTimeZone(location.timezone) &&
   (isMissing(location.elevation) || Number.isFinite(location.elevation)) &&
   (isMissing(location.isCurrent) || typeof location.isCurrent === "boolean") &&
   ["admin1", "admin2", "country", "country_code"].every(

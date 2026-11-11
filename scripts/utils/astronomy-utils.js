@@ -304,7 +304,7 @@ export const createAstronomyContext = (location, timeZone) => {
         }
       }
 
-      const daylightMinutes = getDaylightMinutes(events);
+      const daylightMinutes = getRankingDaylight(dateParts);
       daylightByDay.push(daylightMinutes);
       if (daylightMinutes !== null) {
         if (shortestDayMinutes === null || daylightMinutes < shortestDayMinutes) {
@@ -385,8 +385,8 @@ export const createAstronomyContext = (location, timeZone) => {
   const getYearlySunExtremesAsync = async (year, todayDaylight) =>
     extractExtremes(await buildYearSummaryAsync(year), todayDaylight);
 
-  // Ranking includes full polar days/nights, but leaves incomplete transition
-  // days unknown. Keep the existing null model for the main daylight statistics.
+  // Aggregates include full polar days/nights, but leave incomplete transition
+  // days unknown. The raw event-duration API keeps its null model.
   const getRankingDaylight = (parts) => {
     const daylight = getDaylightMinutesForDateParts(parts);
     if (Number.isFinite(daylight)) return daylight;
@@ -567,7 +567,7 @@ export const createAstronomyContext = (location, timeZone) => {
     let count = 0;
 
     const processDay = (year, month, day) => {
-      const daylight = getDaylightMinutesForDateParts({ year, month, day });
+      const daylight = getRankingDaylight({ year, month, day });
       if (daylight !== null) {
         total += daylight;
         count += 1;

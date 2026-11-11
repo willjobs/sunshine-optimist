@@ -5,6 +5,10 @@
  * and coordinates between UI modules, services, and state management.
  */
 
+import {
+  initializeServiceWorker,
+  restoreDateAfterUpdate,
+} from "./services/service-worker-service.js";
 import { createDateFormatter } from "./utils/date-utils.js";
 import { setInputValue } from "./utils/dom-utils.js";
 import {
@@ -237,7 +241,7 @@ const handleDaylightUpdate = (location) => {
     updateOptimisticMessage,
     formatters,
     fallbackTimeZone: FALLBACK_TIMEZONE,
-  });
+  }).catch((error) => console.warn("Daylight calculation failed:", error));
 };
 
 document.addEventListener("visibilitychange", () => {
@@ -783,6 +787,8 @@ window.SunshineOptimistDebug = {
 // Initialize Application
 // ============================================================================
 
+restoreDateAfterUpdate();
+initializeServiceWorker();
 syncDatePicker(dateInput, dateReset, datePicker, FALLBACK_TIMEZONE);
 updateGeolocateButton();
 initializeLocation();

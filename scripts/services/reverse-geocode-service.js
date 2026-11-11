@@ -9,7 +9,7 @@ import {
   getReverseGeocodePromise,
   setReverseGeocodePromise,
 } from "../state/app-state.js";
-import { fetchWithTimeout } from "./fetch-service.js";
+import { fetchJsonWithTimeout } from "./fetch-service.js";
 
 const REVERSE_GEOCODE_URL = "https://api.bigdatacloud.net/data/reverse-geocode-client";
 const getCacheKey = (location) => `${location.latitude},${location.longitude}`;
@@ -74,11 +74,9 @@ export const fetchReverseGeocodeLocation = async (location, languageCode = "en")
       languageCode
     )}`;
     try {
-      const response = await fetchWithTimeout(url);
-      if (!response.ok) {
-        throw new Error("Failed to reverse geocode location.");
-      }
-      const data = await response.json();
+      const data = await fetchJsonWithTimeout(url, {
+        errorMessage: "Failed to reverse geocode location.",
+      });
       return mapReverseGeocodeResponse(data, location);
     } catch (error) {
       if (error?.name === "AbortError" || error?.name === "TimeoutError") {
