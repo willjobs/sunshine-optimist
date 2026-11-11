@@ -111,8 +111,8 @@ export const OPTIMISTIC_MESSAGES = [
   {
     id: "loss-behind",
     group: null,
-    headline: "{##%} of the annual daylight decrease is behind you.",
-    lede: "The days will start getting longer again!",
+    headline: "You’ve made it through {##%} of the year’s daylight loss.",
+    lede: "Longer days are on their way.",
     months: [11, 12],
     data_needs: ["fraction_of_loss_completed"],
     getValue: (d) => d.fraction_of_loss_completed * 100,
@@ -191,7 +191,7 @@ export const OPTIMISTIC_MESSAGES = [
   {
     id: "late-summer-evenings",
     group: null,
-    headline: "You have around {## weeks} of sunset after 7pm.",
+    headline: "You still have around {## weeks} of sunset after 7pm.",
     lede: "Enjoy those long summer evenings!",
     months: [7, 8, 9],
     data_needs: ["weeks_with_sunset_after_7pm_remaining"],
