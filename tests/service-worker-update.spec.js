@@ -21,7 +21,7 @@ test("Safari installs a complete versioned cache and starts the app", async ({
 
   await expect
     .poll(async () =>
-      // First activation reloads the page; retry a read interrupted by that navigation.
+      // Cache population and controller activation complete asynchronously.
       page
         .evaluate(async () => {
           if (!navigator.serviceWorker.controller) return null;

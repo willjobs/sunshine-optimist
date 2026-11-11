@@ -5,7 +5,7 @@
  * Uses a cache-first strategy for static assets.
  */
 
-const CACHE_VERSION = "v188-c25eece";
+const CACHE_VERSION = "v189-ad02194";
 const STATIC_CACHE_NAME = `sunshine-optimist-static-${CACHE_VERSION}`;
 const FONT_CACHE_NAME = "sunshine-optimist-fonts-v1";
 const FONT_ORIGINS = ["https://fonts.googleapis.com", "https://fonts.gstatic.com"];
@@ -59,17 +59,13 @@ const precacheRequest = (path) =>
  */
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(STATIC_CACHE_NAME)
-      .then((cache) => {
-        // eslint-disable-next-line no-console
-        console.log("[SW] Caching static assets");
-        return cache.addAll(STATIC_ASSETS.map(precacheRequest));
-      })
-      .then(() => {
-        // Activate immediately without waiting for existing tabs to close
-        return self.skipWaiting();
-      })
+    caches.open(STATIC_CACHE_NAME).then((cache) => {
+      // eslint-disable-next-line no-console
+      console.log("[SW] Caching static assets");
+      // Keep updates waiting until existing tabs close, so a new release cannot
+      // replace their worker or delete the cache they are still using.
+      return cache.addAll(STATIC_ASSETS.map(precacheRequest));
+    })
   );
 });
 
@@ -99,7 +95,7 @@ self.addEventListener("activate", (event) => {
         );
       })
       .then(() => {
-        // Take control of all pages immediately
+        // Enable offline support on the first visit without reloading the page.
         return self.clients.claim();
       })
   );
