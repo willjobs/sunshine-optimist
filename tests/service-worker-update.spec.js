@@ -21,16 +21,23 @@ test("Safari installs a complete versioned cache and starts the app", async ({
 
   await expect
     .poll(async () =>
-      page.evaluate(async () => {
-        if (!navigator.serviceWorker.controller) return null;
-        const name = (await caches.keys()).find((key) =>
-          key.startsWith("sunshine-optimist-static-")
-        );
-        if (!name) return null;
-        const cache = await caches.open(name);
-        const requests = await cache.keys();
-        return requests.find((request) => request.url.includes("/scripts/state/app-state.js"))?.url;
-      })
+      // First activation reloads the page; retry a read interrupted by that navigation.
+      page
+        .evaluate(async () => {
+          if (!navigator.serviceWorker.controller) return null;
+          const name = (await caches.keys()).find((key) =>
+            key.startsWith("sunshine-optimist-static-")
+          );
+          if (!name) return null;
+          const cache = await caches.open(name);
+          const requests = await cache.keys();
+          return requests.find((request) => request.url.includes("/scripts/state/app-state.js"))
+            ?.url;
+        })
+        .catch((error) => {
+          if (error.message.includes("Execution context was destroyed")) return null;
+          throw error;
+        })
     )
     .toMatch(/\/scripts\/state\/app-state\.js\?v=v\d+-[a-f0-9]+$/);
 });
