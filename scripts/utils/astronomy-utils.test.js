@@ -360,6 +360,9 @@ describe("polar region daylight calculations", () => {
     const normalizedMinutes = context.getSunsetMinutesForDateParts(nextDaySunset.dateParts);
     expect(rawMinutes).toBeLessThan(24 * 60);
     expect(normalizedMinutes).toBeGreaterThanOrEqual(24 * 60);
-    expect(normalizedMinutes - rawMinutes).toBeCloseTo(24 * 60, 5);
+    expect(normalizedMinutes - rawMinutes).toBeCloseTo(
+      24 * 60 + nextDaySunset.sunsetDate.getUTCMilliseconds() / 60000,
+      5
+    );
   });
 });

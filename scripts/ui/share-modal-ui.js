@@ -22,10 +22,9 @@ import {
   formatDuration,
   formatShareDateFromParts,
   formatShareMinutes,
-  formatShareDayCount,
   buildShareBar,
   formatSharePercent,
-  lowerCaseFirstLetter,
+  formatMilestoneCountdown,
 } from "../formatters/formatters.js";
 import {
   CURRENT_LOCATION_LABEL,
@@ -142,10 +141,9 @@ export const buildShareProgressLine = (snapshot) => {
     if (!Number.isFinite(fraction)) {
       return "";
     }
-    const percentText = formatSharePercent(fraction);
-    return `${buildShareBar(fraction)} Progress towards shortest day${
-      percentText ? ` (${percentText})` : ""
-    }`.trim();
+    if (fraction < 0.75) return "";
+    const percentText = `${Math.floor(clampValue(fraction, 0, 1) * 100)}%`;
+    return `${buildShareBar(fraction)} ${percentText} of the annual daylight decrease is behind you`.trim();
   }
   if (!Number.isFinite(snapshot.longestDayMinutes)) {
     return "";
@@ -195,16 +193,16 @@ const buildShareMilestoneLine = () => {
     return "📈 Upcoming milestone to be announced";
   }
   const index = getMilestoneIndex();
-  const active = upcoming[index] || upcoming[0];
+  const selected = upcoming[index] || upcoming[0];
+  const active = selected?.informationalOnly
+    ? upcoming.find((item) => !item.informationalOnly)
+    : selected;
   if (!active) {
     return "📈 Upcoming milestone to be announced";
   }
-  const title = lowerCaseFirstLetter(active.title || "");
-  const dayCount = formatShareDayCount(active.offsetDays);
-  if (!dayCount) {
-    return `📈 ${title || active.title}`;
-  }
-  return `📈 ${dayCount} until ${title || active.title}`;
+  if (active.offsetDays > 35) return "";
+  const countdown = formatMilestoneCountdown(active);
+  return countdown ? `📈 ${countdown}` : "";
 };
 
 const formatShareDaylight = (snapshot) => {

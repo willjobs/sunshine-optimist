@@ -7,6 +7,7 @@ import {
   formatWeeksValue,
   formatShareDayCount,
   formatMilestoneAway,
+  formatMilestoneCountdown,
   formatDeltaStatement,
   formatSharePercent,
   buildShareBar,
@@ -17,6 +18,26 @@ import {
 } from "./formatters.js";
 
 describe("formatters", () => {
+  it("formats exact whole-week countdowns truthfully", () => {
+    for (const days of [21, 28, 35, 42]) {
+      expect(formatDaysValue(days)).toBe(`${days / 7} weeks`);
+      expect(
+        formatMilestoneCountdown({ countdownTitle: "sunsets get later", offsetDays: days })
+      ).toBe(`Only ${days / 7} weeks until sunsets get later!`);
+    }
+    expect(formatDaysValue(20)).toBe("less than 3 weeks");
+    expect(formatMilestoneCountdown({ countdownTitle: "sunsets get later", offsetDays: 20 })).toBe(
+      "Less than 3 weeks until sunsets get later!"
+    );
+  });
+  it("preserves singular days and suppresses informational countdowns", () => {
+    expect(formatMilestoneCountdown({ countdownTitle: "spring begins", offsetDays: 1 })).toBe(
+      "Only 1 day until spring begins!"
+    );
+    expect(
+      formatMilestoneCountdown({ title: "First sunset", informationalOnly: true, offsetDays: 3 })
+    ).toBe("");
+  });
   it("formats durations and minutes", () => {
     expect(formatDuration(45)).toBe("45m");
     expect(formatDuration(75)).toBe("1h 15m");

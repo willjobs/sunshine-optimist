@@ -74,6 +74,9 @@ test("choosing an explored milestone city updates the active city", async ({ pag
 
 test("delta tooltip opens with keyboard and closes on escape", async ({ page }) => {
   await page.goto("/");
+  await expect(page.locator("#headline")).not.toHaveAttribute("data-loading", "true", {
+    timeout: 15000,
+  });
 
   const tooltipTarget = page.locator("#sunset-earliest-reference");
   await expect(tooltipTarget).toHaveAttribute("data-tooltip", /.+/);

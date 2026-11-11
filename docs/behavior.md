@@ -114,14 +114,28 @@ Messages are filtered by:
 
 1. Adjusted month (hemisphere-aware: southern hemisphere months +6 mod 12)
 2. Required data keys (`data_needs`)
-3. Optional comparison expressions (`additional_requirements`)
-4. Positive return value from `getValue()` function (values that round to 0 are excluded)
-5. If multiple valid messages share the same non-null `group`, only one is kept: the one with the highest `getValue()` result, except groups `sunset_countdown` and `milestone_countdown` which keep the lowest value
+3. Optional measured-season and multi-condition predicates (`when`)
+4. Raw unrounded values from `getValue()` meet the message-specific minimum and maximum thresholds
+5. If multiple valid messages share the same non-null `group`, only one is kept: the one with the highest `getValue()` result, except `milestone_countdown`, which keeps the nearest event; eligible acceleration has priority over generic weekly gain
 6. The final list is capped
+
+### Copy constraints
+
+- Sunset comparisons require 10 minutes above winter's earliest (after its turn), 30 minutes above January 1, or 15 minutes above last month (after winter, with days lengthening)
+- Monthly/cumulative daylight gain and the two-week forecast require 15 minutes; daylight after 5pm requires 30 minutes
+- Month-end must be future, at least 30 minutes above the minimum and 10 minutes above today
+- Comparisons above the shortest day and average winter day require 90 minutes
+- Weekly gain requires 10 minutes; today's gain requires one minute. Acceleration additionally requires increasing measured weekly gains before local spring equinox
+- Annual daylight decrease progress requires 75% completed and shortening days; loss slowdown requires a 25% reduction between equal seven-day windows four weeks apart
+- Regained daylight requires 25% of a seasonal range of at least one hour, with days lengthening
+- Late-evening copy requires at least two full weeks of sunsets after 7pm; daylight percentile requires 60%; near-longest requires a gap at most 30 minutes before summer solstice
+- Dedicated turnaround countdowns are limited to 35 days; the largest-increase countdown is limited to 42 days
+- The rear-view message appears for the first 14 days after the shortest day, while lengthening
+- Remaining loss, percentage of time toward shortest day, and weekly loss headlines are retired
 
 ### Display
 
-- Multiple valid messages: rotates every 12 seconds with fade animation
+- Multiple valid messages: rotates every 15 seconds with fade animation
 - First message selected randomly, then sequential
 - Dot indicators are clickable/tappable to jump to a specific message; clicking a dot resets the rotation timer
 - No valid messages: shows fallback headline
@@ -141,10 +155,10 @@ Messages are filtered by:
 **Computed** (from `daylight-controller.js`):
 
 - Equinoxes and solstices
-- Earliest sunset, shortest day, longest day
+- Later sunsets begin, longer days begin, longest day of the year
 - First 12hr day
-- Finished the 10 darkest weeks of the year
-- Next half-hour sunset
+- 10 darkest weeks behind you (actual 70 least-daylight dates)
+- Next half-hour sunset, including its crossing-day celebration
 - DST start
 
 ### Milestone Card
@@ -155,9 +169,12 @@ Messages are filtered by:
 
 ### Today's Milestone
 
-- Stops message rotation, displays milestone headline
+- Stops message rotation, displays milestone headline; sunrise return and winter turnarounds take priority over simultaneous events
 - Triggers confetti (5 seconds, cached to prevent repeat triggers)
-- Milestone excluded from carousel
+- Celebratory milestone excluded from carousel
+- First sunset after midnight sun remains an informational card on its return day; it cannot trigger confetti, a headline, or an optimistic shared countdown
+- Winter turning points use actual local daily increases, with quantified positive two-week outlooks
+- Compact titles and full countdown sentences are separate fields
 
 ## Share Feature
 

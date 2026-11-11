@@ -1,399 +1,268 @@
 import { describe, it, expect } from "vitest";
-import { getOptimisticMessageOptions } from "./messages.js";
+import { OPTIMISTIC_MESSAGES, getOptimisticMessageOptions } from "./messages.js";
 
-describe("messages", () => {
-  it("shows the daylight twin only in August–September north and February–March south", () => {
-    const data = { daylight_twin_date: "March 18" };
-    for (const hemisphere of ["north", "south"]) {
-      const allowedMonths = hemisphere === "south" ? [2, 3] : [8, 9];
-      for (const month of allowedMonths) {
-        expect(getOptimisticMessageOptions(data, month, hemisphere)[0]?.headline).toContain(
-          "March 18"
-        );
+const options = (data, month = 2, hemisphere = "north", milestones = []) =>
+  getOptimisticMessageOptions(data, month, hemisphere, milestones);
+const find = (id, data, month = 2, hemisphere = "north") =>
+  options(data, month, hemisphere).find((message) => message.id === id);
+
+const minimumCases = [
+  [
+    "sunset-earliest",
+    1,
+    10,
+    (x) => ({ sunset_today: 900 + x, sunset_earliest: 900, after_sunset_turnaround: 1 }),
+  ],
+  ["sunset-start-of-year", 2, 30, (x) => ({ sunset_today: 900 + x, sunset_start_of_year: 900 })],
+  [
+    "sunset-month",
+    2,
+    15,
+    (x) => ({
+      sunset_today: 900 + x,
+      sunset_one_month_ago: 900,
+      after_winter_solstice: 1,
+      days_are_lengthening: 1,
+    }),
+  ],
+  [
+    "month-end",
+    2,
+    30,
+    (x) => ({
+      daylight_minimum: 500,
+      daylight_at_end_of_month: 500 + x,
+      daylight_today: 500,
+      days_until_month_end: 10,
+    }),
+  ],
+  [
+    "since-shortest",
+    1,
+    15,
+    (x) => ({ daylight_today: 500 + x, daylight_minimum: 500, days_are_lengthening: 1 }),
+  ],
+  ["after-5pm", 2, 30, (x) => ({ daylight_after_5pm_today: x })],
+  ["daylight-month", 2, 15, (x) => ({ daylight_today: 500 + x, daylight_one_month_ago: 500 })],
+  ["above-shortest", 9, 90, (x) => ({ daylight_today: 500 + x, daylight_minimum: 500 })],
+  [
+    "loss-behind",
+    11,
+    75,
+    (x) => ({ fraction_of_loss_completed: x / 100, daylight_gain_today: -1 }),
+  ],
+  ["two-weeks", 1, 15, (x) => ({ daylight_today: 500, daylight_in_14_days: 500 + x })],
+  [
+    "accelerating",
+    2,
+    10,
+    (x) => ({
+      daylight_gain_this_week: x,
+      before_spring_equinox: 1,
+      after_winter_solstice: 1,
+      gains_are_accelerating: 1,
+    }),
+  ],
+  ["daily-gain", 2, 1, (x) => ({ daylight_gain_today: x })],
+  ["weekly-gain", 2, 10, (x) => ({ daylight_gain_this_week: x })],
+  [
+    "loss-slowdown",
+    11,
+    25,
+    (x) => ({ daylight_loss_slowdown_percent: x, daylight_gain_today: -1 }),
+  ],
+  ["late-summer-evenings", 8, 2, (x) => ({ weeks_with_sunset_after_7pm_remaining: x })],
+  [
+    "regained",
+    2,
+    25,
+    (x) => ({
+      daylight_today: 500 + x,
+      daylight_minimum: 500,
+      daylight_maximum: 600,
+      days_are_lengthening: 1,
+    }),
+  ],
+  ["daylight-percentile", 6, 60, (x) => ({ days_with_less_daylight: x, days_in_year: 100 })],
+  [
+    "above-winter-average",
+    10,
+    90,
+    (x) => ({ daylight_today: 500 + x, average_winter_daylight: 500 }),
+  ],
+];
+
+describe("optimistic message thresholds", () => {
+  for (const [id, month, minimum, dataFor] of minimumCases) {
+    it(`${id} rejects a raw value below ${minimum} even if it would round up`, () => {
+      expect(find(id, dataFor(minimum - 0.4), month)).toBeUndefined();
+    });
+    it(`${id} accepts exactly ${minimum} and a larger value in both hemispheres`, () => {
+      for (const value of [minimum, minimum + 1]) {
+        expect(find(id, dataFor(value), month)).toBeDefined();
+        expect(find(id, dataFor(value), ((month + 5) % 12) + 1, "south")).toBeDefined();
       }
-      for (let month = 1; month <= 12; month += 1) {
-        if (!allowedMonths.includes(month)) {
-          expect(getOptimisticMessageOptions(data, month, hemisphere)).toHaveLength(0);
-        }
-      }
+    });
+  }
+  for (const [id, month, field, max] of [
+    ["longer-days-countdown", 11, "days_until_longer_days", 35],
+    ["later-sunsets-countdown", 11, "days_until_later_sunsets", 35],
+    ["largest-increase", 2, "days_until_max_daily_gain", 42],
+    ["rear-view", 12, "days_since_shortest_day", 14],
+  ]) {
+    it(`${id} accepts its first and last day, excludes zero and beyond the limit`, () => {
+      for (const value of [1, max])
+        expect(find(id, { [field]: value, days_are_lengthening: 1 }, month)).toBeDefined();
+      for (const value of [0, -1, max + 1, NaN, null])
+        expect(find(id, { [field]: value, days_are_lengthening: 1 }, month)).toBeUndefined();
+    });
+  }
+  it("rejects 89.6 minutes above the winter average", () => {
+    expect(
+      find("above-winter-average", { daylight_today: 589.6, average_winter_daylight: 500 }, 10)
+    ).toBeUndefined();
+  });
+  it("requires month-end to be in the future and at least 10 minutes brighter than today", () => {
+    const data = {
+      daylight_minimum: 500,
+      daylight_today: 600,
+      daylight_at_end_of_month: 610,
+      days_until_month_end: 1,
+    };
+    expect(find("month-end", data)).toBeDefined();
+    expect(find("month-end", { ...data, daylight_at_end_of_month: 609.6 })).toBeUndefined();
+    expect(find("month-end", { ...data, days_until_month_end: 0 })).toBeUndefined();
+  });
+  it("requires the month sunset claim to be after winter and during lengthening days", () => {
+    const data = minimumCases[2][3](20);
+    expect(find("sunset-month", { ...data, after_winter_solstice: 0 })).toBeUndefined();
+    expect(find("sunset-month", { ...data, days_are_lengthening: 0 })).toBeUndefined();
+    expect(find("sunset-month", data).lede).toBe("The days are definitely getting longer!");
+  });
+  it("requires a meaningful seasonal range and actual lengthening for regained percentage", () => {
+    const data = {
+      daylight_today: 535,
+      daylight_minimum: 500,
+      daylight_maximum: 550,
+      days_are_lengthening: 1,
+    };
+    expect(find("regained", data)).toBeUndefined();
+    expect(
+      find("regained", { ...data, daylight_maximum: 600, days_are_lengthening: 0 })
+    ).toBeUndefined();
+  });
+  it("only describes loss progress and slowdown while days shorten", () => {
+    const data = {
+      fraction_of_loss_completed: 0.9,
+      daylight_loss_slowdown_percent: 30,
+      daylight_gain_today: 1,
+    };
+    expect(find("loss-behind", data, 11)).toBeUndefined();
+    expect(find("loss-slowdown", data, 11)).toBeUndefined();
+  });
+  it("requires all acceleration checks and selects it over the identical weekly quantity", () => {
+    const data = {
+      daylight_gain_this_week: 20,
+      daylight_gain_today: 3,
+      before_spring_equinox: 1,
+      after_winter_solstice: 1,
+      gains_are_accelerating: 1,
+    };
+    expect(find("accelerating", data)).toBeDefined();
+    expect(find("weekly-gain", data)).toBeUndefined();
+    for (const key of [
+      "before_spring_equinox",
+      "after_winter_solstice",
+      "gains_are_accelerating",
+    ]) {
+      expect(find("accelerating", { ...data, [key]: 0 })).toBeUndefined();
+      expect(find("weekly-gain", { ...data, [key]: 0 })).toBeDefined();
     }
-    expect(getOptimisticMessageOptions({}, 9, "north")).toHaveLength(0);
   });
-  it("filters messages by month and fills placeholders", () => {
-    const data = {
-      sunset_today: 1000,
-      sunset_earliest: 900,
-    };
-
-    const optionsNorth = getOptimisticMessageOptions(data, 1, "north");
-    expect(optionsNorth).toHaveLength(1);
-    expect(optionsNorth[0].headline).toContain("later than it was at its earliest");
-    expect(optionsNorth[0].headline).not.toContain("{##");
-
-    const optionsSouth = getOptimisticMessageOptions(data, 7, "south");
-    expect(optionsSouth).toHaveLength(1);
-
-    const optionsWrongMonth = getOptimisticMessageOptions(data, 6, "north");
-    expect(optionsWrongMonth).toHaveLength(0);
+  it("only shows near-longest within 30 raw minutes and before summer", () => {
+    const data = { daylight_today: 870, daylight_maximum: 900, before_summer_solstice: 1 };
+    expect(find("near-longest", data, 6)).toBeDefined();
+    expect(find("near-longest", { ...data, daylight_today: 869.6 }, 6)).toBeUndefined();
+    expect(find("near-longest", { ...data, before_summer_solstice: 0 }, 6)).toBeUndefined();
   });
-
-  it("excludes messages when requirements are not met", () => {
-    const data = {
-      sunset_today: 900,
-      sunset_earliest: 900,
-    };
-    const options = getOptimisticMessageOptions(data, 1, "north");
-    expect(options).toHaveLength(0);
+  it("uses the actual brightest-day ranking flag", () => {
+    expect(find("brightest-weeks", { is_in_brightest_70_days: 1 }, 6).headline).toBe(
+      "You're in the 10 weeks with the most daylight of the year."
+    );
+    expect(find("brightest-weeks", { is_in_brightest_70_days: 0 }, 6)).toBeUndefined();
   });
-
-  it("excludes messages when placeholder rounds to zero", () => {
-    const data = {
-      sunset_today: 1000.4,
-      sunset_earliest: 1000,
-    };
-    const options = getOptimisticMessageOptions(data, 1, "north");
-    expect(options).toHaveLength(0);
+  it("removes all three retired messages and the duplicate sunset turnaround rotation", () => {
+    const copy = OPTIMISTIC_MESSAGES.map((m) => m.headline).join(" ");
+    expect(copy).not.toMatch(
+      /remain to lose|way to the shortest day|losing less than|Sunsets are getting later again!/
+    );
   });
+  it("keeps the unannotated daylight twin unchanged", () => {
+    const data = { daylight_twin_date: "March 18" };
+    expect(find("daylight-twin", data, 9).headline).toBe(
+      "Today has as much daylight as March 18. They're twins!"
+    );
+    expect(find("daylight-twin", data, 3, "south")).toBeDefined();
+    expect(find("daylight-twin", data, 7)).toBeUndefined();
+  });
+  it("rejects missing, null, and nonfinite input data", () => {
+    for (const value of [null, undefined, Infinity, NaN, ""]) {
+      expect(find("after-5pm", { daylight_after_5pm_today: value })).toBeUndefined();
+    }
+    expect(options({})).toEqual([]);
+  });
+});
 
-  it("replaces empty lede with milestone countdown when milestones provided", () => {
-    // This message has lede: null - "In two weeks, you'll have {## minutes} more daylight."
-    const data = {
-      daylight_today: 600,
-      daylight_in_14_days: 650,
-    };
-    const upcomingMilestones = [
-      { title: "Spring equinox", offsetDays: 15 },
-      { title: "Longest day", offsetDays: 90 },
+describe("milestone countdowns in messages", () => {
+  const milestone = {
+    title: "Later sunsets begin",
+    countdownTitle: "sunsets start getting later again",
+    offsetDays: 5,
+  };
+  it("uses a complete benefit sentence, not the compact card title", () => {
+    expect(options({}, 11, "north", [milestone])[0]).toMatchObject({
+      headline: "Only 5 days until sunsets start getting later again!",
+      lede: "You're almost there :)",
+    });
+  });
+  it("filters informational entries first and sorts the remaining milestones", () => {
+    const list = [
+      { title: "First sunset after midnight sun", informationalOnly: true, offsetDays: 1 },
+      { ...milestone, offsetDays: 30 },
+      milestone,
     ];
-
-    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
-    const messageWithNullLede = options.find((opt) =>
-      opt.headline.includes("In two weeks, you'll have")
-    );
-
-    expect(messageWithNullLede).toBeDefined();
-    expect(messageWithNullLede.lede).toBe("Only 15 days until the spring equinox!");
-  });
-
-  it("uses singular 'day' for 1 day until milestone", () => {
-    const data = {
-      daylight_today: 600,
-      daylight_in_14_days: 650,
-    };
-    const upcomingMilestones = [{ title: "Shortest day", offsetDays: 1 }];
-
-    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
-    const messageWithNullLede = options.find((opt) =>
-      opt.headline.includes("In two weeks, you'll have")
-    );
-
-    expect(messageWithNullLede).toBeDefined();
-    expect(messageWithNullLede.lede).toBe("Only 1 day until the shortest day!");
-  });
-
-  it("keeps original lede when not empty", () => {
-    const data = {
-      sunset_today: 1000,
-      sunset_earliest: 900,
-    };
-    const upcomingMilestones = [{ title: "Spring equinox", offsetDays: 15 }];
-
-    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
-
-    const sunsetMessage = options.find((opt) =>
-      opt.headline.includes("later than it was at its earliest")
-    );
-    expect(sunsetMessage).toBeDefined();
-    expect(sunsetMessage.lede).toBe("Enjoy the extra evening light!");
-  });
-
-  it("returns empty lede when no milestones and original lede is empty", () => {
-    const data = {
-      daylight_today: 600,
-      daylight_in_14_days: 650,
-    };
-
-    const options = getOptimisticMessageOptions(data, 1, "north", []);
-    const messageWithNullLede = options.find((opt) =>
-      opt.headline.includes("In two weeks, you'll have")
-    );
-
-    expect(messageWithNullLede).toBeDefined();
-    expect(messageWithNullLede.lede).toBe("");
-  });
-
-  it("includes milestone countdown as headline message", () => {
-    const data = {};
-    const upcomingMilestones = [
-      { title: "Spring equinox", offsetDays: 10 },
-      { title: "Longest day", offsetDays: 90 },
-    ];
-
-    const options = getOptimisticMessageOptions(data, 3, "north", upcomingMilestones);
-    const milestoneHeadline = options.find((opt) =>
-      opt.headline.includes("until the spring equinox")
-    );
-
-    expect(milestoneHeadline).toBeDefined();
-    expect(milestoneHeadline.headline).toBe("Only 10 days until the spring equinox!");
-    expect(milestoneHeadline.lede).toBe("You're almost there :)");
-  });
-
-  it("excludes milestone headline when no milestones provided", () => {
-    const data = {};
-
-    const options = getOptimisticMessageOptions(data, 3, "north", []);
-    const milestoneHeadline = options.find((opt) => opt.headline.includes("until"));
-
-    expect(milestoneHeadline).toBeUndefined();
-  });
-
-  it("uses singular 'day' in milestone headline for 1 day", () => {
-    const data = {};
-    const upcomingMilestones = [{ title: "Summer solstice", offsetDays: 1 }];
-
-    const options = getOptimisticMessageOptions(data, 6, "north", upcomingMilestones);
-    const milestoneHeadline = options.find((opt) =>
-      opt.headline.includes("until the summer solstice")
-    );
-
-    expect(milestoneHeadline).toBeDefined();
-    expect(milestoneHeadline.headline).toBe("Only 1 day until the summer solstice!");
-  });
-
-  it("adds a definite article for 'first' milestone titles", () => {
-    const data = {};
-    const upcomingMilestones = [{ title: "First day with 10+ hours of daylight", offsetDays: 2 }];
-
-    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
-    const milestoneHeadline = options.find((opt) =>
-      opt.headline.includes("until the first day with 10+ hours of daylight")
-    );
-
-    expect(milestoneHeadline).toBeDefined();
-    expect(milestoneHeadline.headline).toBe(
-      "Only 2 days until the first day with 10+ hours of daylight!"
+    expect(options({}, 11, "north", list)[0].headline).toBe(
+      "Only 5 days until sunsets start getting later again!"
     );
   });
-
-  it("rewrites daylight gain milestone titles for countdown headlines", () => {
-    const data = {};
-    const upcomingMilestones = [
-      {
-        title: "Gained 30 minutes of daylight since the winter solstice",
-        offsetDays: 11,
-      },
-    ];
-
-    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
-    const milestoneHeadline = options.find((opt) => opt.headline.includes("until you've gained"));
-
-    expect(milestoneHeadline).toBeDefined();
-    expect(milestoneHeadline.headline).toBe(
-      "Only 11 days until you've gained 30 minutes of daylight since the winter solstice!"
+  it("excludes invalid/past/today and distant countdowns and limits almost there to one week", () => {
+    for (const days of [-1, 0, 36, Infinity, NaN])
+      expect(options({}, 11, "north", [{ ...milestone, offsetDays: days }])).toEqual([]);
+    expect(options({}, 11, "north", [{ ...milestone, offsetDays: 35 }])[0].headline).toContain(
+      "Only 5 weeks until"
+    );
+    expect(options({}, 11, "north", [{ ...milestone, offsetDays: 8 }])[0].lede).not.toContain(
+      "almost"
     );
   });
-
-  it("rewrites finished milestone titles for countdown headlines", () => {
-    const data = {};
-    const upcomingMilestones = [
-      { title: "Finished the 10 darkest weeks of the year", offsetDays: 1 },
-    ];
-
-    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
-    const milestoneHeadline = options.find((opt) => opt.headline.includes("until you've finished"));
-
-    expect(milestoneHeadline).toBeDefined();
-    expect(milestoneHeadline.headline).toBe(
-      "Only 1 day until you've finished the 10 darkest weeks of the year!"
+  it("uses the same sentence for fallback ledes and avoids self-repetition", () => {
+    const data = { daylight_today: 500, daylight_in_14_days: 520 };
+    const list = options(data, 12, "north", [milestone]);
+    expect(list.find((m) => m.id === "two-weeks").lede).toBe(
+      "Only 5 days until sunsets start getting later again!"
     );
+    const dedicated = options({ days_until_later_sunsets: 5 }, 12, "north", [milestone]);
+    expect(dedicated).toHaveLength(1);
+    expect(dedicated[0].lede).not.toBe(dedicated[0].headline);
   });
-
-  it("rewrites daylight gain milestone titles for fallback ledes", () => {
-    const data = {
-      daylight_today: 600,
-      daylight_in_14_days: 650,
-    };
-    const upcomingMilestones = [
-      {
-        title: "Gained 30 minutes of daylight since the winter solstice",
-        offsetDays: 11,
-      },
-    ];
-
-    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
-    const messageWithNullLede = options.find((opt) =>
-      opt.headline.includes("In two weeks, you'll have")
-    );
-
-    expect(messageWithNullLede).toBeDefined();
-    expect(messageWithNullLede.lede).toBe(
-      "Only 11 days until you've gained 30 minutes of daylight since the winter solstice!"
-    );
-  });
-
-  it("excludes milestone headline when nearest milestone is more than 5 weeks away", () => {
-    const data = {};
-    const upcomingMilestones = [{ title: "Spring equinox", offsetDays: 36 }];
-
-    const options = getOptimisticMessageOptions(data, 3, "north", upcomingMilestones);
-    const milestoneHeadline = options.find((opt) => opt.headline.includes("until"));
-
-    expect(milestoneHeadline).toBeUndefined();
-  });
-
-  it("includes milestone headline when milestone is exactly 35 days away", () => {
-    const data = {};
-    const upcomingMilestones = [{ title: "Spring equinox", offsetDays: 35 }];
-
-    const options = getOptimisticMessageOptions(data, 3, "north", upcomingMilestones);
-    const milestoneHeadline = options.find((opt) =>
-      opt.headline.includes("until the spring equinox")
-    );
-
-    expect(milestoneHeadline).toBeDefined();
-  });
-
-  it("excludes milestone fallback lede when nearest milestone is more than 5 weeks away", () => {
-    const data = {
-      daylight_today: 600,
-      daylight_in_14_days: 650,
-    };
-    const upcomingMilestones = [{ title: "Longest day", offsetDays: 90 }];
-
-    const options = getOptimisticMessageOptions(data, 1, "north", upcomingMilestones);
-    const messageWithNullLede = options.find((opt) =>
-      opt.headline.includes("In two weeks, you'll have")
-    );
-
-    expect(messageWithNullLede).toBeDefined();
-    expect(messageWithNullLede.lede).toBe("");
-  });
-
-  it("drops 'Only' when day formatting becomes 'less than' weeks", () => {
-    const data = {
-      days_until_winter_solstice: 20,
-    };
-
-    const options = getOptimisticMessageOptions(data, 11, "north");
-    const message = options.find((opt) => opt.headline.includes("daylight loss stops entirely"));
-
-    expect(message).toBeDefined();
-    expect(message.headline).toBe("Less than 3 weeks remain until daylight loss stops entirely.");
-  });
-
-  it("drops 'only' mid-sentence when day formatting becomes 'less than' weeks", () => {
-    const data = {
-      days_until_max_daily_gain: 50,
-    };
-
-    const options = getOptimisticMessageOptions(data, 2, "north");
-    const message = options.find((opt) => opt.headline.includes("largest daily increase"));
-
-    expect(message).toBeDefined();
-    expect(message.headline).toBe(
-      "The largest daily increase in daylight is less than 8 weeks away."
-    );
-  });
-
-  it("deduplicates sunset_comparison group, keeping the largest value", () => {
+  it("keeps group deduplication and caps the final list", () => {
     const data = {
       sunset_today: 1100,
       sunset_earliest: 900,
       sunset_start_of_year: 950,
-      sunset_one_month_ago: 1000,
+      after_sunset_turnaround: 1,
     };
-    const options = getOptimisticMessageOptions(data, 2, "north");
-    const sunsetMessages = options.filter(
-      (opt) => opt.headline.includes("sunset") && opt.headline.includes("later")
-    );
-    expect(sunsetMessages).toHaveLength(1);
-    expect(sunsetMessages[0].headline).toContain("earliest");
-  });
-
-  it("deduplicates daylight_gained group, keeping the largest value", () => {
-    const data = {
-      daylight_today: 800,
-      daylight_minimum: 500,
-      daylight_at_end_of_month: 750,
-      daylight_one_month_ago: 700,
-    };
-    const options = getOptimisticMessageOptions(data, 2, "north");
-    const gainedMessages = options.filter(
-      (opt) =>
-        opt.headline.includes("gained") || opt.headline.includes("longer than the winter solstice")
-    );
-    expect(gainedMessages).toHaveLength(1);
-    expect(gainedMessages[0].headline).toContain("since the winter solstice");
-  });
-
-  it("deduplicates milestone_countdown group, keeping the nearest milestone", () => {
-    const data = {
-      days_until_winter_solstice: 5,
-      days_until_earliest_sunset: 30,
-    };
-    const options = getOptimisticMessageOptions(data, 11, "north");
-    const countdowns = options.filter(
-      (opt) =>
-        opt.headline.includes("daylight loss stops entirely") ||
-        opt.headline.includes("earliest sunset")
-    );
-    expect(countdowns).toHaveLength(1);
-    expect(countdowns[0].headline).toContain("daylight loss stops entirely");
-  });
-
-  it("does not deduplicate standalone (ungrouped) messages", () => {
-    const data = {
-      daylight_today: 800,
-      daylight_minimum: 500,
-      daylight_maximum: 900,
-      daylight_after_5pm_today: 60,
-    };
-    const options = getOptimisticMessageOptions(data, 5, "north");
-    const after5pm = options.find((opt) => opt.headline.includes("after 5pm"));
-    const regained = options.find((opt) => opt.headline.includes("regained"));
-    expect(after5pm).toBeDefined();
-    expect(regained).toBeDefined();
-  });
-
-  it("returns at most 10 messages even when more are valid", () => {
-    const now = new Date();
-    const data = {
-      sunset_today: 1100,
-      sunset_earliest: 900,
-      sunset_start_of_year: 950,
-      sunset_one_month_ago: 1000,
-      daylight_today: 800,
-      daylight_minimum: 500,
-      daylight_maximum: 900,
-      daylight_at_end_of_month: 850,
-      daylight_one_month_ago: 700,
-      daylight_after_5pm_today: 60,
-      daylight_daily_gain_this_week_min: 2,
-      daylight_in_14_days: 850,
-      daylight_gain_this_week: 15,
-      daylight_gain_today: 2.5,
-      spring_equinox_date: new Date(now.getFullYear(), 2, 20),
-      today_date: new Date(now.getFullYear(), 2, 1),
-      days_until_sunset_after_5pm: 5,
-      days_until_sunset_after_6pm: 30,
-      days_until_sunset_after_7pm: 60,
-      days_until_max_daily_gain: 15,
-    };
-    const milestones = [{ title: "Spring equinox", offsetDays: 19 }];
-    const options = getOptimisticMessageOptions(data, 3, "north", milestones);
-    expect(options.length).toBeLessThanOrEqual(10);
-  });
-
-  it("keeps the sole message when only one in a group qualifies", () => {
-    const data = {
-      sunset_today: 1000,
-      sunset_earliest: 900,
-    };
-    const options = getOptimisticMessageOptions(data, 1, "north");
-    const sunsetMessages = options.filter((opt) =>
-      opt.headline.includes("later than it was at its earliest")
-    );
-    expect(sunsetMessages).toHaveLength(1);
+    expect(options(data).filter((m) => m.id.startsWith("sunset-"))).toHaveLength(1);
+    expect(options(data).length).toBeLessThanOrEqual(10);
   });
 });

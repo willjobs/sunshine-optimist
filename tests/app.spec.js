@@ -17,6 +17,9 @@ test.beforeEach(async ({ page }) => {
 
 test("app loads with baseline content and stats", async ({ page }) => {
   await page.goto("/");
+  await expect(page.locator("#headline")).not.toHaveAttribute("data-loading", "true", {
+    timeout: 15000,
+  });
 
   await expect(page).toHaveTitle("Sunshine Optimist");
   await expect(page.getByText("Sunshine Optimist", { exact: true })).toBeVisible();
@@ -42,6 +45,9 @@ test("app loads with baseline content and stats", async ({ page }) => {
 
 test("message navigation uses keyboard-operable button semantics", async ({ page }) => {
   await page.goto("/");
+  await expect(page.locator("#headline")).not.toHaveAttribute("data-loading", "true", {
+    timeout: 15000,
+  });
 
   const navigation = page.getByRole("navigation", { name: "Message navigation" });
   await expect(navigation).toBeVisible();

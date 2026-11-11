@@ -27,6 +27,7 @@ scripts/
 ├── services/
 │   ├── geocoding-service.js    # Open-Meteo API for city search
 │   ├── milestone-scanner-service.js # Scans major cities for today's milestones
+│   ├── seasonal-insights-service.js # Winter context, daylight intervals, comparable rates
 │   ├── reverse-geocode-service.js # BigDataCloud API for coords to place name
 │   └── storage-service.js      # localStorage abstraction
 ├── formatters/
@@ -81,22 +82,32 @@ State is accessed through exported getter/setter functions.
 - `daylight-controller.js` uses Astronomy Engine to compute sunrise/sunset
 - It scans the year to find extremes (earliest sunset, shortest/longest day)
 - Day-over-day deltas (sunset gain and daylight gain vs yesterday) are computed in `calculateDeltas` and displayed as subline gain badges beneath the stat values
-- Heavy calculations use async APIs (`getYearlySunExtremesAsync`) that yield to the main thread
+- Heavy calculations use async APIs (`getYearlySunExtremesAsync`, `getWinterInsightsAsync`) that yield to the main thread
+- Winter insights are cached per location/timezone and winter, including in-progress scans. Summer-to-summer scans rank the actual darkest 70 dates and locate winter turning points across calendar-year boundaries
+- Rankings include full polar 0/24h days while incomplete transition statistics stay unknown
+- Annual ranking identifies exactly 70 dates with the most daylight; ties are chronological. Darkest-day ties favor later dates so equally dark polar-night days are behind the completion milestone
+- After-5pm daylight intersects sunrise/sunset with the selected local day's 5pm-to-midnight interval using actual instants
+- City discovery uses today's upward crossings and a short descent to the winter daylight minimum rather than scanning an entire season for every city
 
 ### Optimistic Messaging
 
-- `messages.js` defines templates with `months`, `data_needs`, and optional `additional_requirements`
+- `messages.js` defines templates with `id`, `months`, `data_needs`, raw-value `min`/`max`, and optional `when` predicates
 - Placeholders like `{## minutes}` are filled via `getValue` when needed
-- `getOptimisticMessageOptions` returns valid messages; `message-ui.js` rotates them (values that round to 0 are excluded)
+- `getOptimisticMessageOptions` returns valid messages; `message-ui.js` rotates them; raw thresholds are applied before formatting
 - Dot indicators below the message are interactive buttons; clicking/tapping a dot navigates to that message and resets the auto-rotation timer
-- Messages with the same non-null `group` are de-duplicated by best `getValue` (highest value, except `sunset_countdown` and `milestone_countdown` use the lowest), and the list is capped
-- If a milestone is today, milestone copy overrides the rotating message
+- Messages with the same non-null `group` are de-duplicated by best `getValue` (highest value, except `milestone_countdown` uses the lowest; explicit priority keeps measured acceleration ahead of generic weekly gain), and the list is capped
+- Dedicated milestone countdown sentences are shared with fallback ledes and text sharing; compact card titles are never spliced into sentences
+- Positive generic countdowns are limited to 35 days. Informational events are excluded and “almost there” is reserved for the last seven days
+- If a celebratory milestone is today, milestone copy overrides the rotating message; sunrise return and winter turnarounds have priority
 
 ### Milestones
 
 - `milestones.js` contains threshold and daylight-gain milestones
 - `daylight-controller.js` adds computed milestones (earliest/shortest/longest day, equinoxes, DST, first 12hr day, finished 10 darkest weeks)
-- The milestone card cycles through upcoming entries; confetti fires on milestone days
+- The milestone card cycles through upcoming entries; confetti fires on celebratory milestone days
+- Later sunsets and longer days celebrate the first observed daily improvement, with positive 14-day outlooks
+- Sunset thresholds start at the relevant earliest sunset; duration/gain thresholds start at the actual shortest day. Dynamic half-hours include today's upward crossing as well as the next future threshold
+- First sunset after midnight sun is informational only, never an optimistic countdown or celebration. Polar summer's longest-day celebration uses the solstice instead of incorrectly treating the first normal day as the longest
 - Easter egg: clearing the location input shows a "Find cities with milestones" button that scans 100 major world cities to find up to 5 with a milestone today
 - A persistent action below the milestone card uses the same city scan and shows matching cities with their milestone names in place
 

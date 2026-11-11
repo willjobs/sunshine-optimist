@@ -33,13 +33,21 @@ const buildMockAstronomy = ({
   daylightMatch = null,
   gainMatch = null,
 } = {}) => ({
-  getPreviousSeasonDateParts: () => WINTER_SOLSTICE,
-  findFirstSunsetAfter: () => sunsetMatch,
-  findFirstDaylightAtLeast: () => daylightMatch,
-  findFirstDaylightGain: () => gainMatch,
+  getPreviousSeasonDateParts: (_today, _hemisphere, season) =>
+    season === "summer" ? { year: 2025, month: 6, day: 21 } : WINTER_SOLSTICE,
+  getNextSeasonDateParts: (_date, _hemisphere, season) =>
+    season === "summer" ? { year: 2026, month: 6, day: 21 } : { year: 2026, month: 12, day: 21 },
+  getSunsetMinutesForDateParts: (parts) =>
+    sunsetMatch && parts.day === sunsetMatch.dateParts.day ? 961 : 959,
+  getDaylightMinutesForDateParts: (parts) => {
+    if (daylightMatch) return parts.day === daylightMatch.dateParts.day ? 601 : 599;
+    if (gainMatch) return parts.day === gainMatch.dateParts.day ? 531 : 529;
+    return 500;
+  },
+  findWinterDaylightMinimum: () => ({ dateParts: WINTER_SOLSTICE, minutes: 500 }),
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
 });
 
@@ -52,53 +60,53 @@ describe("hasMilestoneToday", () => {
     timezone: "America/New_York",
   };
 
-  it("returns null when no milestones match today", () => {
+  it("returns null when no milestones match today", async () => {
     createAstronomyContext.mockReturnValue(buildMockAstronomy());
-    expect(hasMilestoneToday(city, mockGetDateParts)).toBeNull();
+    expect(await hasMilestoneToday(city, mockGetDateParts)).toBeNull();
   });
 
-  it("returns a sunset threshold milestone matching today", () => {
+  it("returns a sunset threshold milestone matching today", async () => {
     createAstronomyContext.mockReturnValue(
       buildMockAstronomy({ sunsetMatch: { dateParts: TODAY, offsetDays: 56 } })
     );
-    const result = hasMilestoneToday(city, mockGetDateParts);
+    const result = await hasMilestoneToday(city, mockGetDateParts);
     expect(result).not.toBeNull();
     expect(result.city).toBe(city);
     expect(result.milestone.id).toBe("sunset-after-4");
   });
 
-  it("returns a daylight duration milestone matching today", () => {
+  it("returns a daylight duration milestone matching today", async () => {
     createAstronomyContext.mockReturnValue(
       buildMockAstronomy({ daylightMatch: { dateParts: TODAY, offsetDays: 80 } })
     );
-    const result = hasMilestoneToday(city, mockGetDateParts);
+    const result = await hasMilestoneToday(city, mockGetDateParts);
     expect(result).not.toBeNull();
     expect(result.milestone.id).toBe("first-10-hours");
   });
 
-  it("returns a daylight gain milestone matching today", () => {
+  it("returns a daylight gain milestone matching today", async () => {
     createAstronomyContext.mockReturnValue(
       buildMockAstronomy({ gainMatch: { dateParts: TODAY, offsetDays: 45 } })
     );
-    const result = hasMilestoneToday(city, mockGetDateParts);
+    const result = await hasMilestoneToday(city, mockGetDateParts);
     expect(result).not.toBeNull();
     expect(result.milestone.id).toBe("gain-30");
   });
 
-  it("does not match milestones on a different day", () => {
+  it("does not match milestones on a different day", async () => {
     const otherDay = { year: 2026, month: 2, day: 20 };
     createAstronomyContext.mockReturnValue(
       buildMockAstronomy({ sunsetMatch: { dateParts: otherDay, offsetDays: 61 } })
     );
-    expect(hasMilestoneToday(city, mockGetDateParts)).toBeNull();
+    expect(await hasMilestoneToday(city, mockGetDateParts)).toBeNull();
   });
 
-  it("returns null when getPreviousSeasonDateParts returns null", () => {
+  it("returns null when getPreviousSeasonDateParts returns null", async () => {
     createAstronomyContext.mockReturnValue({
       ...buildMockAstronomy(),
       getPreviousSeasonDateParts: () => null,
     });
-    expect(hasMilestoneToday(city, mockGetDateParts)).toBeNull();
+    expect(await hasMilestoneToday(city, mockGetDateParts)).toBeNull();
   });
 });
 
